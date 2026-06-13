@@ -1,25 +1,20 @@
 # nirs4all-arena design
 
-| Champ | Valeur |
+| Field | Value |
 |---|---|
-| Statut | Design initial nettoye |
+| Status | Initial design cleaned up |
 | Date | 2026-06-05 |
-| Audience | Mainteneurs nirs4all, futurs contributeurs de datasets/methodes, developpeurs Arena |
-| Perimetre | Stockage, ingestion, requetage et dataviz des performances de pipelines NIRS |
-| Hors perimetre | Execution compute detaillee, hebergement de datasets, conservation de modeles entraines |
+| Audience | nirs4all maintainers, future dataset/method contributors, Arena developers |
+| Scope | Storage, ingestion, querying, and data visualization of NIRS pipeline performances |
+| Out of scope | Detailed compute execution, dataset hosting, retention of trained models |
 
-## 1. Resume
+## 1. Summary
 
-`nirs4all-arena` doit devenir l'environnement de reference pour stocker, comparer et explorer les performances de pipelines NIRS. L'Arena ne stocke pas les datasets bruts, les modeles entraines, les bundles `.n4a`, les transformeurs fitted ou autres artefacts lourds. Elle stocke:
+`nirs4all-arena`should become the reference environment for storing, comparing and exploring the performance of NIRS pipelines. Arena does not store raw datasets, trained models,`.n4a`bundles, fitted transformers or other heavy artifacts. It stores:
 
-- les cartes d'identite des datasets ou fingerprints anonymises;
-- les definitions completes des taches, splits, CV, seeds et RNG;
-- les pipelines nirs4all sous forme canonique, y compris les DAG complexes;
-- les scores versionnes;
-- les residus et, seulement si autorise, les predictions/targets necessaires au recalcul;
-- les metadonnees d'environnement suffisantes pour documenter les conditions d'execution.
+- identity cards of anonymized datasets or fingerprints; - complete definitions of spots, splits, CV, seeds and RNG; - nirs4all pipelines in canonical form, including complex DAGs; - versioned scores; - the residuals and, only if authorized, the predictions/targets necessary for the recalculation; - sufficient environment metadata to document the execution conditions.
 
-Le tuple experimental de base est:
+The basic experimental tuple is:
 
 ```text
 DATASET_CARD ou DATASET_FINGERPRINT
@@ -33,106 +28,76 @@ DATASET_CARD ou DATASET_FINGERPRINT
   x SCORE_VERSION
 ```
 
-`PIPELINE_DAG` remplace l'ancienne vision lineaire `preprocessing_chain x model`: un pipeline peut contenir des branches, des traitements multi-source ou multimodaux, des merges, plusieurs modeles, du stacking, du bagging, une moyenne, un vote, ou toute autre structure DAG produite par nirs4all/dag-ml.
+`PIPELINE_DAG` replaces the old linear view `preprocessing_chain x model`: a pipeline can contain branches, multi-source or multimodal processing, merges, several models, stacking, bagging, averaging, voting, or any other DAG structure produced by nirs4all/dag-ml.
 
-L'Arena doit servir deux usages:
+The Arena must serve two purposes:
 
-1. **Benchmarks publics** sur les datasets de reference de `nirs4all-datasets`.
-2. **Agregation de runs utilisateurs** a moyen terme, meme si le dataset n'est pas partageable: on stocke alors une carte statistique anonymisee et un hash/fingerprint, pas les donnees.
+1. **Public benchmarks** on `nirs4all-datasets` reference datasets.
+2. **Aggregation of user runs** in the medium term, even if the dataset is not shareable: in that case we store an anonymized statistical map and a hash/fingerprint, not the data.
 
-## 2. Decisions structurantes
+## 2. Structural decisions
 
-1. **Producteur cible unique: nirs4all.** Les runs viennent a terme de nirs4all, quelle que soit la capsule: Python lib, R lib, Studio, Studio Lite, batch/cluster. Les sources externes ne sont acceptees que si elles passent par un export/manifest compatible nirs4all.
-2. **Pas d'artefacts.** L'Arena ne conserve pas les modeles entraines, transformeurs fitted, caches de features, bundles ou datasets. Elle conserve les pipelines documentes, scores, residus et cartes d'identite.
-3. **Stockage aligne workspace nirs4all.** Le format cible est SQLite pour les metadonnees et Parquet pour les arrays de resultats/residus, en continute avec le workspace nirs4all actuel. DuckDB n'est pas le format de reference.
-4. **Dataset decouple en trois niveaux.** `DatasetCard` decrit les donnees, `TaskSpec` decrit la cible/tache, `DatasetVariant` decrit une vue/sous-population/agregation.
-5. **Multi-target: plusieurs taches mono-target par defaut.** Une tache multi-output reste possible plus tard, mais le benchmark initial indexe chaque target comme `TaskSpec` mono-target.
-6. **Pas de baseline canonique imposee.** L'Arena est agnostique. La dataviz permet de choisir une reference interactive, mais le stockage ne suppose pas `PLS-canon`.
-7. **Ranking configurable.** Une vue peut classer le CV, un fold, le test externe, le refit, ou une aggregation specifique. Le niveau classe fait partie de la definition versionnee de la vue.
-8. **Score versioning explicite.** Tout score porte une version de calcul: metric implementation, politique d'aggregation, filtres, niveau fold/CV/refit et date.
-9. **Datasets prives/anonymises supportes.** Si les donnees ne sont pas publiables, l'Arena expose seulement la carte statistique, les scores et les residus autorises par la politique de publication.
+1. **Single target producer: nirs4all.** Runs come to completion from nirs4all, whatever the capsule: Python lib, R lib, Studio, Studio Lite, batch/cluster. External sources are only accepted if they pass through a nirs4all-compatible export/manifest.
+2. **No artifacts.** Arena does not retain trained models, fitted transformers, feature caches, bundles, or datasets. It keeps documented pipelines, scores, residuals, and identity cards.
+3. **Aligned nirs4all workspace storage.** The target format is SQLite for metadata and Parquet for result/residual arrays, aligned with the current nirs4all workspace. DuckDB is not the reference format.
+4. **Dataset split into three levels.** `DatasetCard` describes the data, `TaskSpec` describes the target/task, and `DatasetVariant` describes a view/subpopulation/aggregation.
+5. **Multi-target: several single-target tasks by default.** A multi-output task remains possible later, but the initial benchmark indexes each target as a single-target `TaskSpec`.
+6. **No canonical baseline imposed.** The Arena is agnostic. Dataviz allows you to choose an interactive reference, but storage does not assume `PLS-canon`.
+7. **Configurable ranking.** A view can rank the CV, a fold, the external test, the refit, or a specific aggregation. The class level is part of the versioned definition of the view.
+8. **Explicit score versioning.** Every score carries a calculation version: metric implementation, aggregation policy, filters, fold/CV/refit level, and date.
+9. **Private/anonymized datasets supported.** If the data is not publishable, Arena only exposes the statistical map, scores, and residuals authorized by the publication policy.
 
-## 3. Objectifs
+## 3. Goals
 
-### 3.1 Objectifs produit
+### 3.1 Product goals
 
-- Fournir des benchmarks quantitatifs en ligne pour la communaute NIRS.
-- Permettre d'explorer les resultats selon toutes les dimensions: dataset, tache, taille, domaine, split, CV, seed, parametres, operateurs, branche du DAG, modele, strategie de merge/refit, metrique, cout.
-- Montrer les effets des operateurs et des parametres, par exemple l'effet de `n_components` sur les scores PLS.
-- Rendre visible ce qui marche, ce qui ne marche pas, et dans quelles conditions.
-- Permettre l'export des vues et citations pour notebooks, articles et rapports.
+- Provide online quantitative benchmarks for the NIRS community. - Allow you to explore the results according to all dimensions: dataset, task, size, domain, split, CV, seed, parameters, operators, DAG branch, model, merge/refit strategy, metric, cost. - Show the effects of operators and parameters, for example the effect of`n_components`on PLS scores. - Make visible what works, what does not work, and under what conditions. - Allow the export of views and quotes for notebooks, articles and reports.
 
-### 3.2 Objectifs scientifiques
+### 3.2 Scientific goals
 
-- Comparer des pipelines sous conditions documentees et, pour les benchmarks officiels, controlees.
-- Identifier des patterns par dataset, carte statistique, domaine, taille, tache, instrument, preprocessing, modele et parametres.
-- Mesurer la robustesse: variance folds/seeds/splits, instabilite des parametres, taux d'echec, cout.
-- Permettre des analyses de residus et de complementarite entre modeles/DAG.
+- Compare pipelines under documented and, for official benchmarks, controlled conditions. - Identify patterns by dataset, statistical map, domain, size, task, instrument, preprocessing, model and parameters. - Measure robustness: folds/seeds/splits variance, parameter instability, failure rate, cost. - Allow analyzes of residuals and complementarity between models/DAG.
 
-### 3.3 Objectifs techniques
+### 3.3 Technical goals
 
-- Fournir un schema d'export/import propre depuis les workspaces nirs4all.
-- Normaliser et hasher les dimensions pour dedupliquer: datasets, taches, DAG, operateurs, parametres, y_true quand autorise, residus.
-- Permettre des requetes analytiques rapides sans complexifier le format.
-- Garder les anciens scores auditables sans mutation silencieuse.
+- Provide a clean export/import scheme from nirs4all workspaces. - Normalize and hash dimensions to deduplicate: datasets, tasks, DAG, operators, parameters, y_true when allowed, residues. - Allow rapid analytical queries without complicating the format. - Keep old scores auditable without silent mutation.
 
 ## 4. Non-objectifs
 
-- Heberger les datasets bruts.
-- Heberger les modeles entraines ou artefacts fitted.
-- Imposer une baseline universelle.
-- Imposer une seule definition de leaderboard.
-- Refaire le scheduler compute de nirs4all-cluster dans le design initial.
-- Remplacer `nirs4all-datasets` ou `nirs4all-methods`.
+- Host raw datasets. - Host trained models or fitted artifacts. - Impose a universal baseline. - Impose a single definition of leaderboard. - Redo the nirs4all-cluster compute scheduler in the initial design. - Replace`nirs4all-datasets`or`nirs4all-methods`.
 
-## 5. Relation avec l'ecosysteme
+## 5. Relationship with the ecosystem
 
 ### 5.1 nirs4all-datasets
 
-`nirs4all-datasets` fournira les datasets de reference versionnes. L'Arena doit anticiper sa v1 avec un mock de `DatasetCard`, puis brancher le vrai catalogue quand il sera stable.
+`nirs4all-datasets`will provide the versioned reference datasets. Arena must anticipate its v1 with a mock of`DatasetCard`, then plug in the real catalog when it is stable.
 
-Pour chaque dataset reference, l'Arena stocke:
+For each dataset reference, Arena stores:
 
-- identite: `dataset_id`, `dataset_version`, DOI/source, citation, licence;
-- acces: URL/API/documentation de telechargement, statut public/restricted/private;
-- hashes: `content_hash`, `descriptor_hash`, `dataset_card_hash`;
-- carte statistique: n_samples, n_features, signal_type, axis range, missingness, distributions de target, statistiques spectrales, groupes disponibles;
-- metadonnees NIRS: instrument, domaine, modalite, source(s), unite d'axe, plage spectrale, resolution si connue;
-- splits fournis si le dataset en declare.
+- identity:`dataset_id`,`dataset_version`, DOI/source, citation, license; - access: URL/API/download documentation, public/restricted/private status; - hashes:`content_hash`,`descriptor_hash`,`dataset_card_hash`; - statistical map: n_samples, n_features, signal_type, axis range, missingness, target distributions, spectral statistics, available groups; - NIRS metadata: instrument, domain, modality, source(s), axis unit, spectral range, resolution if known; - splits provided if the dataset declares them.
 
-Le dataset peut etre prive: l'Arena n'heberge pas les donnees, mais garde la carte d'identite statistique et le lien d'acces si l'utilisateur a les droits.
+The dataset can be private: Arena does not host the data, but keeps the statistical identity card and the access link if the user has the rights.
 
 ### 5.2 nirs4all
 
-Le workspace nirs4all actuel utilise:
+The current nirs4all workspace uses:
 
-- `store.sqlite` pour runs, pipelines, chains, predictions, logs, projets;
-- `arrays/*.parquet` pour arrays de prediction;
-- `artifacts/` pour artefacts fitted.
+-`store.sqlite`for runs, pipelines, chains, predictions, logs, projects; -`arrays/*.parquet`for prediction arrays; -`artifacts/`for fitted artifacts.
 
-L'Arena doit reutiliser l'esprit SQLite + Parquet, mais **exclure la retention d'artefacts**. Deux options compatibles:
+The Arena must reuse the SQLite + Parquet spirit, but **exclude the retention of artifacts**. Two compatible options:
 
-1. **Extension du workspace nirs4all**: ajouter les tables Arena directement dans `store.sqlite`.
-2. **ArenaStore separe**: importer/exporter depuis un workspace nirs4all vers `arena.sqlite + arrays/`.
+1. **Extension of the nirs4all workspace**: add Arena tables directly in`store.sqlite`. 2. **ArenaStore separate**: import/export from a nirs4all workspace to`arena.sqlite + arrays/`.
 
-Le MVP doit commencer par un import propre depuis les workspaces/exports nirs4all, puis pousser les changements utiles dans nirs4all pour produire directement un export Arena propre.
+The MVP should start with a clean import from the nirs4all workspaces/exports, then push the useful changes into nirs4all to directly produce a clean Arena export.
 
 ### 5.3 nirs4all-methods
 
-L'Arena reference les methodes, elle ne les stocke pas. Pour chaque operateur venant de `nirs4all-methods` ou d'une dependance externe, on garde:
+The Arena references the methods, it does not store them. For each operator coming from`nirs4all-methods`or an external dependency, we keep:
 
-- bibliotheque/package;
-- version;
-- entrypoint;
-- famille;
-- parametres;
-- OS/environnement d'execution;
-- citation/licence si disponible;
-- hash canonique de specification.
+- library/package; - version; -entrypoint; - family; - settings; - OS/execution environment; - citation/license if available; - canonical specification hash.
 
-## 6. Modele conceptuel
+## 6. Conceptual model
 
-### 6.1 Vue d'ensemble
+### 6.1 Overview
 
 ```text
 BenchmarkRelease / UserRunCollection
@@ -151,77 +116,45 @@ BenchmarkRelease / UserRunCollection
 
 ### 6.2 DatasetCard
 
-Carte d'identite d'un dataset connu, typiquement issu de `nirs4all-datasets`.
+Identity card of a known dataset, typically from`nirs4all-datasets`.
 
-Champs:
+Fields:
 
-- `dataset_card_id`;
-- `dataset_id`, `dataset_version`, `source_registry`;
-- `content_hash`, `descriptor_hash`, `dataset_card_hash`;
-- `visibility`: `public`, `restricted`, `private`, `anonymized`;
-- `access_policy`: API, documentation, contact, DOI, licence;
-- `identity_stats_json`: statistiques descriptives stables;
-- `nirs_stats_json`: statistiques spectrales et instrumentales;
-- `grouping_metadata_json`: colonnes de groupes, repetitions, lots, instruments;
-- `citation_id`.
+-`dataset_card_id`; -`dataset_id`,`dataset_version`,`source_registry`; -`content_hash`,`descriptor_hash`,`dataset_card_hash`; -`visibility`:`public`,`restricted`,`private`,`anonymized`; -`access_policy`: API, documentation, contact, DOI, license; -`identity_stats_json`: stable descriptive statistics; -`nirs_stats_json`: spectral and instrumental statistics; -`grouping_metadata_json`: columns of groups, repetitions, batches, instruments; -`citation_id`.
 
 ### 6.3 DatasetFingerprint
 
-Carte anonymisee pour runs utilisateurs ou datasets non partageables.
+Anonymized card for user runs or non-shareable datasets.
 
-Elle doit permettre de comparer des regimes de donnees sans exposer les donnees:
+It must make it possible to compare data regimes without exposing the data:
 
-- `dataset_fingerprint_hash`;
-- `privacy_level`;
-- n_samples, n_features, task_type;
-- statistiques de X: moyennes/variances resumees, plage spectrale, missingness, outlier scores, SNR estime si disponible;
-- statistiques de y: distribution anonymisee, quantiles, nombre de classes, desequilibre;
-- statistiques de groupes: nombre de groupes, tailles, repetition rate;
-- hash optionnel de sample manifest ou de target si autorise;
-- aucune valeur brute obligatoire.
+-`dataset_fingerprint_hash`; -`privacy_level`; - n_samples, n_features, task_type; - X statistics: summarized means/variances, spectral range, missingness, outlier scores, SNR estimates if available; - statistics of y: anonymized distribution, quantiles, number of classes, imbalance; - group statistics: number of groups, sizes, repetition rate; - optional hash of sample manifest or target if allowed; - no mandatory gross value.
 
-Cette entite sert au moyen terme pour agregation de runs utilisateurs: pas besoin d'un dataset explicite dans `nirs4all-datasets`.
+This entity is used in the medium term for aggregation of user runs: no need for an explicit dataset in`nirs4all-datasets`.
 
 ### 6.4 TaskSpec
 
-Une tache correspond a une cible et une definition de prediction. Par defaut, chaque target est une `TaskSpec` separee.
+A task corresponds to a target and a prediction definition. By default, each target is a separate`TaskSpec`.
 
-Champs:
+Fields:
 
-- `task_id`;
-- `dataset_card_id` ou `dataset_fingerprint_hash`;
-- `task_type`;
-- `target_name`, `target_unit`, `target_columns`;
-- `encoding_json`;
-- `target_stats_json`;
-- `target_hash` si autorise;
-- `task_hash`.
+-`task_id`; -`dataset_card_id`or`dataset_fingerprint_hash`; -`task_type`; -`target_name`,`target_unit`,`target_columns`; -`encoding_json`; -`target_stats_json`; -`target_hash`if authorized; -`task_hash`.
 
 ### 6.5 DatasetVariant
 
-Vue d'un dataset pour une tache:
+View of a dataset for a task:
 
-- sous-echantillonnage (`size = 50`, `100`, `all`);
-- aggregation (`sample_mean`, `group_mean`, etc.);
-- grouping;
-- selection de source ou modalite;
-- filtrage editorial de lignes;
-- codage de target si la variante change la tache effective.
+- subsampling (`size = 50`,`100`,`all`); - aggregation (`sample_mean`,`group_mean`, etc.); - grouping; - selection of source or modality; - editorial filtering of lines; - target encoding if the variant changes the effective task.
 
-Champs:
+Fields:
 
-- `dataset_variant_id`;
-- `dataset_card_id` ou `dataset_fingerprint_hash`;
-- `task_id`;
-- `variant_spec_json`;
-- `sample_manifest_hash` si autorise;
-- `dataset_variant_hash`.
+-`dataset_variant_id`; -`dataset_card_id`or`dataset_fingerprint_hash`; -`task_id`; -`variant_spec_json`; -`sample_manifest_hash`if authorized; -`dataset_variant_hash`.
 
 ### 6.6 SplitSpec et SplitInstance
 
-`SplitSpec` decrit la methode, `SplitInstance` decrit l'instance exacte.
+`SplitSpec`describes the method,`SplitInstance`describes the exact instance.
 
-Champs `SplitSpec`:
+Fields for `SplitSpec`:
 
 - `split_method`: random, Kennard-Stone, SPXY, predefined, group split, leave-group-out, etc.;
 - `params_json`;
@@ -229,18 +162,13 @@ Champs `SplitSpec`:
 - `stratification_policy`;
 - `split_spec_hash`.
 
-Champs `SplitInstance`:
+Fields for `SplitInstance`:
 
-- `split_instance_id`;
-- `split_spec_hash`;
-- `rng_context_id`;
-- `partition_summary_json`;
-- `split_indices_hash`;
-- indices ou sample ids seulement si autorises.
+-`split_instance_id`; -`split_spec_hash`; -`rng_context_id`; -`partition_summary_json`; -`split_indices_hash`; - indices or sample ids only if authorized.
 
 ### 6.7 CVSpec et CVInstance
 
-Meme separation spec/instance:
+Same spec/instance separation:
 
 - methode CV;
 - folds/repeats;
@@ -250,32 +178,21 @@ Meme separation spec/instance:
 
 ### 6.8 RNGContext
 
-Les seeds et RNG sont des conditions experimentales a part entiere.
+Seeds and RNG are experimental conditions in their own right.
 
-Champs:
+Fields:
 
-- `rng_context_id`;
-- seed utilisateur;
-- seeds derivees par framework: Python, NumPy, sklearn, torch, tensorflow, jax;
-- etat ou politique RNG si disponible;
-- variables deterministes (`PYTHONHASHSEED`, flags CUDA/cuDNN, threads);
-- `rng_context_hash`.
+-`rng_context_id`; - user seed; - seeds derived by framework: Python, NumPy, sklearn, torch, tensorflow, jax; - RNG status or policy if available; - deterministic variables (`PYTHONHASHSEED`, CUDA/cuDNN flags, threads); -`rng_context_hash`.
 
 ### 6.9 PipelineDAGSpec
 
-Le pipeline est un DAG canonique, pas une chaine.
+The pipeline is a canonical DAG, not a chain.
 
-Un DAG contient:
+A DAG contains:
 
-- des **nodes**: preprocessing, augmentation, filtre, feature selector, model, meta-model, merge, stack, bagging, mean, vote, refit, scorer;
-- des **edges**: flux de donnees X/y/predictions/residus/metadata entre nodes;
-- des **ports**: input/output nommes pour gerer multi-source, multimodal, multi-model;
-- des **branches**: chemins paralleles ou conditionnels;
-- des **merge nodes**: concat, mean, weighted mean, voting, stacking, bagging, custom reducer;
-- des **scopes fit/transform**: train_only, fold_train_only, refit_train_only, inference;
-- des **params** par node.
+- **nodes**: preprocessing, augmentation, filter, feature selector, model, meta-model, merge, stack, bagging, mean, vote, refit, scorer; - **edges**: data flow X/y/predictions/residues/metadata between nodes; - **ports**: input/output named to manage multi-source, multimodal, multi-model; - **branches**: parallel or conditional paths; - **merge nodes**: concat, mean, weighted mean, voting, stacking, bagging, custom reducer; - **fit/transform** scopes: train_only, fold_train_only, refit_train_only, inference; - **params** per node.
 
-Champs:
+Fields:
 
 - `pipeline_dag_id`;
 - `dag_schema_version`;
@@ -286,7 +203,7 @@ Champs:
 - `human_label`;
 - `nirs4all_pipeline_manifest_json`.
 
-Invariant: deux syntaxes nirs4all equivalentes doivent produire le meme DAG canonique et le meme `pipeline_dag_hash`.
+Invariant: two equivalent nirs4all syntaxes must produce the same canonical DAG and the same `pipeline_dag_hash`.
 
 ### 6.10 PipelineNodeSpec
 
@@ -302,7 +219,7 @@ Chaque node est indexable:
 - `model_family`;
 - `fit_scope`.
 
-Cette granularite permet la dataviz par operateur ou parametre: effet de `OSC`, effet de `n_components`, effet d'une branche, effet d'un merge.
+This granularity allows data viz by operator or parameter: effect of`OSC`, effect of`n_components`, effect of a branch, effect of a merge.
 
 ### 6.11 OperatorSpec et ParameterSpec
 
@@ -317,18 +234,13 @@ Cette granularite permet la dataviz par operateur ou parametre: effet de `OSC`, 
 
 `ParameterSpec`:
 
-- `node_id`;
-- nom du parametre;
-- valeur canonique;
-- type;
-- `param_value_hash`;
-- indicateurs pour dataviz: numeric/categorical, ordinal, sweepable.
+-`node_id`; - parameter name; - canonical value; - kind; -`param_value_hash`; - indicators for dataviz: numeric/categorical, ordinal, sweepable.
 
-Les parametres doivent etre sortis en tables normalisees, pas uniquement caches dans un JSON, pour pouvoir faire des analyses d'effet.
+The parameters must be output in normalized tables, not just hidden in JSON, to be able to perform effect analyses.
 
 ### 6.12 RefitStrategySpec
 
-Le refit est une strategie de DAG:
+Refit is a DAG strategy:
 
 - `none`;
 - `best_fold`;
@@ -340,7 +252,7 @@ Le refit est une strategie de DAG:
 - `mean_ensemble`;
 - autre node terminal du DAG.
 
-Champs:
+Fields:
 
 - `refit_strategy_hash`;
 - `selection_scope`;
@@ -349,7 +261,7 @@ Champs:
 
 ### 6.13 RunCondition
 
-Identite naturelle d'une condition experimentale:
+Natural identity of an experimental condition:
 
 - `benchmark_release_id` ou `user_run_collection_id`;
 - `dataset_variant_hash`;
@@ -360,37 +272,21 @@ Identite naturelle d'une condition experimentale:
 - `refit_strategy_hash`;
 - `run_condition_hash`.
 
-Les colonnes derivees utiles pour requete (modele principal, presence de SNV, valeur de `n_components`, etc.) peuvent etre materialisees, mais la source canonique reste le DAG.
+The derived columns useful for querying (main model, presence of SNV,`n_components`value, etc.) can be materialized, but the canonical source remains the DAG.
 
 ### 6.14 ExecutionSummary
 
-Resume d'une execution concrete, sans artefact fitted:
+Summary of a concrete execution, without fitted artifact:
 
-- `execution_id`;
-- `run_condition_hash`;
-- `producer_capsule`: python, R, studio, studio-lite, cluster;
-- `nirs4all_version`, `dag_ml_version` si applicable;
-- OS, Python/R version, dependances majeures;
-- hardware resume;
-- temps/memoire;
-- statut: ok/failed/cancelled;
-- failure code/message tronque;
-- `execution_hash`.
+-`execution_id`; -`run_condition_hash`; -`producer_capsule`: python, R, studio, studio-lite, cluster; -`nirs4all_version`,`dag_ml_version`if applicable; - OS, Python/R version, major dependencies; - hardware summary; - time/memory; - status: ok/failed/cancelled; - failure code/truncated message; -`execution_hash`.
 
 ### 6.15 ScoreComputationSpec et ScoreSet
 
-Le versioning de score est explicite.
+Score versioning is self-explanatory.
 
 `ScoreComputationSpec`:
 
-- `score_version`;
-- metric implementation;
-- niveau score: fold, CV, refit, test, custom view;
-- politique d'aggregation;
-- filtres;
-- direction;
-- normalisation eventuelle;
-- `score_computation_hash`.
+-`score_version`; - metric implementation; - score level: fold, CV, refit, test, custom view; - aggregation policy; - filters; - direction; - possible standardization; -`score_computation_hash`.
 
 `ScoreSet`:
 
@@ -402,7 +298,7 @@ Le versioning de score est explicite.
 - `supersedes_score_set_id` si recalcul;
 - `validity_status`.
 
-Un recalcul de score ajoute un nouveau `ScoreSet`; il ne remplace pas silencieusement l'ancien.
+A score recalculation adds a new`ScoreSet`; it does not silently replace the old one.
 
 ### 6.16 MetricObservation
 
@@ -421,7 +317,7 @@ Format long:
 
 ### 6.17 ResidualSet
 
-L'Arena conserve les residus, pas les artefacts.
+The Arena preserves the residue, not the artifacts.
 
 Parquet minimal:
 
@@ -439,41 +335,27 @@ Parquet minimal:
 
 Politique:
 
-- pour dataset public: `y_true`, `y_pred`, residus peuvent etre publies si licence compatible;
-- pour dataset restricted/private: publier par defaut scores agreges et residus seulement si la politique le permet;
-- les ids sont pseudonymises.
+- for public dataset:`y_true`,`y_pred`, residues can be published if compatible license; - for restricted/private dataset: publish by default aggregated scores and residuals only if the policy allows it; - IDs are pseudonymized.
 
 ### 6.18 IngestionBatch
 
 Lot transactionnel:
 
-- `ingestion_batch_id`;
-- source workspace/export nirs4all;
-- `input_export_hash`;
-- statut staging/committed/rejected;
-- compteurs de lignes;
-- erreurs de validation;
-- `clean_report_json`.
+-`ingestion_batch_id`; - source workspace/export nirs4all; -`input_export_hash`; - status staging/committed/rejected; - line counters; - validation errors; -`clean_report_json`.
 
-L'idempotence utilise `(input_export_hash, target_collection, schema_version)`.
+Idempotence uses`(input_export_hash, target_collection, schema_version)`.
 
 ### 6.19 ViewDefinition
 
-Une vue publiee est versionnee:
+A published view is versioned:
 
-- `view_id`;
-- leaderboard, matrix, pp-effect, param-effect, DAG explorer, residual explorer;
-- filtres;
-- niveau score;
-- aggregation;
-- date de materialisation;
-- `view_definition_hash`.
+-`view_id`; - leaderboard, matrix, pp-effect, param-effect, DAG explorer, residual explorer; - filters; - score level; - aggregation; - date of materialization; -`view_definition_hash`.
 
 ## 7. Stockage physique
 
 ### 7.1 Format cible
 
-Le format cible prolonge le workspace nirs4all:
+The target format extends the nirs4all workspace:
 
 ```text
 workspace-or-arena/
@@ -485,11 +367,11 @@ workspace-or-arena/
     arena_export_<hash>.zip
 ```
 
-Pas de `artifacts/` dans l'Arena. Si un workspace nirs4all contient des artefacts pour ses besoins internes, l'export Arena les ignore.
+No`artifacts/`in the Arena. If a nirs4all workspace contains artifacts for its internal needs, the Arena export ignores them.
 
 ### 7.2 SQLite
 
-SQLite stocke les dimensions et faits:
+SQLite stores dimensions and facts:
 
 - dataset cards/fingerprints/tasks/variants;
 - split/CV/RNG;
@@ -504,63 +386,41 @@ SQLite stocke les dimensions et faits:
 
 SQLite convient car:
 
-- il est deja dans nirs4all;
-- il est portable;
-- il gere bien des millions de lignes indexees si le schema est normalise;
-- il evite la lenteur et la complexite observees avec DuckDB dans ce contexte.
+- he is already in nirs4all; - it is portable; - it handles millions of indexed rows well if the schema is normalized; - it avoids the slowness and complexity observed with DuckDB in this context.
 
 ### 7.3 Parquet
 
-Parquet stocke uniquement les arrays de resultats:
+Parquet only stores result arrays:
 
-- residus;
-- y_pred/y_true optionnels;
-- poids;
-- ids pseudonymises;
-- metadata minimale de fold/partition.
+- residues; - optional y_pred/y_true; - weight; - pseudonymized ids; - minimal fold/partition metadata.
 
-Les arrays doivent etre dedupliques autant que possible:
+Arrays should be deduplicated as much as possible:
 
-- `target_vector_hash` quand y_true est stockable;
-- dictionnaires de sample ids;
-- dictionnaires de fold ids;
-- compression Zstd;
-- compactage periodique.
+-`target_vector_hash`when y_true is storable; - sample ids dictionaries; - fold ids dictionaries; - Zstd compression; - periodic compaction.
 
 ### 7.4 Deduplication
 
 Tables de dedup prioritaires:
 
-- `operator_specs`;
-- `parameter_values`;
-- `pipeline_dag_specs`;
-- `dataset_cards`;
-- `dataset_fingerprints`;
-- `task_specs`;
-- `split_instances`;
-- `cv_instances`;
-- `rng_contexts`;
-- `score_computation_specs`;
-- `target_vectors` seulement si autorise;
-- `residual_sets`.
+-`operator_specs`; -`parameter_values`; -`pipeline_dag_specs`; -`dataset_cards`; -`dataset_fingerprints`; -`task_specs`; -`split_instances`; -`cv_instances`; -`rng_contexts`; -`score_computation_specs`; -`target_vectors`only if authorized; -`residual_sets`.
 
-La dedup sert la performance mais aussi la dataviz: un operateur ou parametre identique doit etre requetable partout.
+The dedup serves performance but also dataviz: an identical operator or parameter must be queryable everywhere.
 
-### 7.5 Implications pour le workspace nirs4all actuel
+### 7.5 Implications for the current nirs4all workspace
 
-Le schema actuel `store.sqlite + arrays/*.parquet` est une bonne base, mais il doit evoluer pour l'Arena.
+The current`store.sqlite + arrays/*.parquet`scheme is a good base, but it must evolve for the Arena.
 
 Mapping initial:
 
 | Workspace actuel | Usage Arena | Evolution necessaire |
 |---|---|---|
-| `runs` | source de batch/session | ajouter/exporter release, collection, RNG, score version |
+| `runs` | batch/session source | ajouter/exporter release, collection, RNG, score version |
 | `pipelines` | configuration pipeline | remplacer/augmenter par `PipelineDAGSpec` canonique |
 | `chains` | chemin lineaire ou branche simple | generaliser en `pipeline_nodes` + `pipeline_edges` |
-| `predictions` | metadonnees fold/partition/scores | separer score metadata, residual metadata et scope fold/CV/refit |
+| `predictions` | metadonnees fold/partition/scores | separate score metadata, residual metadata and scope fold/CV/refit |
 | `arrays/*.parquet` | y_true/y_pred actuels | produire `ResidualSet` dedup, y_true/y_pred optionnels |
-| `artifacts` | cache fitted interne | ignore par l'export Arena |
-| `logs` | diagnostic local | garder seulement resume d'erreur/cout si utile |
+| `artifacts` | cache fitted interne | ignored by Arena export |
+| `logs` | diagnostic local | keep only error/cost summary if useful |
 
 Tables nouvelles ou a materialiser:
 
@@ -573,7 +433,7 @@ Tables nouvelles ou a materialiser:
 - `residual_sets`;
 - `ingestion_batches`, `view_definitions`.
 
-Le point cle est de ne pas forcer nirs4all a abandonner son stockage d'artefacts pour ses besoins de replay local. L'Arena definit seulement un **profil d'export sans artefacts**.
+The key point is not to force nirs4all to abandon its artifact storage for its local replay needs. Arena only defines an **export profile without artifacts**.
 
 ## 8. Ingestion et clean
 
@@ -585,7 +445,7 @@ Le point cle est de ne pas forcer nirs4all a abandonner son stockage d'artefacts
 - batch cluster nirs4all;
 - imports historiques convertis en format nirs4all si possible.
 
-### 8.2 Pipeline d'ingestion
+### 8.2 Ingestion pipeline
 
 ```text
 workspace/export
@@ -605,74 +465,43 @@ workspace/export
 
 ### 8.3 Clean attendu
 
-Le clean d'un workspace/export doit:
+The clean of a workspace/export must:
 
-- supprimer toute reference a artefacts fitted non conserves;
-- normaliser les noms de modeles, operateurs, branches et sources;
-- extraire les parametres de JSON vers tables normalisees;
-- verifier les doublons via hashes;
-- typer les echelles: fold/CV/refit/test;
-- recalculer ou tagger les scores selon `ScoreComputationSpec`;
-- produire un rapport lisible.
+- remove any reference to unpreserved fitted artifacts; - standardize the names of models, operators, branches and sources; - extract parameters from JSON to normalized tables; - check for duplicates via hashes; - type the scales: fold/CV/refit/test; - recalculate or tag scores according to`ScoreComputationSpec`; - produce a readable report.
 
 ### 8.4 Validation minimale
 
-- dataset card ou fingerprint present;
-- task mono-target explicite;
-- split/CV compatibles avec le nombre d'echantillons;
-- RNGContext present;
-- PipelineDAG canonique valide;
-- pas de leakage detecte dans split/CV;
-- score version present;
-- residus alignes avec fold/partition;
-- politique de publication compatible avec les arrays exportes.
+- dataset card or fingerprint present; - explicit single-target task; - split/CV compatible with the number of samples; - RNGContext present; - Valid canonical PipelineDAG; - no leakage detected in split/CV; - score version present; - residues aligned with fold/partition; - publication policy compatible with exported arrays.
 
 ## 9. Dataviz et web app
 
 ### 9.1 MVP
 
-1. **Explorer de runs**: table filtrable par dataset, task, DAG, node, parametre, split, CV, seed.
-2. **Leaderboard configurable**: choix du niveau score, metrique, aggregation, filtres.
-3. **Matrice pipeline x dataset/task**: scores, coverage, echec.
-4. **Detail run**: DAG, nodes, params, folds, scores, residus.
+1. **Explorer of runs**: table filterable by dataset, task, DAG, node, parameter, split, CV, seed. 2. **Configurable leaderboard**: choice of score level, metric, aggregation, filters. 3. **Pipeline x dataset/task matrix**: scores, coverage, failure. 4. **Detail run**: DAG, nodes, params, folds, scores, residuals.
 
 ### 9.2 Vues prioritaires
 
-- Effet operateur: ex. impact de `OSC` quand present dans un DAG.
-- Effet parametre: ex. `n_components` PLS vs score.
-- Effet split/CV/seed.
-- Comparaison de deux DAGs.
-- Residual explorer.
-- Robustesse et taux d'echec.
-- Cout performance.
+- Operator effect: ex. impact of`OSC`when present in a DAG. - Parameter effect: ex.`n_components`PLS vs score. - Split/CV/seed effect. - Comparison of two DAGs. - Residual explorer. - Robustness and failure rate. - Cost performance.
 
 ### 9.3 Playground
 
-Le playground doit permettre:
+The playground must allow:
 
-- selection interactive d'une reference, sans baseline canonique imposee;
-- groupby arbitraire: dataset card, fingerprint stats, node role, parametre, merge strategy;
-- extraction notebook-ready;
-- sauvegarde de vues versionnees.
+- interactive selection of a reference, without imposed canonical baseline; - arbitrary groupby: dataset card, fingerprint stats, node role, parameter, merge strategy; - notebook-ready extraction; - saving versioned views.
 
 ## 10. Versioning, invalidation et scoring
 
 ### 10.1 Score versioning
 
-Un score n'est jamais seulement un nombre. Il est toujours attache a:
+A score is never just a number. He is always attached to:
 
-- une metrique;
-- une implementation;
-- un niveau fold/CV/refit/test;
-- une aggregation;
-- une politique de filtres;
-- une date et une version.
+- a metric; - an implementation; - a fold/CV/refit/test level; - an aggregation; - a filter policy; - a date and a version.
 
-Si une metrique est corrigee, l'Arena ajoute une nouvelle version de score. Les anciennes restent auditables et marquees comme superseded.
+If a metric is corrected, Arena adds a new score version. Old ones remain auditable and marked as superseded.
 
 ### 10.2 Invalidation
 
-Les invalidations sont explicites:
+The invalidations are explicit:
 
 - leakage detecte;
 - bug metric;
@@ -681,142 +510,104 @@ Les invalidations sont explicites:
 - politique de publication changee;
 - run corrompu.
 
-Une invalidation ne supprime pas les lignes; elle change seulement les vues valides.
+An invalidation does not delete rows; it only changes valid views.
 
 ### 10.3 Releases
 
-- **Patch**: bug affichage ou nouvelle vue, pas de rerun.
-- **Minor**: nouveaux datasets/methodes/vues, pas de changement de protocole obligatoire.
-- **Major**: nouvelle grille ou nouvelle politique de score officielle.
+- **Patch**: display bug or new view, no rerun. - **Minor**: new datasets/methods/views, no mandatory protocol change. - **Major**: new grid or new official scoring policy.
 
-Une release peut publier plusieurs leaderboards, chacun avec sa `ViewDefinition`.
+A release can publish several leaderboards, each with its`ViewDefinition`.
 
 ## 11. Gouvernance et confidentialite
 
 ### 11.1 Public, restricted, private
 
-Tout ce qui est publie est visible. Pour les datasets prives, la publication doit se limiter aux informations autorisees:
+Everything that is published is visible. For private datasets, publication must be limited to authorized information:
 
-- carte statistique;
-- scores agreges;
-- residus seulement si autorises;
-- pas de raw X;
-- pas de raw y sauf politique explicite.
+- statistical map; - aggregated scores; - residues only if authorized; - no raw X; - no raw except explicit policy.
 
 ### 11.2 Citation
 
-Le pipeline contient l'integralite des operateurs et parametres; l'Arena doit conserver les citations des bibliotheques et methodes quand elles existent.
+The pipeline contains all the operators and parameters; Arena must maintain citations to libraries and methods when they exist.
 
-Les exports de vues doivent produire une liste de citations:
+View exports should produce a list of citations:
 
-- dataset ou dataset card;
-- methode/operator source;
-- nirs4all version;
-- protocole/view definition.
+- dataset or dataset card; - source method/operator; - nirs4all version; - protocol/view definition.
 
 ## 12. Roadmap parallele
 
-### Vue d'ensemble
+### Overview
 
-Les chantiers sont concus pour avancer en parallele. Les dependances bloquantes sont limitees a deux contrats communs: `PipelineDAGSpec` et `ArenaStore schema`.
+The sites are designed to progress in parallel. Blocking dependencies are limited to two common contracts:`PipelineDAGSpec`and`ArenaStore schema`.
 
-| Stream | Objectif | Peut demarrer quand | Livrable |
+| Stream | Goal | Can start when | Deliverable |
 |---|---|---|---|
-| A. Schema Arena | Tables SQLite + schemas Parquet | maintenant | `arena_schema.sql`, schemas arrays |
-| B. Pipeline DAG | Canonicalisation DAG nirs4all/dag-ml | maintenant | `PipelineDAGSpec` + hash |
-| C. Dataset cards | Mock puis integration `nirs4all-datasets` v1 | maintenant avec mock | `DatasetCard`, `DatasetFingerprint` |
-| D. Ingestion workspace | Import/clean depuis workspace nirs4all | apres A partiel | `n4a-arena ingest-workspace` |
-| E. Scores versionnes | `ScoreComputationSpec`, recalcul, supersede | apres A partiel | score versioning |
-| F. Residual store | Parquet residus + politiques publication | apres A partiel | `ResidualSet` |
-| G. Dataviz MVP | UI/exports sur donnees fixtures | avec fixtures A/C/B | explorer + leaderboard configurable |
-| H. nirs4all export | Evolution lib pour export Arena propre | apres B/D prototypes | `nirs4all export-arena` |
-| I. Tests/fixtures | Jeu 2 datasets x DAGs x scores | maintenant | fixtures de validation |
+| A. Schema Arena | SQLite tables + Parquet schemas | now | `arena_schema.sql`, array schemas |
+| B. Pipeline DAG | nirs4all/dag-ml DAG canonicalization | now | `PipelineDAGSpec` + hash |
+| C. Dataset cards | Mock, then integration with `nirs4all-datasets` v1 | now with mock | `DatasetCard`, `DatasetFingerprint` |
+| D. Ingestion workspace | Import/clean from nirs4all workspace | after partial A | `n4a-arena ingest-workspace` |
+| E. Versioned scores | `ScoreComputationSpec`, recalculation, supersede | after partial A | score versioning |
+| F. Residual store | Parquet residuals + publication policies | after partial A | `ResidualSet` |
+| G. Dataviz MVP | UI/exports on fixture data | with A/C/B fixtures | explorer + configurable leaderboard |
+| H. nirs4all export | Library evolution for a clean Arena export | after B/D prototypes | `nirs4all export-arena` |
+| I. Tests/fixtures | Two datasets x DAGs x scores | now | validation fixtures |
 
 ### Phase 0 - Contrats et fixtures
 
-Taches paralleles:
+Parallel tasks:
 
-- A1. Ecrire le schema SQLite Arena minimal.
-- B1. Definir JSON canonical `PipelineDAGSpec`.
-- C1. Definir `DatasetCard` mock compatible future v1 datasets.
-- I1. Creer fixture avec 2 datasets, 2 tasks mono-target, 3 DAGs dont un branche/merge.
-- E1. Definir `ScoreComputationSpec`.
+- A1. Write the minimal SQLite Arena schema. - B1. Set JSON canonical`PipelineDAGSpec`. - C1. Define`DatasetCard`mock compatible future v1 datasets. - I1. Create fixture with 2 datasets, 2 mono-target tasks, 3 DAGs including a branch/merge. - E1. Define`ScoreComputationSpec`.
 
 Sortie: fixtures chargeables et hashes stables.
 
 ### Phase 1 - Store local
 
-Taches paralleles:
+Parallel tasks:
 
-- A2. Implementer `ArenaStore` SQLite + Parquet.
-- D1. Importer workspace nirs4all existant sans artefacts.
-- F1. Ecrire/relire `ResidualSet` Parquet.
-- E2. Ingerer scores fold/CV/refit avec version explicite.
-- B2. Extraire nodes/operators/params depuis pipeline nirs4all.
+- A2. Implement`ArenaStore`SQLite + Parquet. - D1. Import existing nirs4all workspace without artifacts. - F1. Write/read again`ResidualSet`Parquet. - E2. Ingest fold/CV/refit scores with explicit version. - B2. Extract nodes/operators/params from nirs4all pipeline.
 
 Sortie: `n4a-arena ingest-workspace <workspace>` et requetes locales.
 
 ### Phase 2 - Clean et dedup
 
-Taches paralleles:
+Parallel tasks:
 
-- D2. Rapport de clean: champs legacy, artefacts ignores, scores classes.
-- A3. Tables dedup operators/params/DAG/dataset/task/RNG.
-- F2. Dedup y_true/residus quand autorise.
-- E3. Recalcul ou supersede de scores.
-- C2. Support `DatasetFingerprint` pour runs utilisateurs anonymises.
+- D2. Clean report: legacy fields, ignored artifacts, class scores. - A3. Tables dedup operators/params/DAG/dataset/task/RNG. - F2. Dedup y_true/residues when allowed. - E3. Recalculation or supersession of scores. - C2.`DatasetFingerprint`support for anonymized user runs.
 
 Sortie: ingestion idempotente, compacte et auditable.
 
 ### Phase 3 - Dataviz MVP
 
-Taches paralleles:
+Parallel tasks:
 
 - G1. Explorer runs/conditions.
 - G2. Leaderboard configurable sans baseline canonique.
 - G3. Matrice DAG x dataset/task.
 - G4. Effet operateur/parametre.
-- G5. Detail DAG + folds + residus.
+- G5. Detail DAG + folds + residuals.
 
 Sortie: site/app interne exploitable sur fixtures et premiers workspaces.
 
 ### Phase 4 - Integration nirs4all
 
-Taches paralleles:
+Parallel tasks:
 
-- H1. Ajouter export Arena propre dans nirs4all.
-- H2. Ajouter emission `PipelineDAGSpec` depuis nirs4all/dag-ml.
-- H3. Ajouter `RNGContext` complet dans les runs.
-- H4. Ajouter hooks Studio/Studio Lite vers export Arena.
-- D3. Valider import depuis exports produits par toutes les capsules.
+- H1. Add clean Arena export to nirs4all. - H2. Add emission`PipelineDAGSpec`from nirs4all/dag-ml. - H3. Add full`RNGContext`to runs. - H4. Add Studio/Studio Lite hooks to Arena export. - D3. Validate import from exports produced by all capsules.
 
 Sortie: producteur unifie nirs4all.
 
 ### Phase 5 - Public benchmark
 
-Taches paralleles:
+Parallel tasks:
 
-- C3. Brancher `nirs4all-datasets` v1.
-- G6. Exports publics avec politiques restricted/private.
-- E4. Definir premieres `ViewDefinition` publiques.
-- I2. Tests de non-regression sur hashes/scores.
-- Documentation contribution et citation.
+- C3. Plug in`nirs4all-datasets`v1. - G6. Public exports with restricted/private policies. - E4. Set first public`ViewDefinition`. - I2. Non-regression tests on hashes/scores. - Contribution and citation documentation.
 
 Sortie: premiere Arena publique utilisable.
 
 ## 13. Questions residuelles
 
-- Quel format exact de `PipelineDAGSpec` sera partage avec dag-ml ?
-- Quels residus peut-on publier pour chaque niveau de confidentialite ?
-- Quelle taille limite pour conserver les residus de grands runs utilisateurs ?
-- Faut-il materialiser certaines colonnes derivees du DAG pour accelerer les vues, ou les calculer a la demande ?
+- What exact format of`PipelineDAGSpec`will be shared with dag-ml? - What residuals can be published for each level of confidentiality? - What is the size limit for retaining the residue of large user runs? - Should we materialize certain columns derived from the DAG to speed up the views, or calculate them on demand?
 
 ## 14. Decisions a appliquer au prochain dev
 
-1. Partir de SQLite + Parquet, pas DuckDB.
-2. Ne pas stocker les artefacts fitted.
-3. Faire de `PipelineDAGSpec` le coeur du design.
-4. Indexer les operateurs et parametres pour analyser leurs effets.
-5. Supporter les datasets anonymises via `DatasetFingerprint`.
-6. Rendre le score versionne et auditable.
-7. Construire d'abord l'ingestion/clean depuis workspace nirs4all.
+1. Start with SQLite + Parquet, not DuckDB. 2. Do not store fitted artifacts. 3. Make`PipelineDAGSpec`the heart of design. 4. Index the operators and parameters to analyze their effects. 5. Support anonymized datasets via`DatasetFingerprint`. 6. Make the score versioned and auditable. 7. First build the ingestion/clean from workspace nirs4all.
