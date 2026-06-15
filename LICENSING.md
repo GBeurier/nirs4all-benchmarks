@@ -1,6 +1,6 @@
-# Licensing — nirs4all-arena
+# Licensing — nirs4all-benchmarks
 
-`nirs4all-arena` is part of the **nirs4all ecosystem** and is offered under a
+`nirs4all-benchmarks` is part of the **nirs4all ecosystem** and is offered under a
 **dual open-source license plus an optional commercial license** (open-core model).
 
 ## 1. Open-source license (default)
@@ -26,7 +26,7 @@ governed by the open-source terms above.
 ## 2. Commercial license
 
 If the copyleft obligations of CeCILL-2.1 / AGPL-3.0-or-later do not fit your use case —
-for example, embedding `nirs4all-arena` in a **proprietary, closed-source product or SaaS**
+for example, embedding `nirs4all-benchmarks` in a **proprietary, closed-source product or SaaS**
 without publishing your own source code — a **commercial license** is available.
 
 - Terms: [`LICENSES/COMMERCIAL-LICENSE.md`](LICENSES/COMMERCIAL-LICENSE.md).
@@ -34,7 +34,7 @@ without publishing your own source code — a **commercial license** is availabl
 
 ## 3. Third-party components
 
-`nirs4all-arena` relies on third-party open-source components. Their licenses are summarized
+`nirs4all-benchmarks` relies on third-party open-source components. Their licenses are summarized
 in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), and the relevant license-family
 texts are bundled under [`LICENSES/`](LICENSES/).
 

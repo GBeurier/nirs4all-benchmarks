@@ -1,7 +1,7 @@
-# Third-Party Notices — nirs4all-arena
+# Third-Party Notices — nirs4all-benchmarks
 
-`nirs4all-arena` is distributed under `CeCILL-2.1 OR AGPL-3.0-or-later` (plus an optional
-commercial license; see [`LICENSING.md`](LICENSING.md)). nirs4all-arena does **not** vendor the
+`nirs4all-benchmarks` is distributed under `CeCILL-2.1 OR AGPL-3.0-or-later` (plus an optional
+commercial license; see [`LICENSING.md`](LICENSING.md)). nirs4all-benchmarks does **not** vendor the
 components below — they are pulled from their official distributions — but their licenses are
 acknowledged here as a courtesy and for compliance. Licenses are reported on a best-effort
 basis; the authoritative text always ships with each upstream project.

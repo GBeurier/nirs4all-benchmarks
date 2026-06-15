@@ -1,6 +1,9 @@
-# nirs4all-arena
+# nirs4all-benchmarks
 
 Reproducible and scored nirs4all pipelines on nirs4all datasets.
+
+> **nirs4all-benchmarks** is the public package name. The project is still referred to as *the Arena*
+> internally (design docs, code, the engine output contract) — it is the same project.
 
 Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem).
 

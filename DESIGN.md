@@ -1,4 +1,4 @@
-# nirs4all-arena design
+# nirs4all-benchmarks design
 
 | Field | Value |
 |---|---|
@@ -10,7 +10,7 @@
 
 ## 1. Summary
 
-`nirs4all-arena`should become the reference environment for storing, comparing and exploring the performance of NIRS pipelines. Arena does not store raw datasets, trained models,`.n4a`bundles, fitted transformers or other heavy artifacts. It stores:
+`nirs4all-benchmarks`should become the reference environment for storing, comparing and exploring the performance of NIRS pipelines. Arena does not store raw datasets, trained models,`.n4a`bundles, fitted transformers or other heavy artifacts. It stores:
 
 - identity cards of anonymized datasets or fingerprints; - complete definitions of spots, splits, CV, seeds and RNG; - nirs4all pipelines in canonical form, including complex DAGs; - versioned scores; - the residuals and, only if authorized, the predictions/targets necessary for the recalculation; - sufficient environment metadata to document the execution conditions.
 

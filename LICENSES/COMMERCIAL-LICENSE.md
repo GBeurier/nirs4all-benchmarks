@@ -1,7 +1,7 @@
-# Commercial License — nirs4all-arena
+# Commercial License — nirs4all-benchmarks
 
 **Summary (non-binding).** This commercial license allows you to use, modify, integrate,
-and distribute `nirs4all-arena` and derivative works in **proprietary, closed-source** products
+and distribute `nirs4all-benchmarks` and derivative works in **proprietary, closed-source** products
 and services, **including SaaS**, without the copyleft obligations of
 CeCILL-2.1 / AGPL-3.0-or-later (i.e. without the obligation to publish your own source
 code), subject to the agreed terms and applicable fees.
