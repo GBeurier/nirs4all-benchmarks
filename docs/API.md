@@ -16,11 +16,15 @@ sample-keyed residuals.
   - [Scopes](#scopes)
   - [Partitions](#partitions)
   - [Metrics and direction](#metrics-and-direction)
+  - [Facet keys](#facet-keys)
 - [Meta endpoints](#meta-endpoints)
 - [Catalog endpoints](#catalog-endpoints)
 - [Dataviz query endpoints](#dataviz-query-endpoints)
+- [Faceting and pivot endpoints](#faceting-and-pivot-endpoints)
+- [Graph and composition endpoints](#graph-and-composition-endpoints)
+- [Planned runs](#planned-runs)
 - [Run detail and residuals](#run-detail-and-residuals)
-- [Ingestion endpoint](#ingestion-endpoint)
+- [Ingestion endpoints](#ingestion-endpoints)
 - [Python Queries facade](#python-queries-facade)
 
 ## Running the service
@@ -89,6 +93,30 @@ leaderboards/effects. Defaults to `"min"` for unknown names.
 The actual metric names available in a given store are reported by
 `GET /api/overview` under `metrics` (distinct `metric_name` values in
 `metric_observations`).
+
+### Facet keys
+
+The pivot / parallel / playground endpoints slice the benchmark space by **facet
+keys**. At ingest, `build_run_facets` (`src/nirs4all_benchmarks/indexing.py`)
+classifies every pipeline node into a stage *role* (`classify_role`) and
+materializes a long `run_facets` table — one row per
+`(run_condition_hash, facet_key, facet_value)`, with a `facet_num` for numeric
+facets and a `role` for stage facets. A run contributes one row per value of a
+multi-valued facet (presence semantics), so "effect of SNV" or "augmentation
+on/off" become groupable.
+
+Facet keys come in three groups:
+
+| Group | Example keys |
+|---|---|
+| condition | `dataset`, `task_type`, `split_method`, `cv_method`, `n_folds`, `seed`, `refit_strategy`, `pipeline`, `is_linear` |
+| stage / structure | `operator`, `model`, `model_family`, `merge_strategy`, `preprocessing_op`, `augmentation_op`, `scaler_op`, `feature_selection_op`, `n_models`, `n_preprocessing`, `n_augmentation`, `n_stages`, `has_augmentation`, `has_scaler`, `has_feature_selection` |
+| swept parameters | `param:n_components`, `param:kernel`, … (one per sweepable node param) |
+
+`GET /api/facets` lists the keys actually present in a store (those with more than
+one value, plus every `param:*`); `GET /api/facet-values?key=…` enumerates the
+distinct values of one key. Use a returned key as `group_by` / `color_by` for
+`/api/pivot`, as a `dimensions` member for `/api/parallel`.
 
 ## Meta endpoints
 
@@ -418,6 +446,233 @@ Valid executions only; sorted by `stdev` ascending.
 curl -s 'http://127.0.0.1:8000/api/robustness?metric=rmse&scope=cv'
 ```
 
+## Faceting and pivot endpoints
+
+These power the **playground** SPA view: pick a facet to group by, optionally a
+second to split series, and aggregate any metric across executions. See
+[Facet keys](#facet-keys) for what `key` / `group_by` / `color_by` accept.
+
+### `GET /api/facets`
+
+Available facet keys with cardinality, role, and whether the key is numeric. Keys
+with a single value are hidden (except every `param:*`). Used to fill the
+group-by / color-by selectors.
+
+```json
+[
+  {"facet_key": "model_family", "n_values": 6, "role": "model", "numeric": 0},
+  {"facet_key": "split_method", "n_values": 3, "role": null, "numeric": 0},
+  {"facet_key": "param:n_components", "n_values": 12, "role": null, "numeric": 1}
+]
+```
+
+```bash
+curl -s http://127.0.0.1:8000/api/facets
+```
+
+### `GET /api/facet-values`
+
+Distinct values of one facet key (numeric values first, then alphabetical), each
+with the run count `n`. `key` is required.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `key` | str | — | **required** facet key from `/api/facets` |
+
+```json
+[
+  {"facet_value": "5", "facet_num": 5.0, "n": 8},
+  {"facet_value": "10", "facet_num": 10.0, "n": 14},
+  {"facet_value": "kfold", "facet_num": null, "n": 22}
+]
+```
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/facet-values?key=param:n_components'
+```
+
+### `GET /api/pivot`
+
+Aggregate the metric across executions grouped by one facet (`group_by`) and
+optionally split into series by a second (`color_by`). Valid score observations
+only; `include_quarantined=false` additionally requires `execution_validity =
+'valid'`.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `group_by` | str | — | **required** facet key (primary axis) |
+| `color_by` | str? | — | facet key for the second series dimension |
+| `metric` | str | `rmse` | metric name |
+| `scope` | str | `cv` | see [Scopes](#scopes) |
+| `partition` | str? | — | filter to one partition |
+| `dataset` | str? | — | `dataset_fingerprint` filter |
+| `include_quarantined` | bool | `false` | include quarantined executions |
+| `agg` | str | `mean` | echoed back; the aggregate plotted is the per-group mean |
+
+Each row's `value` is the per-group mean of the metric; `min`/`max` bound it and
+`n` is the count of distinct executions in the cell. `group_num` / `color_num` are
+the numeric value when the facet is numeric, else `null` (rows sort by `group_num`
+then `group_value`).
+
+```json
+{
+  "group_by": "model_family", "color_by": "has_augmentation",
+  "metric": "rmse", "scope": "cv", "direction": "min", "agg": "mean",
+  "rows": [
+    {"group_value": "PLSRegression", "group_num": null,
+     "color": "no", "color_num": null,
+     "value": 0.41, "min": 0.38, "max": 0.46, "n": 12}
+  ]
+}
+```
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/pivot?group_by=model_family&color_by=has_augmentation&metric=rmse&scope=cv'
+```
+
+### `GET /api/parallel`
+
+One row per execution with a column for each selected single-valued facet plus the
+metric — feeds a parallel-coordinates plot over split / cv / model / params →
+score. `dimensions` is a comma-separated list of facet keys; the response
+`dimensions` array appends `"metric"`.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `dimensions` | str | — | **required** comma-separated facet keys |
+| `metric` | str | `rmse` | metric name |
+| `scope` | str | `cv` | see [Scopes](#scopes) |
+| `include_quarantined` | bool | `false` | include quarantined executions |
+
+Within each row, a numeric facet contributes its `facet_num`, a categorical one its
+`facet_value`; for a multi-valued facet the first value encountered wins.
+
+```json
+{
+  "dimensions": ["split_method", "model_family", "param:n_components", "metric"],
+  "metric": "rmse", "scope": "cv", "direction": "min",
+  "rows": [
+    {"split_method": "kfold", "model_family": "PLSRegression",
+     "param:n_components": 10.0, "metric": 0.41,
+     "pipeline_label": "SNV → PLS", "execution_hash": "exec_..."}
+  ]
+}
+```
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/parallel?dimensions=split_method,model_family,param:n_components&metric=rmse'
+```
+
+## Graph and composition endpoints
+
+These power the network / landscape / composition SPA views (Cytoscape mega-graph,
+sunburst/treemap).
+
+### `GET /api/graph`
+
+A clustered network. `kind=pipelines` (default) returns the pipeline mega-graph —
+nodes are pipelines (clustered by main-model family, sized by run count, colored by
+mean score); an edge links two pipelines whose shared-operator **Jaccard** is at
+least `min_jaccard`. `kind=operators` returns the operator co-occurrence graph —
+nodes are operators (clustered by stage role via `classify_role`, sized by pipeline
+count); edges connect operators that appear together in a pipeline, weighted by the
+number of co-occurrences. Both cap at the 150 highest-coverage nodes.
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `kind` | str | `pipelines` | `pipelines` or `operators` |
+| `metric` | str | `rmse` | metric name |
+| `scope` | str | `cv` | see [Scopes](#scopes) |
+| `min_jaccard` | float | `0.34` | edge threshold (pipelines graph only) |
+
+Pipelines graph:
+
+```json
+{
+  "kind": "pipelines", "metric": "rmse", "scope": "cv", "direction": "min",
+  "nodes": [
+    {"id": "pdag_...", "label": "SNV → PLS", "cluster": "PLSRegression",
+     "size": 5, "score": 0.41}
+  ],
+  "edges": [
+    {"source": "pdag_a", "target": "pdag_b", "weight": 0.5}
+  ]
+}
+```
+
+Operators graph (`kind=operators`):
+
+```json
+{
+  "kind": "operators", "metric": "rmse", "scope": "cv", "direction": "min",
+  "nodes": [
+    {"id": "PLSRegression", "operator": "sklearn.cross_decomposition.PLSRegression",
+     "cluster": "model", "size": 8, "score": 0.41, "n_runs": 30}
+  ],
+  "edges": [
+    {"source": "SavitzkyGolay", "target": "PLSRegression", "weight": 6}
+  ]
+}
+```
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/graph?kind=pipelines&metric=rmse&min_jaccard=0.34'
+curl -s 'http://127.0.0.1:8000/api/graph?kind=operators&metric=rmse'
+```
+
+### `GET /api/composition`
+
+Role → operator usage hierarchy for a sunburst/treemap, colored by score. One row
+per operator (valid runs only) with its classified `role`, the short class name,
+the number of distinct pipelines and runs it appears in, and the mean score of
+those runs. Rows are grouped by role then descending run count.
+
+| Param | Type | Default |
+|---|---|---|
+| `metric` | str | `rmse` |
+| `scope` | str | `cv` |
+
+```json
+{
+  "metric": "rmse", "scope": "cv", "direction": "min",
+  "rows": [
+    {"operator": "sklearn.cross_decomposition.PLSRegression",
+     "operator_short": "PLSRegression", "role": "model",
+     "n_pipes": 8, "n_runs": 30, "score": 0.41}
+  ]
+}
+```
+
+```bash
+curl -s 'http://127.0.0.1:8000/api/composition?metric=rmse&scope=cv'
+```
+
+## Planned runs
+
+### `GET /api/planned`
+
+The not-yet-run pipeline × dataset conditions awaiting a runner. When a bare
+pipeline is uploaded against target datasets that have no valid execution yet, the
+Arena writes a `planned_runs` row (status `planned`); a runner later fulfils it and
+ingests the result. The Arena itself never runs compute. Takes no parameters;
+ordered newest first.
+
+```json
+[
+  {
+    "plan_id": "plan_0123456789abcdef",
+    "pipeline_dag_hash": "pdag_...", "human_label": "SNV → PLS",
+    "dataset_fingerprint": "df_...", "dataset_name": "soil-carbon",
+    "collection_id": "uploads", "status": "planned",
+    "source": "upload", "created_at": "2026-06-16T10:00:00.000000Z"
+  }
+]
+```
+
+```bash
+curl -s http://127.0.0.1:8000/api/planned
+```
+
 ## Run detail and residuals
 
 ### `GET /api/run/{execution_hash}`
@@ -510,7 +765,7 @@ undefined.
 curl -s 'http://127.0.0.1:8000/api/compare?a=exec_aaa&b=exec_bbb&partition=test'
 ```
 
-## Ingestion endpoint
+## Ingestion endpoints
 
 ### `POST /api/ingest`
 
@@ -549,8 +804,82 @@ curl -s -X POST \
   --data-binary @arena_run_export.json
 ```
 
+### `POST /api/upload`
+
+The unified upload entry point: hand the Arena **anything** that identifies a
+pipeline and/or a run as a `multipart/form-data` POST and it auto-detects the
+payload and runs the run/store/display state machine
+(`src/nirs4all_benchmarks/ingestion/upload.py`, `upload()`). The same logic backs
+the rewritten **upload** SPA view and the `n4a-benchmarks ingest-pipeline` CLI.
+
+Recognized payloads (`kind` in the response):
+
+| Payload | `kind` | Behavior |
+|---|---|---|
+| `ArenaRunExport` manifest (JSON/YAML) | `arena_export` | validated + ingested (`as_release` controls release vs user collection) |
+| dag-ml `ExecutionBundle` (JSON) | `dagml_bundle` | adapted via `bundle_to_export`, then ingested |
+| `.n4a` bundle (zip, with **or** without fitted artifacts) | `pipeline` | weights stripped, recipe registered; `stripped_artifacts` counts removed artifacts |
+| raw nirs4all pipeline — Python step list, or `{pipeline\|steps\|nodes}` — as JSON/YAML | `pipeline` | recipe registered |
+
+For a registered (bare) pipeline plus `target_datasets`, the state machine decides
+**per dataset**: if a valid execution already exists for that pipeline × dataset →
+`already_run` (nothing queued); otherwise a `planned_runs` row is written (status
+`planned`) for a runner to fulfil. See [`GET /api/planned`](#get-apiplanned).
+
+Provide exactly one of `file` or `text`; omitting both is HTTP `400`.
+
+| Where | Param | Type | Default | Notes |
+|---|---|---|---|---|
+| form | `file` | file | — | uploaded `.n4a` / `.json` / `.yaml` (auto-detected by content; `.n4a` is sniffed as a zip) |
+| form | `text` | str | — | raw JSON/YAML recipe or manifest (used when no `file`) |
+| form | `target_datasets` | str | `""` | comma-separated dataset tokens — fingerprints **or** card names / dataset ids — to plan the pipeline against |
+| form | `collection` | str | `uploads` | target collection id |
+| form | `as_release` | bool | `false` | ingest results as a `benchmark_release` (quarantine on leakage) vs `user_run_collection` |
+
+Response mirrors `UploadResult.to_json()`:
+
+```json
+{
+  "kind": "pipeline",
+  "status": "registered",
+  "pipeline_dag_hash": "pdag_...",
+  "pipeline_label": "SNV → PLS",
+  "stripped_artifacts": 2,
+  "datasets": [
+    {"dataset": "df_...", "token": "soil-carbon", "status": "planned",
+     "n_executions": 0, "plan_id": "plan_0123456789abcdef"},
+    {"dataset": "df_...", "token": "df_other", "status": "already_run",
+     "n_executions": 5}
+  ],
+  "ingestion": null,
+  "message": "registered pipeline pdag_01234567; stripped 2 artifact(s)"
+}
+```
+
+`status` is `registered` (pipeline recipe), `ingested` (results accepted), or
+`rejected`. For a results payload `datasets` is `[]` and `ingestion` carries the
+`IngestionResult` fields (`status`, `validity_status`, `run_condition_hash`,
+`execution_hash`, `issues`, `clean_report`); for a pipeline payload `ingestion` is
+`null` and each `datasets` entry reports its per-dataset `status` (`planned` or
+`already_run`), `n_executions`, and (when planned) `plan_id`.
+
+```bash
+# register a .n4a recipe and plan it on two datasets
+curl -s -X POST 'http://127.0.0.1:8000/api/upload' \
+  -F 'file=@model.n4a' \
+  -F 'target_datasets=soil-carbon,df_abc123' \
+  -F 'collection=uploads'
+
+# upload a YAML pipeline recipe as text
+curl -s -X POST 'http://127.0.0.1:8000/api/upload' \
+  -F 'text=- {op: SNV}
+- {op: PLSRegression, n_components: 10}' \
+  -F 'target_datasets=soil-carbon'
+```
+
 The CLI provides equivalent ingestion paths without HTTP:
-`n4a-benchmarks ingest-export`, `ingest-workspace`, and `ingest-bundle`.
+`n4a-benchmarks ingest-export`, `ingest-workspace`, `ingest-bundle`, and
+`ingest-pipeline` (the latter is the CLI face of `/api/upload`).
 
 ## Python Queries facade
 
@@ -579,6 +908,15 @@ try:
     q.parameter_effect("n_components", metric="rmse", scope="cv")
     q.robustness(metric="rmse", scope="cv")
 
+    q.facets()                         # GET /api/facets
+    q.facet_values("param:n_components")            # GET /api/facet-values
+    q.pivot(group_by="model_family", color_by="has_augmentation")  # GET /api/pivot
+    q.parallel(dimensions=["split_method", "model_family"])        # GET /api/parallel
+    q.planned()                        # GET /api/planned
+    q.pipeline_graph(metric="rmse", scope="cv", min_jaccard=0.34)  # GET /api/graph?kind=pipelines
+    q.operator_graph(metric="rmse", scope="cv")     # GET /api/graph?kind=operators
+    q.composition(metric="rmse", scope="cv")        # GET /api/composition
+
     q.run_detail("exec_...")           # None if unknown
     q.fold_scores("exec_...", metric="rmse")   # per-fold rows (facade-only)
     q.residuals("exec_...", partition="validation")
@@ -603,6 +941,14 @@ Mapping of facade methods to HTTP endpoints:
 | `operator_effect(...)` | `GET /api/operator-effect` |
 | `parameter_effect(name, ...)` | `GET /api/parameter-effect` |
 | `robustness(...)` | `GET /api/robustness` |
+| `facets()` | `GET /api/facets` |
+| `facet_values(key, ...)` | `GET /api/facet-values` |
+| `pivot(...)` | `GET /api/pivot` |
+| `parallel(...)` | `GET /api/parallel` |
+| `planned()` | `GET /api/planned` |
+| `pipeline_graph(...)` | `GET /api/graph?kind=pipelines` |
+| `operator_graph(...)` | `GET /api/graph?kind=operators` |
+| `composition(...)` | `GET /api/composition` |
 | `run_detail(hash)` | `GET /api/run/{execution_hash}` |
 | `residuals(hash, ...)` | `GET /api/run/{execution_hash}/residuals` |
 | `residual_compare(a, b, ...)` | `GET /api/compare` |
@@ -618,6 +964,18 @@ Notes:
   residual rows by stable `sample_id` (per partition) before pairing, so two
   pipelines are always compared on the *same* samples.
 - All scoped methods (`leaderboard`, `matrix`, `run_explorer`, `operator_effect`,
-  `parameter_effect`, `robustness`) validate `scope` against `fold`, `cv`, `refit`,
+  `parameter_effect`, `robustness`, `pivot`, `parallel`, `pipeline_graph`,
+  `operator_graph`, `composition`) validate `scope` against `fold`, `cv`, `refit`,
   `test`, `view` and raise `ValueError` on anything else (HTTP `400` via the
-  service's exception handler).
+  service's exception handler). `facets`, `facet_values`, and `planned` are not
+  scoped.
+- The HTTP `pivot`/`parallel` `dataset` parameter maps to the facade's
+  `dataset_fingerprint`; `parallel` takes `dimensions` as a Python list, whereas
+  the endpoint takes a comma-separated string.
+- The upload state machine is **not** on `Queries` (it writes, not reads). Use
+  `from nirs4all_benchmarks.ingestion import upload, register_pipeline` directly;
+  `upload(store, payload, target_datasets=[...], collection_id=..., as_release=...)`
+  returns an `UploadResult` whose `.to_json()` is exactly the `POST /api/upload`
+  body. `payload` may be an `ArenaRunExport`/dict manifest, a dag-ml bundle dict, a
+  pipeline list/dict, a `Path` to a `.n4a`/`.json`/`.yaml` file, or raw JSON/YAML
+  text.

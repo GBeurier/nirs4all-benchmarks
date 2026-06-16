@@ -337,6 +337,32 @@ CREATE TABLE IF NOT EXISTS residual_sets (
     created_at       TEXT NOT NULL
 );
 
+-- Long-format facets per run condition (role-aware indexing.py) — the backbone of
+-- the pivot/playground dataviz: group by ANY dimension (split/aug/pp/model/param).
+CREATE TABLE IF NOT EXISTS run_facets (
+    run_condition_hash TEXT NOT NULL REFERENCES run_conditions (run_condition_hash),
+    facet_key          TEXT NOT NULL,
+    facet_value        TEXT NOT NULL,
+    facet_num          REAL,
+    role               TEXT,
+    PRIMARY KEY (run_condition_hash, facet_key, facet_value)
+);
+
+-- Planned (not-yet-run) conditions: a pipeline registered against target datasets
+-- for which no execution exists yet (DESIGN.md §6.3 upload "run then store" path).
+-- The Arena does not run compute; a runner fulfills these and ingests the result.
+CREATE TABLE IF NOT EXISTS planned_runs (
+    plan_id             TEXT PRIMARY KEY,
+    pipeline_dag_hash   TEXT REFERENCES pipeline_dags (pipeline_dag_hash),
+    dataset_fingerprint TEXT,
+    task_hash           TEXT,
+    collection_id       TEXT,
+    status              TEXT NOT NULL DEFAULT 'planned',  -- planned | fulfilled
+    source              TEXT,
+    created_at          TEXT NOT NULL,
+    UNIQUE (pipeline_dag_hash, dataset_fingerprint, collection_id)
+);
+
 CREATE TABLE IF NOT EXISTS view_definitions (
     view_definition_hash TEXT PRIMARY KEY,
     view_id              TEXT,
@@ -364,6 +390,10 @@ CREATE INDEX IF NOT EXISTS ix_nodes_role              ON pipeline_nodes (role);
 CREATE INDEX IF NOT EXISTS ix_node_params_name        ON pipeline_node_params (param_name);
 CREATE INDEX IF NOT EXISTS ix_param_values_name       ON parameter_values (name);
 CREATE INDEX IF NOT EXISTS ix_residual_sets_exec      ON residual_sets (execution_hash);
+CREATE INDEX IF NOT EXISTS ix_run_facets_key          ON run_facets (facet_key, facet_value);
+CREATE INDEX IF NOT EXISTS ix_run_facets_role         ON run_facets (role);
+CREATE INDEX IF NOT EXISTS ix_planned_pipeline        ON planned_runs (pipeline_dag_hash);
+CREATE INDEX IF NOT EXISTS ix_planned_dataset         ON planned_runs (dataset_fingerprint);
 
 -- ──────────────────────────────────────────────────────────── views ──
 -- One row per (execution, metric observation) joined to the full condition —

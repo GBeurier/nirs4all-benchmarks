@@ -150,6 +150,7 @@ def _make_export(
     cv_folds: int,
     seed: int,
     main_model: str,
+    split_method: str = "kennard_stone",
 ) -> ArenaRunExport:
     card = mock_dataset_card(
         dataset["id"],
@@ -173,9 +174,10 @@ def _make_export(
         "dataset_variant": {"dataset_variant_hash": fingerprint({"d": dataset["id"], "v": "all"}),
                             "variant_spec": {"size": "all", "aggregation": "none"}},
         "pipeline": {"graph": graph, "human_label": label, "nodes": graph["nodes"]},
-        "split": {"method": "kennard_stone", "params": {"test_size": 0.25}},
+        "split": {"method": split_method, "params": {"test_size": 0.25}},
         "cv": {"method": "kfold", "n_folds": cv_folds, "within_train_only": True,
-               "cv_instance_hash": fingerprint({"d": dataset["id"], "folds": cv_folds, "seed": seed})},
+               "cv_instance_hash": fingerprint({"d": dataset["id"], "folds": cv_folds, "seed": seed,
+                                                "split": split_method})},
         "rng": {"root_seed": seed, "derivation": "sha256-hash-chain",
                 "framework_seeds": {"numpy": seed, "sklearn": seed},
                 "determinism_flags": {"PYTHONHASHSEED": 0}},
@@ -244,6 +246,105 @@ def generate_fixture_exports() -> list[ArenaRunExport]:
     return exports
 
 
+# ── rich demo set (for the live dataviz; NOT the regression contract) ───────
+
+_PP_OPS = {
+    "SNV": "nirs4all.transform.SNV",
+    "MSC": "nirs4all.transform.MSC",
+    "SavGol": "nirs4all.transform.SavitzkyGolay",
+    "Detrend": "nirs4all.transform.Detrend",
+    "StdScaler": "sklearn.preprocessing.StandardScaler",
+    "PCA": "sklearn.decomposition.PCA",
+}
+_AUG_OPS = {
+    "Shift": "nirs4all.augmentation.RandomShift",
+    "Noise": "nirs4all.augmentation.AddNoise",
+    "Mixup": "nirs4all.augmentation.Mixup",
+}
+_MODELS = {
+    "PLS": "sklearn.cross_decomposition.PLSRegression",
+    "RF": "sklearn.ensemble.RandomForestRegressor",
+    "Ridge": "sklearn.linear_model.Ridge",
+    "SVR": "sklearn.svm.SVR",
+}
+
+
+def _chain_graph(pp: list[str], aug: list[str], model: str, params: dict[str, Any]) -> dict[str, Any]:
+    """Build a linear preprocessing → augmentation → model graph from short names."""
+    nodes: list[dict[str, Any]] = [{"node_id": "in", "kind": "input", "operator": "X"}]
+    edges: list[dict[str, Any]] = []
+    prev = "in"
+    for i, name in enumerate(pp):
+        nid = f"pp{i}"
+        kind = "feature_selection" if name == "PCA" else ("scaler" if name == "StdScaler" else "transform")
+        nodes.append({"node_id": nid, "kind": kind, "operator": _PP_OPS[name]})
+        edges.append({"src": prev, "dst": nid})
+        prev = nid
+    for i, name in enumerate(aug):
+        nid = f"aug{i}"
+        nodes.append({"node_id": nid, "kind": "augmentation", "operator": _AUG_OPS[name]})
+        edges.append({"src": prev, "dst": nid})
+        prev = nid
+    nodes.append({"node_id": "model", "kind": "model", "operator": _MODELS[model], "params": params})
+    edges.append({"src": prev, "dst": "model"})
+    return {"nodes": nodes, "edges": edges}
+
+
+def _demo_recipes() -> list[dict[str, Any]]:
+    """Curated, realistic recipes spanning the pp × aug × model × param space."""
+    r: list[dict[str, Any]] = []
+    # preprocessing comparison (same model)
+    for pp, skill in [(["SNV"], 1.00), (["MSC"], 1.05), (["SavGol"], 0.90),
+                      (["SNV", "Detrend"], 0.86), (["StdScaler", "SNV"], 0.97), (["SNV", "PCA"], 1.10)]:
+        r.append({"pp": pp, "aug": [], "model": "PLS", "params": {"n_components": 12}, "skill": skill})
+    # augmentation on/off (same SNV→PLS)
+    r.append({"pp": ["SNV"], "aug": ["Shift"], "model": "PLS", "params": {"n_components": 12}, "skill": 0.93})
+    r.append({"pp": ["SNV"], "aug": ["Shift", "Noise"], "model": "PLS", "params": {"n_components": 12}, "skill": 0.89})
+    r.append({"pp": ["SNV"], "aug": ["Mixup"], "model": "PLS", "params": {"n_components": 12}, "skill": 0.91})
+    # model comparison (same SNV)
+    r.append({"pp": ["SNV"], "aug": [], "model": "RF", "params": {"n_estimators": 300}, "skill": 1.02})
+    r.append({"pp": ["SNV"], "aug": [], "model": "Ridge", "params": {"alpha": 1.0}, "skill": 1.08})
+    r.append({"pp": ["SNV"], "aug": [], "model": "SVR", "params": {"C": 10.0, "kernel": "rbf"}, "skill": 0.99})
+    # PLS n_components sweep (with augmentation, to vary it)
+    for k in (6, 10, 14, 18):
+        r.append({"pp": ["SNV"], "aug": ["Shift"], "model": "PLS", "params": {"n_components": k},
+                  "skill": 0.93 * (1.0 + 0.4 * abs(k - 12) / 12)})
+    return r
+
+
+def generate_demo_exports() -> list[ArenaRunExport]:
+    """A rich factorial (~demo) over datasets × seeds × splits × recipes for the dataviz.
+
+    NOT a regression contract — this is the data the live playground explores.
+    """
+    exports: list[ArenaRunExport] = []
+    seed = 5000
+    recipes = _demo_recipes()
+    for dataset in _DATASETS:
+        base = dataset["sigma"] * 0.30
+        for rep_seed in (0, 1):
+            for split in ("kennard_stone", "random"):
+                for rec in recipes:
+                    seed += 1
+                    pp_lbl = "→".join(rec["pp"]) or "raw"
+                    aug_lbl = ("+aug(" + ",".join(rec["aug"]) + ")") if rec["aug"] else ""
+                    pkey = next(iter(rec["params"].values()))
+                    label = f"{pp_lbl}{aug_lbl}→{rec['model']}({pkey})"
+                    exports.append(
+                        _make_export(
+                            dataset=dataset,
+                            graph=_chain_graph(rec["pp"], rec["aug"], rec["model"], rec["params"]),
+                            label=label,
+                            rmse=base * rec["skill"] * (1.0 + 0.04 * rep_seed) * (1.05 if split == "random" else 1.0),
+                            cv_folds=5,
+                            seed=seed,
+                            main_model=_MODELS[rec["model"]],
+                            split_method=split,
+                        )
+                    )
+    return exports
+
+
 def write_fixture_exports(out_dir: str | Path) -> list[Path]:
     """Write each fixture export to ``out_dir`` as canonical JSON; return the paths."""
     out = Path(out_dir)
@@ -257,16 +358,21 @@ def write_fixture_exports(out_dir: str | Path) -> list[Path]:
     return paths
 
 
-def seed_store(store_root: str | Path, *, collection_id: str = "fixtures") -> dict[str, Any]:
-    """Ingest the full fixture grid into a fresh store; return a summary."""
+def seed_store(store_root: str | Path, *, collection_id: str = "fixtures", demo: bool = False) -> dict[str, Any]:
+    """Ingest the fixture grid into a store; return a summary.
+
+    ``demo=False`` (default) ingests the small, stable regression set (used by tests).
+    ``demo=True`` ingests the rich factorial that the live playground explores.
+    """
     from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
     from nirs4all_benchmarks.store import ArenaStore
 
+    exports = generate_demo_exports() if demo else generate_fixture_exports()
     counts = {"committed": 0, "already": 0, "quarantined": 0, "rejected": 0}
     run_conditions: set[str] = set()
     with ArenaStore(store_root) as store:
         policy = IngestionPolicy(collection_id=collection_id, collection_kind="benchmark_release")
-        for exp in generate_fixture_exports():
+        for exp in exports:
             res = ingest_export(store, exp, policy=policy)
             key = {"committed": "committed", "already_ingested": "already",
                    "quarantined": "quarantined"}.get(res.status, "rejected")

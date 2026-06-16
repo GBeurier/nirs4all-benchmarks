@@ -113,6 +113,27 @@ def ingest_bundle_cmd(
     console.print(f"[green]✓[/] bundle ingested: {res.status} ({res.validity_status})")
 
 
+@app.command("ingest-pipeline")
+def ingest_pipeline_cmd(
+    path: Path = typer.Argument(..., exists=True, help="A pipeline recipe: .n4a, .json, or .yaml/.yml."),
+    store: str = StoreOpt,
+    datasets: str | None = typer.Option(None, "--datasets", "-d",
+                                        help="Comma-separated target datasets (fingerprints or names)."),
+    collection: str = typer.Option("uploads", "--collection", "-c"),
+) -> None:
+    """Register a pipeline (weights stripped) and plan/inspect it on target datasets."""
+    from nirs4all_benchmarks.ingestion import upload
+
+    targets = [t.strip() for t in (datasets or "").split(",") if t.strip()]
+    with _store(store) as s:
+        res = upload(s, path, collection_id=collection, target_datasets=targets)
+    console.print(f"[green]✓[/] {res.kind}: {res.message}")
+    for d in res.datasets:
+        mark = "already run" if d["status"] == "already_run" else "planned"
+        console.print(f"  • {d['token']}: [bold]{mark}[/]"
+                      + (f" ({d['n_executions']} runs)" if d.get("n_executions") else ""))
+
+
 @app.command("inspect-n4a")
 def inspect_n4a_cmd(path: Path = typer.Argument(..., exists=True, help="A .n4a bundle.")) -> None:
     """Extract a ``.n4a`` recipe and show its canonical pipeline identity (weights stripped)."""
@@ -129,13 +150,14 @@ def inspect_n4a_cmd(path: Path = typer.Argument(..., exists=True, help="A .n4a b
 def fixtures(
     store: str = StoreOpt,
     collection: str = typer.Option("fixtures", "--collection", "-c"),
+    basic: bool = typer.Option(False, "--basic", help="Seed the small regression set instead of the rich demo."),
     write_to: Path | None = typer.Option(None, "--write-to", help="Also write fixture JSON exports here."),
 ) -> None:
-    """Seed the store with the synthetic fixture grid (for the dataviz demo)."""
+    """Seed the store with synthetic data for the dataviz (rich demo by default)."""
     from nirs4all_benchmarks.fixtures import seed_store, write_fixture_exports
 
-    summary = seed_store(store, collection_id=collection)
-    console.print(f"[green]✓[/] seeded: {summary}")
+    summary = seed_store(store, collection_id=collection, demo=not basic)
+    console.print(f"[green]✓[/] seeded ({'basic' if basic else 'rich demo'}): {summary}")
     if write_to:
         paths = write_fixture_exports(write_to)
         console.print(f"[green]✓[/] wrote {len(paths)} fixture exports to {write_to}")
