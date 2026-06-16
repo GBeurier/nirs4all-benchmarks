@@ -1,32 +1,18 @@
 // Leaderboard — configurable ranking, no canonical baseline (DESIGN.md §9.2).
 // This is the reference pattern for every view: page-head + controls + reactive render.
 
-const datasetOptions = (state) => [
-  { value: "", label: "All datasets" },
-  ...((state._overview && []) || []),
-];
-
 export default {
   id: "leaderboard",
   title: "Leaderboard",
-  subtitle: "Rank pipelines by any metric, at any score level, on any dataset.",
+  subtitle: "Which pipelines win — ranked by the lens metric.",
   icon: "🏆",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    const datasets = await api.datasets();
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
 
     const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-      { id: "dataset", type: "select", label: "Dataset", value: state.dataset, options: [
-        { value: "", label: "All datasets" },
-        ...datasets.map((d) => ({ value: d.dataset_fingerprint, label: d.name || d.dataset_fingerprint.slice(0, 10) })),
-      ] },
       { id: "quar", type: "toggle", label: "Include quarantined", value: false },
     ], () => refresh());
 
@@ -36,7 +22,6 @@ export default {
     dom.mount(root, head, bar.element, chartCard, tableHost);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.dataset = bar.get("dataset"); state.save();
       const plotNode = document.getElementById("lb-plot");
       dom.mount(tableHost, dom.loading());
       const lb = await api.leaderboard({

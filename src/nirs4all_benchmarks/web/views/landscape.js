@@ -30,14 +30,10 @@ function codeDim(rows, key) {
 export default {
   id: "landscape",
   title: "Landscape (3D)",
-  subtitle: "The score surface over two dimensions, in 3D.",
+  subtitle: "The score surface across up to three dimensions, in 3D.",
   icon: "⛰",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
-
     const facets = await api.facets();
 
     const head = dom.el("div", { class: "page-head" },
@@ -66,8 +62,6 @@ export default {
       { id: "y", type: "select", label: "Y axis", options: facetOptions, value: defaultY },
       { id: "z", type: "select", label: "Z axis",
         options: [{ value: Z_METRIC, label: "metric (score)" }, ...facetOptions], value: Z_METRIC },
-      { id: "metric", type: "select", label: "Metric / color", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
       { id: "chart", type: "select", label: "Chart", options: ["scatter3d", "surface"], value: "scatter3d" },
     ], () => refresh());
 
@@ -86,7 +80,6 @@ export default {
       const chart = bar.get("chart");
       const zKey = bar.get("z");
       const zReal = chart === "scatter3d" && zKey !== Z_METRIC && zKey !== x && zKey !== y;
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
 
       const plotNode = document.getElementById("ls-plot");
       const titleNode = document.getElementById("ls-title");

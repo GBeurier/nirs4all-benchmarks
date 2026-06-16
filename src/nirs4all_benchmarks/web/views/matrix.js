@@ -3,19 +3,15 @@
 export default {
   id: "matrix",
   title: "Pipeline × Dataset",
-  subtitle: "Every pipeline's score on every dataset.",
+  subtitle: "Every pipeline's score on every dataset, side by side.",
   icon: "▩",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
 
     const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
       { id: "quar", type: "toggle", label: "Include quarantined", value: false },
     ], () => refresh());
 
@@ -26,12 +22,12 @@ export default {
     dom.mount(root, head, bar.element, card);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const plotNode = document.getElementById("mx-plot");
       plot.purge(plotNode);
       note.textContent = "";
       const m = await api.matrix({
-        metric: state.metric, scope: state.scope, include_quarantined: bar.get("quar"),
+        metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
+        include_quarantined: bar.get("quar"),
       });
       const cells = m.cells || [];
       const datasets = m.datasets || [];
