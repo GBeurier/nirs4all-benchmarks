@@ -13,20 +13,20 @@ from nirs4all_benchmarks.ingestion.resolve import resolve_identities
 
 # (pipeline label | dataset name) -> first 16 hex of run_condition_hash
 GOLDEN_RUN_CONDITIONS = {
-    "StdScaler→SNV→PLS(k=12)|Mock Corn": "f362b60d7ad41481",
-    "StdScaler→SNV→PLS(k=12)|Mock Wheat": "3705e88c526e4ed0",
-    "StdScaler→SNV→PLS(k=16)|Mock Corn": "0a0c446074582815",
-    "StdScaler→SNV→PLS(k=16)|Mock Wheat": "d8090e2315f4fb41",
-    "StdScaler→SNV→PLS(k=20)|Mock Corn": "9c7075663a2d55c3",
-    "StdScaler→SNV→PLS(k=20)|Mock Wheat": "a38d0a79f1b802f9",
-    "StdScaler→SNV→PLS(k=5)|Mock Corn": "266ef92351329d34",
-    "StdScaler→SNV→PLS(k=5)|Mock Wheat": "816dd60e72c18ab5",
-    "StdScaler→SNV→PLS(k=8)|Mock Corn": "e692b20be411d828",
-    "StdScaler→SNV→PLS(k=8)|Mock Wheat": "61272e4b093a4d06",
-    "[SNV→PLS | SG→PLS] → mean|Mock Corn": "07fa3d185dfa617a",
-    "[SNV→PLS | SG→PLS] → mean|Mock Wheat": "ed3f0906d86f869b",
-    "stack(SNV→PLS, SNV→RF)|Mock Corn": "d12e102f9b9820dd",
-    "stack(SNV→PLS, SNV→RF)|Mock Wheat": "52ff5b3b19751e58",
+    "StdScaler→SNV→PLS(k=5)|Mock Corn": "18192e5006c03268",
+    "StdScaler→SNV→PLS(k=8)|Mock Corn": "92c9184ddf7b5efd",
+    "StdScaler→SNV→PLS(k=12)|Mock Corn": "42264bd31b9b4296",
+    "StdScaler→SNV→PLS(k=16)|Mock Corn": "a1eb4f89f6f27907",
+    "StdScaler→SNV→PLS(k=20)|Mock Corn": "c46941419e6e7167",
+    "[SNV→PLS | SG→PLS] → mean|Mock Corn": "8ae9b55ea8d7ccb6",
+    "stack(SNV→PLS, SNV→RF)|Mock Corn": "160f4d84180b9ffa",
+    "StdScaler→SNV→PLS(k=5)|Mock Wheat": "02e46f0f1a65c6e5",
+    "StdScaler→SNV→PLS(k=8)|Mock Wheat": "7c7bcf579f7b87e5",
+    "StdScaler→SNV→PLS(k=12)|Mock Wheat": "d8fced0ec9ed2023",
+    "StdScaler→SNV→PLS(k=16)|Mock Wheat": "c8e9c286e35773e6",
+    "StdScaler→SNV→PLS(k=20)|Mock Wheat": "ee409b207392b148",
+    "[SNV→PLS | SG→PLS] → mean|Mock Wheat": "74aec083df5b2da3",
+    "stack(SNV→PLS, SNV→RF)|Mock Wheat": "719643225b4b1d20",
 }
 
 

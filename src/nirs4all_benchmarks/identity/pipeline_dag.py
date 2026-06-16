@@ -108,7 +108,11 @@ def _coerce_node(raw: Any, index: int) -> dict[str, Any]:
             "branch_path": [],
         }
     node_id = str(raw.get("node_id") or raw.get("id") or f"n{index}")
-    kind = str(raw.get("kind") or raw.get("role") or raw.get("type") or "transform")
+    # Infer the stage kind: an explicit kind/role/type wins; otherwise the natural
+    # nirs4all DSL shape {"model": ...} means a model node (so a raw uploaded step
+    # list hashes IDENTICALLY to the engine/role-tagged graph for the same pipeline).
+    explicit_kind = raw.get("kind") or raw.get("role") or raw.get("type")
+    kind = str(explicit_kind or ("model" if "model" in raw else "transform"))
     operator = raw.get("operator") or raw.get("class") or raw.get("op") or raw.get("model")
     # An operator may itself be a dict ``{"class": ..., "params": ...}``.
     params = raw.get("params")

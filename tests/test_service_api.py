@@ -67,3 +67,30 @@ def test_static_index_served(client: TestClient):
     r = client.get("/")
     assert r.status_code == 200
     assert "Arena" in r.text or "nirs4all" in r.text
+
+
+def test_facets_and_pivot_endpoints(client: TestClient):
+    keys = {f["facet_key"] for f in client.get("/api/facets").json()}
+    assert "param:n_components" in keys  # always exposed (LIKE 'param:%')
+    pv = client.get("/api/pivot", params={"group_by": "param:n_components", "metric": "rmse", "scope": "cv"}).json()
+    assert pv["rows"]
+
+
+def test_upload_file_multipart_does_not_500(client: TestClient):
+    # Regression for the critical UploadFile forward-ref bug: a multipart file POST
+    # must not 500. Send a pipeline recipe as an extension-less file part.
+    recipe = json.dumps([{"class": "nirs4all.transform.SNV"},
+                         {"model": "sklearn.cross_decomposition.PLSRegression", "params": {"n_components": 8}}])
+    r = client.post("/api/upload", files={"file": ("pipe.json", recipe, "application/json")},
+                    data={"collection": "uploads", "target_datasets": ""})
+    assert r.status_code == 200, r.text
+    assert r.json()["kind"] == "pipeline"
+
+
+def test_upload_text_arena_export(client: TestClient):
+    from nirs4all_benchmarks.fixtures import generate_fixture_exports
+
+    manifest = json.dumps(generate_fixture_exports()[0].to_manifest())
+    r = client.post("/api/upload", data={"text": manifest, "collection": "fixtures"})
+    assert r.status_code == 200
+    assert r.json()["kind"] == "arena_export"

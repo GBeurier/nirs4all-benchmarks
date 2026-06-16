@@ -7,19 +7,26 @@ import * as plot from "./lib/plot.js";
 import overview from "./views/overview.js";
 import leaderboard from "./views/leaderboard.js";
 import matrix from "./views/matrix.js";
+import playground from "./views/playground.js";
 import paramEffect from "./views/param-effect.js";
 import operatorEffect from "./views/operator-effect.js";
+import parallel from "./views/parallel.js";
 import robustness from "./views/robustness.js";
+import landscape from "./views/landscape.js";
+import composition from "./views/composition.js";
+import network from "./views/network.js";
 import runs from "./views/runs.js";
 import compare from "./views/compare.js";
 import datasets from "./views/datasets.js";
 import pipelines from "./views/pipelines.js";
+import planned from "./views/planned.js";
 import runDetail from "./views/run-detail.js";
 import upload from "./views/upload.js";
 
 const VIEWS = [
-  overview, leaderboard, matrix, paramEffect, operatorEffect, robustness,
-  runs, compare, datasets, pipelines, upload, runDetail,
+  overview, leaderboard, matrix, playground, paramEffect, operatorEffect, parallel,
+  robustness, landscape, composition, network,
+  runs, compare, datasets, pipelines, planned, upload, runDetail,
 ];
 const BY_ID = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
 
@@ -32,10 +39,11 @@ const state = {
 };
 
 const GROUPS = [
-  { name: "Explore", ids: ["overview", "leaderboard", "matrix"] },
-  { name: "Effects", ids: ["param-effect", "operator-effect", "robustness"] },
+  { name: "Explore", ids: ["overview", "leaderboard", "matrix", "playground"] },
+  { name: "Effects", ids: ["param-effect", "operator-effect", "parallel", "robustness"] },
+  { name: "Graphs", ids: ["landscape", "composition", "network"] },
   { name: "Runs", ids: ["runs", "compare"] },
-  { name: "Catalog", ids: ["datasets", "pipelines"] },
+  { name: "Catalog", ids: ["datasets", "pipelines", "planned"] },
   { name: "Contribute", ids: ["upload"] },
 ];
 

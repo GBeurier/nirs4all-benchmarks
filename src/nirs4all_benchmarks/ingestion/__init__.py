@@ -14,14 +14,18 @@ from nirs4all_benchmarks.ingestion.ingest import (
     ingest_export,
 )
 from nirs4all_benchmarks.ingestion.resolve import ResolvedExport, resolve_identities
+from nirs4all_benchmarks.ingestion.upload import UploadResult, register_pipeline, upload
 from nirs4all_benchmarks.ingestion.validate import ValidationOutcome, validate_export
 
 __all__ = [
     "IngestionPolicy",
     "IngestionResult",
     "ResolvedExport",
+    "UploadResult",
     "ValidationOutcome",
     "ingest_export",
+    "register_pipeline",
     "resolve_identities",
+    "upload",
     "validate_export",
 ]

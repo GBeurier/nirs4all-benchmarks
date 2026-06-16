@@ -10,9 +10,15 @@ beating single branches, etc.).
 from __future__ import annotations
 
 from nirs4all_benchmarks.fixtures.generate import (
+    generate_demo_exports,
     generate_fixture_exports,
     seed_store,
     write_fixture_exports,
 )
 
-__all__ = ["generate_fixture_exports", "seed_store", "write_fixture_exports"]
+__all__ = [
+    "generate_demo_exports",
+    "generate_fixture_exports",
+    "seed_store",
+    "write_fixture_exports",
+]
