@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/GBeurier/nirs4all-benchmarks/schema/arena_run_export/1",
+  "title": "ArenaRunExport",
+  "description": "The weights-free, content-addressed ingestion contract of the Arena (DATA_MANAGEMENT.md §4). One bundle per execution.",
+  "type": "object",
+  "required": ["arena_export_schema_version", "dataset", "task", "dataset_variant", "pipeline"],
+  "properties": {
+    "arena_export_schema_version": { "type": "integer", "const": 1 },
+    "arena_export_hash": { "$ref": "#/$defs/sha256" },
+    "run_condition_hash": { "$ref": "#/$defs/sha256" },
+    "producer": {
+      "type": "object",
+      "properties": {
+        "capsule": { "type": "string" },
+        "nirs4all_version": { "type": ["string", "null"] },
+        "dag_ml_version": { "type": ["string", "null"] },
+        "dag_ml_data_version": { "type": ["string", "null"] },
+        "io_version": { "type": ["string", "null"] }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["dataset_fingerprint"],
+      "properties": {
+        "dataset_fingerprint": { "$ref": "#/$defs/sha256" },
+        "schema_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
+        "relation_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
+        "plan_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
+        "dataset_card": { "type": "object" },
+        "visibility": { "enum": ["public", "restricted", "private", "anonymized"] },
+        "n_samples": { "type": ["integer", "null"], "minimum": 0 },
+        "n_features": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["task_hash"],
+      "properties": {
+        "task_hash": { "$ref": "#/$defs/sha256" },
+        "task_type": { "enum": ["regression", "binary", "multiclass", "multilabel"] },
+        "target_name": { "type": ["string", "null"] },
+        "target_unit": { "type": ["string", "null"] },
+        "target_hash": { "$ref": "#/$defs/sha256OrNull" }
+      }
+    },
+    "dataset_variant": {
+      "type": "object",
+      "required": ["dataset_variant_hash"],
+      "properties": {
+        "dataset_variant_hash": { "$ref": "#/$defs/sha256" },
+        "variant_spec": { "type": "object" }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "properties": {
+        "pipeline_dag_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "controller_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
+        "engine_graph_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
+        "graph_ref": { "type": ["string", "null"] },
+        "graph": { "type": ["object", "null"] },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node_id"],
+            "properties": {
+              "node_id": { "type": "string" },
+              "role": { "type": "string" },
+              "operator": { "type": ["string", "null"] },
+              "operator_version": { "type": ["string", "null"] },
+              "params": { "type": "object" },
+              "branch_path": { "type": "array" },
+              "fit_scope": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "split": { "$ref": "#/$defs/specInstance" },
+    "cv": {
+      "type": "object",
+      "properties": {
+        "cv_spec_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "cv_instance_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "method": { "type": "string" },
+        "n_folds": { "type": ["integer", "null"] },
+        "within_train_only": { "type": "boolean" }
+      }
+    },
+    "rng": {
+      "type": "object",
+      "properties": {
+        "rng_context_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "root_seed": { "type": ["integer", "null"] },
+        "derivation": { "type": ["string", "null"] },
+        "framework_seeds": { "type": "object" },
+        "determinism_flags": { "type": "object" }
+      }
+    },
+    "refit": {
+      "type": "object",
+      "properties": {
+        "refit_strategy_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "strategy": { "type": "string" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "execution_id": { "type": ["string", "null"] },
+        "status": { "enum": ["ok", "failed", "cancelled"] },
+        "time_ms": { "type": ["number", "null"] },
+        "peak_mem_mb": { "type": ["number", "null"] }
+      }
+    },
+    "leakage_attestation": {
+      "type": "object",
+      "properties": {
+        "oof_enforced": { "type": "boolean" },
+        "group_leakage_checked": { "type": "boolean" },
+        "nested_cv_safe": { "type": "boolean" },
+        "unsafe_flags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "properties": {
+        "score_computation_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "score_version": { "type": "string" },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["metric_name"],
+            "properties": {
+              "metric_name": { "type": "string" },
+              "metric_value": { "type": ["number", "null"] },
+              "direction": { "enum": ["min", "max"] },
+              "scope": { "enum": ["fold", "cv", "refit", "test", "view"] },
+              "fold_id": { "type": ["string", "null"] },
+              "partition": { "enum": ["train", "validation", "test", "final"] },
+              "aggregation_level": { "type": "string" },
+              "n_samples": { "type": ["integer", "null"] },
+              "coverage": { "type": ["number", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "residuals": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": ["string", "null"] },
+        "key": { "enum": ["sample_id", "positional"] },
+        "pseudonymized": { "type": "boolean" },
+        "publishable": { "type": "object" },
+        "inline": { "type": ["array", "null"] }
+      }
+    },
+    "provenance": { "type": ["object", "null"] }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha256OrNull": {
+      "anyOf": [
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "type": "null" }
+      ]
+    },
+    "specInstance": {
+      "type": "object",
+      "properties": {
+        "split_spec_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "split_instance_hash": { "$ref": "#/$defs/sha256OrNull" },
+        "method": { "type": "string" },
+        "params": { "type": "object" }
+      }
+    }
+  }
+}

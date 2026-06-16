@@ -1,2 +1,30 @@
 # local code-intelligence index
 .codegraph/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# arena runtime data (never commit a store)
+arena-store/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/arrays/
+/exports/
+
+# os
+.DS_Store
