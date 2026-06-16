@@ -202,6 +202,11 @@ def create_app(store_root: str | Path | None = None) -> Any:
         with queries() as q:
             return q.composition(metric=metric, scope=scope)
 
+    @app.get("/api/stats")
+    def stats(metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+        with queries() as q:
+            return q.stats(metric=metric, scope=scope)
+
     @app.get("/api/run/{execution_hash}")
     def run_detail(execution_hash: str) -> dict[str, Any]:
         with queries() as q:

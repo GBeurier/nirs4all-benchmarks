@@ -82,11 +82,7 @@ code, .mono { font-family: var(--mono); font-size: .82em; }
   position: sticky; top: 0; z-index: 50;
 }
 .nav .logo { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 600; font-size: 1.06rem; color: var(--text); }
-.nav .logo .mark {
-  width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700;
-  background: linear-gradient(135deg, var(--benchmarks), var(--teal));
-  box-shadow: 0 4px 12px -3px rgba(13,148,136,.5);
-}
+.nav .logo .mark-img { height: 30px; width: auto; display: block; }
 .nav .logo small { color: var(--text-3); font-family: var(--mono); font-size: .66rem; font-weight: 500; letter-spacing: .04em; }
 .nav .spacer { flex: 1; }
 .nav .pill { font-family: var(--mono); font-size: .72rem; color: var(--text-2); background: var(--paper-2); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border-warm); }
@@ -233,6 +229,48 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 .main > .card, .main > .grid, .main > .tbl-wrap { animation: rise .55s .1s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ── prototype badge + version chip ──────────────────────────── */
+.proto-badge {
+  font-family: var(--mono); font-size: .6rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--amber); background: color-mix(in srgb, var(--amber) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 34%, transparent); padding: 3px 9px; border-radius: 20px;
+  white-space: nowrap;
+}
+.proto-badge.sm { font-size: .55rem; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
+.ver-chip {
+  font-family: var(--mono); font-size: .72rem; color: var(--text-3); background: var(--paper-2);
+  border: 1px solid var(--border-warm); padding: 4px 10px; border-radius: 20px;
+}
+@media (max-width: 900px) { .ver-chip, .proto-badge { display: none; } }
+
+/* ── footer ──────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--border); background: rgba(255,255,255,.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); padding: 28px 30px;
+}
+.footer-inner { max-width: 1560px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 18px 40px; align-items: center; justify-content: space-between; }
+.footer-brand { display: flex; align-items: center; gap: 13px; }
+.footer-mark { height: 36px; width: auto; display: block; }
+.footer-brand strong { font-family: var(--display); font-size: .98rem; }
+.footer-ver { font-family: var(--mono); font-size: .78rem; color: var(--text-3); }
+.footer-tag { color: var(--text-3); font-size: .82rem; margin-top: 3px; max-width: 540px; }
+.footer-links { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; font-size: .85rem; }
+.footer-muted { color: var(--text-3); font-size: .76rem; font-family: var(--mono); }
+
+/* ── polish refinements ──────────────────────────────────────── */
+.card:hover { transform: translateY(-2px); }
+.side::-webkit-scrollbar { width: 8px; }
+.side::-webkit-scrollbar-thumb { background: var(--border-warm); border-radius: 8px; }
+/* loading skeleton shimmer (used by views that want a placeholder) */
+.skeleton { position: relative; overflow: hidden; background: var(--paper-2); border-radius: var(--radius-sm); min-height: 16px; }
+.skeleton::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); transform: translateX(-100%);
+  animation: shimmer 1.4s infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+/* keep the Plotly modebar unobtrusive */
+.js-plotly-plot .modebar { opacity: 0; transition: opacity .2s; }
+.plot:hover .js-plotly-plot .modebar { opacity: .5; }
 
 /* checkbox lists (upload target datasets, parallel dims) */
 .checklist { display: flex; flex-wrap: wrap; gap: 8px; max-height: 180px; overflow-y: auto; }

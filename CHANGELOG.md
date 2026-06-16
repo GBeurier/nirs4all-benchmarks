@@ -9,6 +9,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 Second + third iterations — richer ingestion surface, deep faceted dataviz, the
 ecosystem visual identity, and graph/3D visualizations.
 
+### Added (iteration 4 — stats, more 3D, polish, prototype/version)
+
+- **Statistics view** + `/api/stats` (`Queries.stats`) — score distribution (histogram), spread per
+  dataset (violin), and Pearson correlation of every numeric facet with the score, plus summary tables.
+- **More 3D** — Landscape gains a **Z-axis facet** for a true 3-facet 3D scatter (x × y × z, colored
+  by the metric), alongside the 2-facet surface.
+- **Official logos** — nav, favicon, OG image and footer now use the canonical ecosystem brand set
+  (`nirs4all-org/assets/brand/nirs4all-benchmarks/`), wired like the other ecosystem pages.
+- **Prototype notice + version tracking** — a "prototype" badge in the nav + footer, a version chip
+  fed from `/api/healthz` (VERSION → `version.py` → `__version__`), and a footer with version,
+  ecosystem links, changelog, and license. Mirrors the `version-guard` CI guardrail.
+- **Serious polish pass** — refined cards/hover, footer, skeleton shimmer, unobtrusive Plotly modebar,
+  gradient hero, and consistent ecosystem theming.
+
 ### Added (iteration 3 — identity + graphs)
 
 - **Ecosystem restyle** — the SPA now wears the **nirs4all.org** identity: teal `#0d9488`
