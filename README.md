@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/horizontal-dark.svg">
+    <img alt="nirs4all-benchmarks" src="assets/brand/horizontal.svg" width="440">
+  </picture>
+</p>
+
 # nirs4all-benchmarks
 
 Reproducible and scored nirs4all pipelines on nirs4all datasets.
