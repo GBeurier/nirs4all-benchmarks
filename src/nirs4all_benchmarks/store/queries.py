@@ -582,6 +582,73 @@ class Queries:
                ORDER BY pr.created_at DESC""",
         )
 
+    # ── statistics ─────────────────────────────────────────────────────
+    def stats(self, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+        """Distribution summary, per-dataset spread, and facet↔metric correlations.
+
+        Powers the Statistics view: overall + per-dataset summaries (mean/median/std/
+        quartiles), the raw value list (for a histogram/violin), and the Pearson
+        correlation of every numeric facet (params, n_folds, seed, …) with the score.
+        """
+        import numpy as np
+
+        _safe_scope(scope)
+        rows = self.store.query(
+            """SELECT mo.execution_hash AS eh, mo.dataset_fingerprint AS df, AVG(mo.metric_value) AS v
+               FROM v_run_metrics mo
+               WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.execution_validity = 'valid'
+               GROUP BY mo.execution_hash""",
+            [metric, scope],
+        )
+
+        def summ(a: Any) -> dict[str, Any]:
+            arr = np.asarray([x for x in a if x is not None], dtype=float)
+            if arr.size == 0:
+                return {"n": 0}
+            return {
+                "n": int(arr.size), "mean": float(arr.mean()), "median": float(np.median(arr)),
+                "std": float(arr.std()), "min": float(arr.min()), "max": float(arr.max()),
+                "p25": float(np.percentile(arr, 25)), "p75": float(np.percentile(arr, 75)),
+            }
+
+        ds_names = {d["dataset_fingerprint"]: d.get("name") for d in self.datasets()}
+        by_dataset = []
+        for df in sorted({r["df"] for r in rows}):
+            vals = [r["v"] for r in rows if r["df"] == df]
+            by_dataset.append({"dataset_fingerprint": df, "label": ds_names.get(df) or df[:10],
+                               "values": [float(v) for v in vals if v is not None], **summ(vals)})
+
+        # facet↔metric correlations (numeric facets only)
+        crows = self.store.query(
+            """SELECT rf.facet_key AS fk, rf.facet_num AS fn, AVG(mo.metric_value) AS v
+               FROM run_facets rf
+               JOIN v_run_metrics mo ON mo.run_condition_hash = rf.run_condition_hash
+               WHERE rf.facet_num IS NOT NULL AND mo.metric_name = ? AND mo.score_scope = ?
+                     AND mo.score_validity = 'valid' AND mo.execution_validity = 'valid'
+               GROUP BY rf.facet_key, mo.execution_hash, rf.facet_num""",
+            [metric, scope],
+        )
+        by_facet: dict[str, list[tuple[float, float]]] = {}
+        for r in crows:
+            if r["v"] is not None:
+                by_facet.setdefault(r["fk"], []).append((float(r["fn"]), float(r["v"])))
+        correlations: list[dict[str, Any]] = []
+        for fk, pairs in by_facet.items():
+            xs = np.asarray([p[0] for p in pairs])
+            ys = np.asarray([p[1] for p in pairs])
+            if xs.size >= 4 and len({*xs.tolist()}) >= 2 and xs.std() > 0 and ys.std() > 0:
+                pearson = float(np.corrcoef(xs, ys)[0, 1])
+                correlations.append({"facet": fk, "r": pearson, "abs_r": abs(pearson), "n": int(xs.size)})
+        correlations.sort(key=lambda c: -c["abs_r"])
+
+        return {
+            "metric": metric, "scope": scope, "direction": direction_of(metric),
+            "summary": summ([r["v"] for r in rows]),
+            "values": [float(r["v"]) for r in rows if r["v"] is not None],
+            "by_dataset": by_dataset, "correlations": correlations,
+        }
+
     # ── graph / network ────────────────────────────────────────────────
     def _pipeline_scores(self, metric: str, scope: str) -> list[dict[str, Any]]:
         return self.store.query(

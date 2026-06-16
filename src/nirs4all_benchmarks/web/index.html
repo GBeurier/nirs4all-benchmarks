@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>nirs4all-benchmarks — the Arena</title>
   <meta name="description" content="Reproducible, scored, weights-free NIRS pipeline benchmarks and dataviz." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2300704A'/%3E%3Ctext x='16' y='22' font-size='18' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3EA%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="/brand/icon.svg" />
+  <link rel="icon" type="image/x-icon" href="/brand/favicon.ico" />
+  <link rel="apple-touch-icon" href="/brand/icon-180.png" />
+  <meta property="og:title" content="nirs4all-benchmarks — the Arena" />
+  <meta property="og:description" content="Reproducible, scored, weights-free NIRS pipeline benchmarks and dataviz." />
+  <meta property="og:image" content="/brand/og.png" />
+  <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -16,9 +22,10 @@
 <body>
   <header class="nav">
     <a class="logo" href="#/overview">
-      <span class="mark">A</span>
+      <img class="mark-img" src="/brand/icon.svg" alt="nirs4all-benchmarks logo" />
       <span>nirs4all-benchmarks <small>the Arena</small></span>
     </a>
+    <span class="proto-badge" title="This is an early prototype — schemas, scores and views may change.">prototype</span>
     <nav class="nav-eco">
       <a href="https://nirs4all.org" target="_blank" rel="noopener">Ecosystem</a>
       <a href="https://formats.nirs4all.org" target="_blank" rel="noopener">Formats</a>
@@ -26,12 +33,14 @@
       <a href="https://github.com/GBeurier/nirs4all-benchmarks" target="_blank" rel="noopener">GitHub</a>
     </nav>
     <div class="spacer"></div>
+    <span class="ver-chip" id="ver-chip"></span>
     <span class="pill" id="header-pill">…</span>
   </header>
   <div class="shell">
     <nav class="side" id="side-nav"></nav>
     <main class="main" id="view-root"><div class="loading"><span class="spinner"></span> Booting the Arena…</div></main>
   </div>
+  <footer class="site-footer" id="site-footer"></footer>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

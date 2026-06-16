@@ -12,6 +12,7 @@ import paramEffect from "./views/param-effect.js";
 import operatorEffect from "./views/operator-effect.js";
 import parallel from "./views/parallel.js";
 import robustness from "./views/robustness.js";
+import statistics from "./views/statistics.js";
 import landscape from "./views/landscape.js";
 import composition from "./views/composition.js";
 import network from "./views/network.js";
@@ -25,7 +26,7 @@ import upload from "./views/upload.js";
 
 const VIEWS = [
   overview, leaderboard, matrix, playground, paramEffect, operatorEffect, parallel,
-  robustness, landscape, composition, network,
+  robustness, statistics, landscape, composition, network,
   runs, compare, datasets, pipelines, planned, upload, runDetail,
 ];
 const BY_ID = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
@@ -40,7 +41,7 @@ const state = {
 
 const GROUPS = [
   { name: "Explore", ids: ["overview", "leaderboard", "matrix", "playground"] },
-  { name: "Effects", ids: ["param-effect", "operator-effect", "parallel", "robustness"] },
+  { name: "Effects", ids: ["param-effect", "operator-effect", "parallel", "robustness", "statistics"] },
   { name: "Graphs", ids: ["landscape", "composition", "network"] },
   { name: "Runs", ids: ["runs", "compare"] },
   { name: "Catalog", ids: ["datasets", "pipelines", "planned"] },
@@ -73,6 +74,32 @@ async function refreshHeader() {
   }
 }
 
+async function renderChrome() {
+  let version = "";
+  try { version = (await api.healthz()).version || ""; } catch { /* offline */ }
+  const verChip = document.getElementById("ver-chip");
+  if (verChip && version) verChip.textContent = "v" + version;
+
+  const footer = document.getElementById("site-footer");
+  if (footer) {
+    footer.innerHTML = "";
+    const link = (href, text) => dom.el("a", { href, target: "_blank", rel: "noopener" }, text);
+    footer.appendChild(dom.el("div", { class: "footer-inner" },
+      dom.el("div", { class: "footer-brand" },
+        dom.el("img", { src: "/brand/icon.svg", alt: "", class: "footer-mark" }),
+        dom.el("div", {},
+          dom.el("strong", {}, "nirs4all-benchmarks"),
+          dom.el("span", { class: "footer-ver" }, version ? ` · v${version}` : ""),
+          dom.el("span", { class: "proto-badge sm" }, "prototype"),
+          dom.el("div", { class: "footer-tag" }, "the Arena — reproducible, scored, weights-free NIRS pipeline benchmarks."))),
+      dom.el("div", { class: "footer-links" },
+        link("https://nirs4all.org", "nirs4all.org"),
+        link("https://github.com/GBeurier/nirs4all-benchmarks", "GitHub"),
+        link("https://github.com/GBeurier/nirs4all-benchmarks/blob/main/CHANGELOG.md", "Changelog"),
+        dom.el("span", { class: "footer-muted" }, "code CeCILL-2.1 / AGPL-3.0 · results CC-BY-4.0"))));
+  }
+}
+
 function parseHash() {
   const h = (location.hash || "#/overview").replace(/^#\/?/, "");
   const [id, ...rest] = h.split("/");
@@ -100,6 +127,7 @@ async function route() {
 window.addEventListener("hashchange", route);
 window.addEventListener("DOMContentLoaded", async () => {
   if (!location.hash) location.hash = "#/overview";
+  await renderChrome();
   await refreshHeader();
   await route();
 });

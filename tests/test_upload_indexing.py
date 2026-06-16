@@ -176,3 +176,17 @@ def test_graph_and_composition_on_demo(tmp_path: Path):
         comp = q.composition(metric="rmse", scope="cv")
         roles = {r["role"] for r in comp["rows"]}
         assert {"model", "preprocessing", "augmentation"} <= roles
+
+
+def test_stats_on_demo(tmp_path: Path):
+    from nirs4all_benchmarks.fixtures import seed_store
+
+    seed_store(tmp_path / "demo", collection_id="demo", demo=True)
+    with ArenaStore(tmp_path / "demo") as store:
+        st = Queries(store).stats(metric="rmse", scope="cv")
+        assert st["summary"]["n"] > 0
+        assert {"mean", "median", "std", "p25", "p75"} <= set(st["summary"])
+        assert len(st["by_dataset"]) == 2
+        assert st["values"]  # raw values for the histogram
+        # numeric facets correlate; each entry has r in [-1, 1]
+        assert all(-1.0 <= c["r"] <= 1.0 for c in st["correlations"])
