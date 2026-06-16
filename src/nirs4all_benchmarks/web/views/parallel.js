@@ -15,13 +15,10 @@ function pretty(facetKey) {
 export default {
   id: "parallel",
   title: "Parallel coordinates",
-  subtitle: "Trace runs across split, CV, model and parameters down to the score.",
+  subtitle: "Trace runs across conditions down to the score.",
   icon: "〰",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const facets = await api.facets();
     const facetKeys = new Set(facets.map((f) => f.facet_key));
@@ -42,12 +39,7 @@ export default {
       id: `dim:${k}`, type: "toggle", label: pretty(k), value: defaults.has(k),
     }));
 
-    const bar = dom.controls([
-      ...dimToggles,
-      { id: "spacer", type: "spacer" },
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-    ], () => refresh());
+    const bar = dom.controls(dimToggles, () => refresh());
 
     const note = dom.el("div", { class: "sub" });
     const card = dom.el("div", { class: "card" },
@@ -56,7 +48,6 @@ export default {
     dom.mount(root, head, bar.element, card);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const plotNode = document.getElementById("pc-plot");
       plot.purge(plotNode);
       note.textContent = "";

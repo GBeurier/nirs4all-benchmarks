@@ -15,13 +15,11 @@ function pretty(facetKey) {
 export default {
   id: "network",
   title: "Network",
-  subtitle: "Clustered mega-graph — pipelines linked by shared operators, operators linked by co-occurrence.",
+  subtitle: "Clustered mega-graph — pipelines by shared operators, operators by co-occurrence.",
   icon: "🕸",
   async render(ctx) {
     const { root, api, dom, state, navigate } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
+    state._overview = state._overview || (await api.overview());
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
@@ -31,8 +29,6 @@ export default {
         { value: "pipelines", label: "Pipelines (shared operators)" },
         { value: "operators", label: "Operators (co-occurrence)" },
       ] },
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
       { id: "layout", type: "select", label: "Layout", options: ["cose", "concentric", "grid"], value: "cose" },
       { id: "min_jaccard", type: "select", label: "Min Jaccard", options: ["0.2", "0.34", "0.5", "0.7"], value: "0.34" },
     ], () => refresh());
@@ -47,7 +43,6 @@ export default {
 
     const refresh = async () => {
       const kind = bar.get("kind");
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const minJaccard = bar.get("min_jaccard");
 
       const headNode = document.getElementById("net-head");

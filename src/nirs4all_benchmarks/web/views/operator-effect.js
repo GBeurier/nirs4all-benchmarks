@@ -3,30 +3,22 @@
 export default {
   id: "operator-effect",
   title: "Operator effect",
-  subtitle: "Score distribution by which operator appears in the pipeline.",
+  subtitle: "What each operator does to the score.",
   icon: "🧩",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
-
-    const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-    ], () => refresh());
 
     const chartCard = dom.el("div", { class: "card" },
       dom.el("h3", {}, "Score by operator"),
       dom.el("div", { class: "sub" }, "One box per operator, over every run in which it appears."),
       dom.el("div", { class: "plot tall", id: "oe-plot" }));
     const tableHost = dom.el("div", {});
-    dom.mount(root, head, bar.element, chartCard, tableHost);
+    dom.mount(root, head, chartCard, tableHost);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const plotNode = document.getElementById("oe-plot");
       dom.mount(tableHost, dom.loading());
       const oe = await api.operatorEffect({ metric: state.metric, scope: state.scope });

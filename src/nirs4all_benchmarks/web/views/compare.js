@@ -5,12 +5,12 @@
 export default {
   id: "compare",
   title: "Residual compare",
-  subtitle: "Compare two runs' residuals on the same samples — find complementary models.",
+  subtitle: "Compare two runs’ residuals on the same samples — find complementary models.",
   icon: "⚖",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
 
-    const runs = await api.runs({ metric: "rmse", scope: "cv", limit: 500 });
+    const runs = await api.runs({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined, limit: 500 });
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
@@ -83,9 +83,8 @@ export default {
 
       plot.draw(node, [
         { type: "scatter", mode: "markers", x: ra, y: rb,
-          marker: { size: 7, opacity: 0.78, color: paired.map((p) => p.y_true),
-            colorscale: plot.diverging, showscale: true, colorbar: { title: "observed", thickness: 12 },
-            line: { width: 0.5, color: "rgba(15,31,26,.25)" } },
+          marker: plot.marker({ color: paired.map((p) => p.y_true),
+            colorscale: plot.diverging, showscale: true, colorbar: { title: "observed", thickness: 12 } }),
           text: paired.map((p) => p.sample_id),
           hovertemplate: "%{text}<br>resid A %{x:.3f} · resid B %{y:.3f}<extra></extra>" },
         { type: "scatter", mode: "lines", x: [-lim, lim], y: [-lim, lim],
