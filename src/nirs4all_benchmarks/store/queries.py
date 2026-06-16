@@ -435,3 +435,276 @@ class Queries:
             })
         out.sort(key=lambda r: r["stdev"])
         return out
+
+    # ── faceting / pivot / playground ──────────────────────────────────
+    def facets(self) -> list[dict[str, Any]]:
+        """Available facet keys with cardinality + whether they are numeric.
+
+        Powers the pivot/playground group-by selectors (DESIGN.md §9.3).
+        """
+        return self.store.query(
+            """
+            SELECT facet_key,
+                   COUNT(DISTINCT facet_value) AS n_values,
+                   MAX(role) AS role,
+                   SUM(CASE WHEN facet_num IS NOT NULL THEN 1 ELSE 0 END) > 0 AS numeric
+            FROM run_facets
+            GROUP BY facet_key
+            HAVING n_values > 1 OR facet_key LIKE 'param:%'
+            ORDER BY (facet_key LIKE 'param:%'), facet_key
+            """
+        )
+
+    def facet_values(self, facet_key: str, *, limit: int = 200) -> list[dict[str, Any]]:
+        return self.store.query(
+            """SELECT facet_value, MAX(facet_num) AS facet_num, COUNT(*) AS n
+               FROM run_facets WHERE facet_key = ? GROUP BY facet_value
+               ORDER BY (facet_num IS NULL), facet_num, facet_value LIMIT ?""",
+            (facet_key, limit),
+        )
+
+    def pivot(
+        self,
+        *,
+        group_by: str,
+        color_by: str | None = None,
+        metric: str = "rmse",
+        scope: str = "cv",
+        partition: str | None = None,
+        dataset_fingerprint: str | None = None,
+        include_quarantined: bool = False,
+        agg: str = "mean",
+    ) -> dict[str, Any]:
+        """Aggregate the metric across executions grouped by one or two facets.
+
+        The heart of the playground: ``group_by`` (and optional ``color_by``) is any
+        facet key (split_method, has_augmentation, preprocessing_op, model_family,
+        ``param:n_components``, …). A run contributes to each value of a multi-valued
+        facet (presence semantics), so "effect of SNV" or "augmentation on/off" work.
+        """
+        _safe_scope(scope)
+        where = ["mo.metric_name = ?", "mo.score_scope = ?", "mo.score_validity = 'valid'"]
+        params: list[Any] = [group_by, metric, scope]  # first ? is the gb.facet_key join
+        if not include_quarantined:
+            where.append("mo.execution_validity = 'valid'")
+        if partition:
+            where.append("mo.partition = ?")
+            params.append(partition)
+        if dataset_fingerprint:
+            where.append("mo.dataset_fingerprint = ?")
+            params.append(dataset_fingerprint)
+        color_join = ""
+        select_color = "NULL AS color, NULL AS color_num"
+        group_cols = "gb.facet_value, gb.facet_num"
+        if color_by:
+            color_join = "JOIN run_facets cb ON cb.run_condition_hash = mo.run_condition_hash AND cb.facet_key = ?"
+            params.insert(1, color_by)  # second ? is the cb.facet_key join
+            select_color = "cb.facet_value AS color, cb.facet_num AS color_num"
+            group_cols = "gb.facet_value, gb.facet_num, cb.facet_value, cb.facet_num"
+        sql = f"""
+            SELECT gb.facet_value AS group_value, gb.facet_num AS group_num, {select_color},
+                   AVG(mo.metric_value) AS mean, MIN(mo.metric_value) AS min, MAX(mo.metric_value) AS max,
+                   COUNT(DISTINCT mo.execution_hash) AS n
+            FROM v_run_metrics mo
+            JOIN run_facets gb ON gb.run_condition_hash = mo.run_condition_hash AND gb.facet_key = ?
+            {color_join}
+            WHERE {' AND '.join(where)}
+            GROUP BY {group_cols}
+        """
+        rows = self.store.query(sql, params)
+        for r in rows:
+            r["value"] = r.pop("mean")  # the aggregate the UI plots
+        rows.sort(key=lambda r: (r["group_num"] if r["group_num"] is not None else float("inf"),
+                                 str(r["group_value"])))
+        return {
+            "group_by": group_by, "color_by": color_by, "metric": metric, "scope": scope,
+            "direction": direction_of(metric), "agg": agg, "rows": rows,
+        }
+
+    def parallel(
+        self,
+        *,
+        dimensions: list[str],
+        metric: str = "rmse",
+        scope: str = "cv",
+        include_quarantined: bool = False,
+    ) -> dict[str, Any]:
+        """Per-execution rows with selected single-valued facet columns + the metric.
+
+        Feeds a parallel-coordinates plot over split/cv/model/params → score.
+        """
+        _safe_scope(scope)
+        where = ["mo.metric_name = ?", "mo.score_scope = ?", "mo.score_validity = 'valid'"]
+        params: list[Any] = [metric, scope]
+        if not include_quarantined:
+            where.append("mo.execution_validity = 'valid'")
+        base = self.store.query(
+            f"""SELECT mo.execution_hash, mo.run_condition_hash, mo.pipeline_label,
+                       AVG(mo.metric_value) AS metric_value
+                FROM v_run_metrics mo WHERE {' AND '.join(where)}
+                GROUP BY mo.execution_hash""",
+            params,
+        )
+        rch_to_facets: dict[str, dict[str, Any]] = {}
+        rchs = {r["run_condition_hash"] for r in base}
+        if rchs and dimensions:
+            placeholders = ",".join("?" for _ in rchs)
+            dim_ph = ",".join("?" for _ in dimensions)
+            frows = self.store.query(
+                f"""SELECT run_condition_hash, facet_key, facet_value, facet_num FROM run_facets
+                    WHERE run_condition_hash IN ({placeholders}) AND facet_key IN ({dim_ph})""",
+                [*rchs, *dimensions],
+            )
+            for fr in frows:
+                d = rch_to_facets.setdefault(fr["run_condition_hash"], {})
+                # first value wins for single-valued dims (deterministic by query order)
+                d.setdefault(fr["facet_key"], fr["facet_num"] if fr["facet_num"] is not None else fr["facet_value"])
+        rows = []
+        for r in base:
+            facet_map = rch_to_facets.get(r["run_condition_hash"], {})
+            row = {dim: facet_map.get(dim) for dim in dimensions}
+            row["metric"] = r["metric_value"]
+            row["pipeline_label"] = r["pipeline_label"]
+            row["execution_hash"] = r["execution_hash"]
+            rows.append(row)
+        return {"dimensions": [*dimensions, "metric"], "metric": metric, "scope": scope,
+                "direction": direction_of(metric), "rows": rows}
+
+    def planned(self) -> list[dict[str, Any]]:
+        """Planned (not-yet-run) pipeline × dataset conditions awaiting a runner."""
+        return self.store.query(
+            """SELECT pr.plan_id, pr.pipeline_dag_hash, pd.human_label, pr.dataset_fingerprint,
+                      dc.name AS dataset_name, pr.collection_id, pr.status, pr.source, pr.created_at
+               FROM planned_runs pr
+               LEFT JOIN pipeline_dags pd ON pd.pipeline_dag_hash = pr.pipeline_dag_hash
+               LEFT JOIN dataset_cards dc ON dc.dataset_fingerprint = pr.dataset_fingerprint
+               WHERE pr.status = 'planned'
+               ORDER BY pr.created_at DESC""",
+        )
+
+    # ── graph / network ────────────────────────────────────────────────
+    def _pipeline_scores(self, metric: str, scope: str) -> list[dict[str, Any]]:
+        return self.store.query(
+            """SELECT mo.pipeline_dag_hash AS pdh, mo.pipeline_label AS label, mo.main_model AS main_model,
+                      AVG(mo.metric_value) AS score, COUNT(DISTINCT mo.execution_hash) AS n_runs
+               FROM v_run_metrics mo
+               WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.execution_validity = 'valid'
+               GROUP BY mo.pipeline_dag_hash""",
+            [metric, scope],
+        )
+
+    def _pipeline_operator_sets(self, pdhs: list[str]) -> dict[str, set[str]]:
+        if not pdhs:
+            return {}
+        ph = ",".join("?" for _ in pdhs)
+        rows = self.store.query(
+            f"""SELECT pipeline_dag_hash AS pdh, operator FROM pipeline_nodes
+                WHERE pipeline_dag_hash IN ({ph}) AND operator IS NOT NULL AND role != 'input'""",
+            pdhs,
+        )
+        out: dict[str, set[str]] = {}
+        for r in rows:
+            out.setdefault(r["pdh"], set()).add(r["operator"].split(".")[-1])
+        return out
+
+    def pipeline_graph(
+        self, *, metric: str = "rmse", scope: str = "cv", min_jaccard: float = 0.34, max_nodes: int = 150
+    ) -> dict[str, Any]:
+        """A clustered network of pipelines — edges = shared-operator Jaccard.
+
+        Nodes are pipelines (clustered by model family, sized by run count, colored by
+        mean score); an edge links two pipelines that share preprocessing/model
+        operators above ``min_jaccard``. This is the "mega graph": families of related
+        pipelines surface as clusters.
+        """
+        _safe_scope(scope)
+        rows = sorted(self._pipeline_scores(metric, scope), key=lambda r: -(r["n_runs"] or 0))[:max_nodes]
+        pdhs = [r["pdh"] for r in rows]
+        opsets = self._pipeline_operator_sets(pdhs)
+        nodes = [
+            {"id": r["pdh"], "label": r["label"] or r["pdh"][:10],
+             "cluster": (r["main_model"] or "other").split(".")[-1], "size": r["n_runs"], "score": r["score"]}
+            for r in rows
+        ]
+        edges: list[dict[str, Any]] = []
+        for i in range(len(pdhs)):
+            a = opsets.get(pdhs[i], set())
+            if not a:
+                continue
+            for j in range(i + 1, len(pdhs)):
+                b = opsets.get(pdhs[j], set())
+                if not b:
+                    continue
+                union = len(a | b)
+                jac = len(a & b) / union if union else 0.0
+                if jac >= min_jaccard:
+                    edges.append({"source": pdhs[i], "target": pdhs[j], "weight": round(jac, 3)})
+        return {"kind": "pipelines", "metric": metric, "scope": scope, "direction": direction_of(metric),
+                "nodes": nodes, "edges": edges}
+
+    def operator_graph(self, *, metric: str = "rmse", scope: str = "cv", max_nodes: int = 150) -> dict[str, Any]:
+        """A clustered network of operators — edges = co-occurrence in the same pipeline.
+
+        Nodes are operators (clustered by stage role, sized by pipeline count, colored
+        by the mean score of runs that use them); edges connect operators that appear
+        together in a pipeline.
+        """
+        from nirs4all_benchmarks.indexing import classify_role
+
+        _safe_scope(scope)
+        stat_rows = self.store.query(
+            """SELECT pn.operator AS operator, MAX(pn.role) AS role,
+                      COUNT(DISTINCT pn.pipeline_dag_hash) AS n_pipes,
+                      COUNT(DISTINCT mo.execution_hash) AS n_runs, AVG(mo.metric_value) AS score
+               FROM pipeline_nodes pn
+               JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
+               WHERE pn.operator IS NOT NULL AND pn.role != 'input'
+                     AND mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.execution_validity = 'valid'
+               GROUP BY pn.operator ORDER BY n_pipes DESC LIMIT ?""",
+            [metric, scope, max_nodes],
+        )
+        keep = {r["operator"] for r in stat_rows}
+        nodes = [
+            {"id": r["operator"].split(".")[-1], "operator": r["operator"],
+             "cluster": classify_role(r["operator"], r["role"]), "size": r["n_pipes"],
+             "score": r["score"], "n_runs": r["n_runs"]}
+            for r in stat_rows
+        ]
+        # co-occurrence within pipelines that have valid runs
+        pdhs = [r["pdh"] for r in self._pipeline_scores(metric, scope)]
+        opsets = self._pipeline_operator_sets(pdhs)
+        leaf_keep = {op.split(".")[-1] for op in keep}
+        pair_counts: dict[tuple[str, str], int] = {}
+        for ops in opsets.values():
+            present = sorted(o for o in ops if o in leaf_keep)
+            for i in range(len(present)):
+                for j in range(i + 1, len(present)):
+                    pair_counts[(present[i], present[j])] = pair_counts.get((present[i], present[j]), 0) + 1
+        edges = [{"source": a, "target": b, "weight": w} for (a, b), w in pair_counts.items()]
+        return {"kind": "operators", "metric": metric, "scope": scope, "direction": direction_of(metric),
+                "nodes": nodes, "edges": edges}
+
+    def composition(self, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+        """Role → operator usage hierarchy (for a sunburst/treemap), colored by score."""
+        from nirs4all_benchmarks.indexing import classify_role
+
+        _safe_scope(scope)
+        rows = self.store.query(
+            """SELECT pn.operator AS operator, pn.role AS role,
+                      COUNT(DISTINCT pn.pipeline_dag_hash) AS n_pipes,
+                      COUNT(DISTINCT mo.execution_hash) AS n_runs, AVG(mo.metric_value) AS score
+               FROM pipeline_nodes pn
+               JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
+               WHERE pn.operator IS NOT NULL AND pn.role != 'input'
+                     AND mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.execution_validity = 'valid'
+               GROUP BY pn.operator""",
+            [metric, scope],
+        )
+        for r in rows:
+            r["role"] = classify_role(r["operator"], r["role"])
+            r["operator_short"] = r["operator"].split(".")[-1]
+        rows.sort(key=lambda r: (r["role"], -(r["n_runs"] or 0)))
+        return {"metric": metric, "scope": scope, "direction": direction_of(metric), "rows": rows}

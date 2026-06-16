@@ -13,6 +13,13 @@ The ingestion pipeline turns one `ArenaRunExport` into rows in an `ArenaStore`: 
   - [5/6. PSEUDONYMIZE + STRIP](#56-pseudonymize--strip)
   - [7. STAGE → COMMIT](#7-stage--commit)
   - [8. REPORT](#8-report)
+- [The unified upload state machine](#the-unified-upload-state-machine)
+  - [Accepted inputs](#accepted-inputs)
+  - [The run / store / display decision](#the-run--store--display-decision)
+  - [register_pipeline + planned_runs](#register_pipeline--planned_runs)
+  - [Role-aware run_facets at ingest](#role-aware-run_facets-at-ingest)
+  - [UploadResult](#uploadresult)
+  - [Upload examples](#upload-examples)
 - [IngestionPolicy](#ingestionpolicy)
 - [IngestionResult](#ingestionresult)
 - [Idempotency](#idempotency)
@@ -135,6 +142,211 @@ The final `status` is `quarantined` when validation marked the execution quarant
 ### 8. REPORT
 
 `ingest_export` returns an `IngestionResult` whose `clean_report` is the `CleanReport.to_json()` snapshot recorded on the batch. The same JSON is persisted in `ingestion_batches.clean_report_json`.
+
+## The unified upload state machine
+
+`ingest_export` is the *results* path: it requires a fully-formed `ArenaRunExport`. But a user often has something looser — a `.n4a` bundle, a raw pipeline recipe, a dag-ml bundle — and just wants to hand it to the Arena and let it decide what to do. That is `nirs4all_benchmarks.ingestion.upload` (`ingestion/upload.py`): one auto-detecting entry point that wraps `ingest_export` for results and adds a *register + plan* path for bare pipelines.
+
+```python
+from nirs4all_benchmarks.ingestion import upload, register_pipeline, UploadResult
+from nirs4all_benchmarks.store import ArenaStore
+
+with ArenaStore("./arena-store") as store:
+    result: UploadResult = upload(store, "my_pipeline.n4a", target_datasets=["my-dataset"])
+```
+
+The Arena itself **never runs compute** (DESIGN.md non-objectives). For results it ingests; for a bare pipeline it registers the recipe and, against each target dataset, either marks the run as *already run* or records a *planned run* that a runner fulfils later by ingesting the actual execution.
+
+### Accepted inputs
+
+`upload(store, payload, ...)` sniffs `payload` and routes it. Detection order (the first match wins):
+
+| Detected as | How it is recognized | What happens |
+|---|---|---|
+| **path on disk** | `str`/`Path` that exists and isn't recipe text (`_looks_like_path`) | a `.n4a` zip → strip weights + register; any other file → read as UTF-8 text and recurse |
+| **raw text** | a `str` that isn't a path | `_load_text_recipe` parses it as JSON, then falls back to YAML, then recurses on the parsed object |
+| **`ArenaRunExport`** | an `ArenaRunExport` instance, or a `dict` carrying `arena_export_schema_version` | `ingest_export` with a policy keyed to `collection_id` + `as_release` → `kind="arena_export"` |
+| **dag-ml `ExecutionBundle`** | a `dict` carrying `graph_fingerprint` or `bundle_id` | `bundle_to_export(payload)` then recurse as an export |
+| **pipeline recipe** | any remaining `list`, or `dict` with `pipeline` / `steps` / `nodes` | `register_pipeline` → `kind="pipeline"` |
+
+`.n4a` handling goes through `adapters/n4a_bundle.extract_n4a_recipe`: a `.n4a` is a ZIP of `manifest.json` + `pipeline.json`/`chain.json` + `artifacts/*`. Only the recipe is read — **artifact bytes are never opened**; `artifacts/*` entries are listed by name as `stripped_artifacts` for the audit trail. Identity is taken from `pipeline.json` (a DSL step list), never `chain.json` (§5.3). So a `.n4a` exported *with* fitted weights and one exported *without* register to the same `pipeline_dag_hash`; the only difference is the reported strip count. A bare recipe — a step `list`, or a `{pipeline|steps|nodes}` dict — is normalized by `_recipe_to_pipeline_source` into a `(graph_source, steps, label, n_stripped)` tuple before registration.
+
+### The run / store / display decision
+
+Once a payload is classified, the outcome is one of three:
+
+```
+upload(payload)
+  ├── results (ArenaRunExport / dag-ml bundle) ──► ingest_export ──► ingested | rejected
+  └── pipeline recipe (.n4a / list / JSON / YAML) ──► register_pipeline
+                                                       └── per target dataset:
+                                                            ├── valid execution exists ──► already_run   (display)
+                                                            └── none yet               ──► planned        (runner fulfils later)
+```
+
+For a results payload the decision is `ingest_export`'s own state machine above; `UploadResult.status` is `ingested` when `IngestionResult.ok` (committed / already_ingested / quarantined), else `rejected`. For a pipeline payload the decision is made per dataset, described next.
+
+### register_pipeline + planned_runs
+
+`register_pipeline(store, recipe, *, collection_id="uploads", target_datasets=None, source="upload", human_label=None, stripped_artifacts=0)` does two things inside one `store.transaction()`:
+
+1. **Register the recipe as a dimension.** It computes `pipeline_dag_hash` (`compute_pipeline_dag_hash`), explodes the normalized graph with `_extract_pipeline_rows`, and upserts the `pipeline_dags` row plus its `operator_specs`, `parameter_values`, `pipeline_nodes`, `pipeline_node_params`, and `pipeline_edges` — the same dimension tables `ingest_export` writes, so a later real execution of this pipeline dedups straight onto these rows. The collection is auto-created as a `user_run_collection`.
+
+2. **Plan or detect per target dataset.** Each `target_datasets` token is resolved to a fingerprint by `_resolve_dataset_fingerprint` (a 64-hex token is already a fingerprint; otherwise it looks up `dataset_cards` by `name`/`dataset_id`; failing that, it derives a deterministic `fingerprint({"dataset_token": token})`). Then it queries for a **valid** execution of this `(pipeline_dag_hash, dataset_fingerprint)`:
+
+   ```sql
+   SELECT COUNT(*) n FROM run_conditions rc
+   JOIN executions e ON e.run_condition_hash = rc.run_condition_hash
+   WHERE rc.pipeline_dag_hash = ? AND rc.dataset_fingerprint = ? AND e.validity_status = 'valid'
+   ```
+
+   - **already run** → the dataset entry is `{status: "already_run", n_executions: n}`. Nothing is planned.
+   - **not run yet** → a row is upserted into `planned_runs` with a deterministic `plan_id` (`plan_<16 hex>` over pipeline + dataset + collection) and `status="planned"`, and the entry is `{status: "planned", n_executions: 0, plan_id}`.
+
+The `planned_runs` table (`store/schema.sql`) records these not-yet-run conditions:
+
+```sql
+CREATE TABLE IF NOT EXISTS planned_runs (
+    plan_id             TEXT PRIMARY KEY,
+    pipeline_dag_hash   TEXT REFERENCES pipeline_dags (pipeline_dag_hash),
+    dataset_fingerprint TEXT,
+    task_hash           TEXT,
+    collection_id       TEXT,
+    status              TEXT NOT NULL DEFAULT 'planned',  -- planned | fulfilled
+    source              TEXT,
+    created_at          TEXT NOT NULL,
+    UNIQUE (pipeline_dag_hash, dataset_fingerprint, collection_id)
+);
+```
+
+**Fulfillment.** A planned run is fulfilled the moment a *real* execution for the same `(pipeline, dataset)` is ingested. Inside `ingest_export`'s fact-writing phase (`ingestion/ingest.py`), right after the `run_conditions` row is written:
+
+```python
+store.conn.execute(
+    "UPDATE planned_runs SET status = 'fulfilled' WHERE pipeline_dag_hash = ? AND dataset_fingerprint = ?",
+    (r.pipeline_dag_hash, r.dataset_fingerprint),
+)
+```
+
+So the lifecycle is `register → planned → (runner executes + exports) → ingest_export → fulfilled`. The Arena never executes the pipeline itself; it only tracks the plan and recognizes its fulfillment.
+
+### Role-aware run_facets at ingest
+
+Independently of upload, every `ingest_export` now materializes a long-format `run_facets` table for each run condition, so the dataviz can slice the benchmark space by *any* dimension (split / CV / seed / refit / dataset / model family / preprocessing / augmentation / per-parameter sweeps) without re-walking the DAG. This happens in the same fact-writing phase, right after the `run_conditions` upsert:
+
+```python
+from nirs4all_benchmarks.indexing import build_run_facets
+
+for facet in build_run_facets(r, model):
+    store.upsert("run_facets", facet)
+```
+
+`indexing.classify_role(operator, declared_kind)` buckets each node into a stage *role* — `preprocessing`, `augmentation`, `scaler`, `feature_selection`, `model`, `merge`, `split`, `sampler`, `input`, `other`. A declared graph `kind` wins via `_KIND_TO_ROLE`; otherwise substring heuristics run over the **leaf** of the dotted entrypoint (the class name), so `sklearn.ensemble` can't masquerade a `RandomForestRegressor` as a merge node and a `PowerTransformer` stays preprocessing rather than being caught by a neural "transformer" needle. Augmentation is checked against the full path first, because its signal is usually in the module (e.g. `nirs4all.augmentation.RandomShift`).
+
+`indexing.build_run_facets(resolved, model)` then emits deduped `{run_condition_hash, facet_key, facet_value, facet_num, role}` rows:
+
+- **condition-level facets**: `dataset`, `task_type`, `split_method`, `cv_method`, `n_folds`, `seed`, `refit_strategy`, `pipeline`, `is_linear`.
+- **stage facets** per node: a presence row `{role}_op` (e.g. `preprocessing_op = SNV`) plus a generic `operator` row, `merge_strategy` for merge nodes, and per-parameter `param:<name>` rows (numeric params carry `facet_num` for ordered/sweep plots).
+- **rollups**: `model` / `model_family`, `n_models`, `n_preprocessing`, `n_augmentation`, `has_augmentation`, `has_scaler`, `has_feature_selection`, `n_stages`.
+
+The table is keyed `PRIMARY KEY (run_condition_hash, facet_key, facet_value)`, so a repeated stage operator collapses to one row and re-ingest is idempotent. `Queries.facets` / `facet_values` / `pivot` / `parallel` read this table for the faceted dataviz, and `Queries.planned` exposes the `planned_runs` backlog.
+
+### UploadResult
+
+```python
+@dataclass
+class UploadResult:
+    kind: str            # arena_export | dagml_bundle | pipeline | unknown
+    status: str          # ingested | registered | rejected
+    pipeline_dag_hash: str | None = None
+    pipeline_label: str | None = None
+    stripped_artifacts: int = 0
+    datasets: list[dict[str, Any]] = field(default_factory=list)  # [{dataset, token, status, n_executions, plan_id}]
+    ingestion: dict[str, Any] | None = None
+    message: str = ""
+```
+
+- For a **results** upload: `kind="arena_export"`, `status` is `ingested`/`rejected`, `datasets=[]`, and `ingestion` carries the underlying ingest outcome (`status`, `validity_status`, `run_condition_hash`, `execution_hash`, `issues`, `clean_report`).
+- For a **pipeline** upload: `kind="pipeline"`, `status="registered"`, `pipeline_dag_hash` + `pipeline_label` set, `stripped_artifacts` is the count dropped from a `.n4a`, and `datasets` holds one entry per target dataset (`already_run` or `planned`).
+
+### Upload examples
+
+#### CLI: ingest-pipeline
+
+Register a pipeline recipe (`.n4a`, `.json`, or `.yaml`/`.yml`) — weights stripped — and plan/inspect it on target datasets:
+
+```bash
+# Register a .n4a recipe (weights stripped) and plan it on two datasets
+n4a-benchmarks ingest-pipeline my_pipeline.n4a \
+    --store ./arena-store \
+    --collection uploads \
+    --datasets my-dataset,another-dataset
+
+# A bare pipeline as JSON or YAML works the same way
+n4a-benchmarks ingest-pipeline pipeline.yaml --store ./arena-store -d my-dataset
+```
+
+It prints the recognized `kind` + message, then a per-dataset line (`already run (N runs)` or `planned`). `n4a-arena` is the same CLI. To see a `.n4a`'s identity without registering anything, use `inspect-n4a`:
+
+```bash
+n4a-benchmarks inspect-n4a my_pipeline.n4a   # prints step count, stripped artifacts, pipeline_dag_hash
+```
+
+#### Python: upload anything
+
+```python
+from nirs4all_benchmarks.ingestion import upload
+from nirs4all_benchmarks.store import ArenaStore
+
+with ArenaStore("./arena-store") as store:
+    # A .n4a bundle (with or without fitted artifacts) → register + plan.
+    res = upload(store, "model.n4a", collection_id="uploads", target_datasets=["my-dataset"])
+    assert res.kind == "pipeline" and res.status == "registered"
+    print(res.stripped_artifacts, res.datasets)   # e.g. 3 [{'token': 'my-dataset', 'status': 'planned', ...}]
+
+    # A bare nirs4all pipeline as a Python list → register the recipe.
+    res = upload(store, [{"op": "SNV"}, {"op": "PLSRegression", "n_components": 10}],
+                 target_datasets=["my-dataset"])
+
+    # An ArenaRunExport (dict or model) → ingest the results.
+    res = upload(store, manifest_dict, as_release=True)
+    assert res.kind == "arena_export"
+```
+
+#### REST: POST /api/upload
+
+The service exposes the same machine as a multipart form (`service/app.py`). Provide **either** a `file` (a `.n4a` / pipeline JSON·YAML / dag-ml bundle / `ArenaRunExport`) **or** a `text` field (raw JSON/YAML), plus `target_datasets` (comma-separated fingerprints or names), `collection`, and `as_release`:
+
+```bash
+# Upload a .n4a file and plan it on a dataset
+curl -X POST http://127.0.0.1:8000/api/upload \
+  -F "file=@my_pipeline.n4a" \
+  -F "target_datasets=my-dataset,another-dataset" \
+  -F "collection=uploads" \
+  -F "as_release=false"
+
+# Or paste a pipeline recipe as text
+curl -X POST http://127.0.0.1:8000/api/upload \
+  -F 'text=[{"op":"SNV"},{"op":"PLSRegression","n_components":10}]' \
+  -F "target_datasets=my-dataset"
+```
+
+The response is `UploadResult.to_json()`:
+
+```json
+{
+  "kind": "pipeline",
+  "status": "registered",
+  "pipeline_dag_hash": "…",
+  "pipeline_label": "my_pipeline",
+  "stripped_artifacts": 3,
+  "datasets": [{"dataset": "…", "token": "my-dataset", "status": "planned", "n_executions": 0, "plan_id": "plan_…"}],
+  "ingestion": null,
+  "message": "registered pipeline …; stripped 3 artifact(s)"
+}
+```
+
+A `file` is written to a temp path and routed through `upload`; missing both `file` and `text` returns HTTP 400. (The older `POST /api/ingest` route still accepts a bare `ArenaRunExport` JSON body and calls `ingest_export` directly.)
 
 ## IngestionPolicy
 

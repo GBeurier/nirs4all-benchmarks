@@ -11,6 +11,16 @@ from typing import Any
 from nirs4all_benchmarks import __version__
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
+# UploadFile must be importable at MODULE scope: with `from __future__ import
+# annotations` the route annotation `file: UploadFile | None` is a string that
+# FastAPI resolves against this module's globals (not the factory's locals), so a
+# factory-local import would make every multipart file POST raise at TypeAdapter
+# build time. Guarded so the package still imports without the `service` extra.
+try:
+    from fastapi import UploadFile
+except ImportError:  # pragma: no cover - optional dependency
+    UploadFile = None  # type: ignore[assignment, misc]
+
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
@@ -22,7 +32,7 @@ def _store_root(explicit: str | Path | None) -> Path:
 def create_app(store_root: str | Path | None = None) -> Any:
     """Build the ASGI app. Raises ``RuntimeError`` if the ``service`` extra is missing."""
     try:
-        from fastapi import Body, FastAPI, HTTPException, Query
+        from fastapi import Body, FastAPI, File, Form, HTTPException, Query
         from fastapi.responses import JSONResponse
         from fastapi.staticfiles import StaticFiles
     except ImportError as exc:  # pragma: no cover - optional dependency
@@ -138,6 +148,60 @@ def create_app(store_root: str | Path | None = None) -> Any:
         with queries() as q:
             return q.robustness(metric=metric, scope=scope)
 
+    # ── faceting / pivot / playground ──────────────────────────────────
+    @app.get("/api/facets")
+    def facets() -> list[dict[str, Any]]:
+        with queries() as q:
+            return q.facets()
+
+    @app.get("/api/facet-values")
+    def facet_values(key: str) -> list[dict[str, Any]]:
+        with queries() as q:
+            return q.facet_values(key)
+
+    @app.get("/api/pivot")
+    def pivot(
+        group_by: str,
+        color_by: str | None = None,
+        metric: str = "rmse",
+        scope: str = "cv",
+        partition: str | None = None,
+        dataset: str | None = None,
+        include_quarantined: bool = False,
+        agg: str = "mean",
+    ) -> dict[str, Any]:
+        with queries() as q:
+            return q.pivot(
+                group_by=group_by, color_by=color_by, metric=metric, scope=scope, partition=partition,
+                dataset_fingerprint=dataset, include_quarantined=include_quarantined, agg=agg,
+            )
+
+    @app.get("/api/parallel")
+    def parallel(dimensions: str, metric: str = "rmse", scope: str = "cv",
+                 include_quarantined: bool = False) -> dict[str, Any]:
+        dims = [d.strip() for d in dimensions.split(",") if d.strip()]
+        with queries() as q:
+            return q.parallel(dimensions=dims, metric=metric, scope=scope,
+                              include_quarantined=include_quarantined)
+
+    @app.get("/api/planned")
+    def planned() -> list[dict[str, Any]]:
+        with queries() as q:
+            return q.planned()
+
+    @app.get("/api/graph")
+    def graph(kind: str = "pipelines", metric: str = "rmse", scope: str = "cv",
+              min_jaccard: float = 0.34) -> dict[str, Any]:
+        with queries() as q:
+            if kind == "operators":
+                return q.operator_graph(metric=metric, scope=scope)
+            return q.pipeline_graph(metric=metric, scope=scope, min_jaccard=min_jaccard)
+
+    @app.get("/api/composition")
+    def composition(metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+        with queries() as q:
+            return q.composition(metric=metric, scope=scope)
+
     @app.get("/api/run/{execution_hash}")
     def run_detail(execution_hash: str) -> dict[str, Any]:
         with queries() as q:
@@ -183,6 +247,46 @@ def create_app(store_root: str | Path | None = None) -> Any:
             "issues": result.issues,
             "clean_report": result.clean_report,
         }
+
+    @app.post("/api/upload")
+    async def upload_route(
+        file: UploadFile | None = File(None),
+        text: str | None = Form(None),
+        target_datasets: str = Form(""),
+        collection: str = Form("uploads"),
+        as_release: bool = Form(False),
+    ) -> dict[str, Any]:
+        """Unified upload: a .n4a / pipeline JSON|YAML / dag-ml bundle / ArenaRunExport.
+
+        Auto-detects the payload and runs the run/store/display state machine, planning
+        runs against any ``target_datasets`` (comma-separated fingerprints or names).
+        """
+        import os
+        import tempfile
+
+        from nirs4all_benchmarks.ingestion import upload as do_upload
+
+        targets = [t.strip() for t in target_datasets.split(",") if t.strip()]
+        store = ArenaStore(root)
+        try:
+            if file is not None and file.filename:
+                suffix = Path(file.filename).suffix or ".bin"
+                fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+                try:
+                    with os.fdopen(fd, "wb") as fh:
+                        fh.write(await file.read())
+                    result = do_upload(store, tmp_path, collection_id=collection,
+                                       target_datasets=targets, as_release=as_release)
+                finally:
+                    os.unlink(tmp_path)
+            elif text:
+                result = do_upload(store, text, collection_id=collection,
+                                   target_datasets=targets, as_release=as_release)
+            else:
+                raise HTTPException(status_code=400, detail="provide a file or text")
+            return result.to_json()
+        finally:
+            store.close()
 
     @app.exception_handler(ValueError)
     async def _value_error_handler(_request: Any, exc: ValueError) -> Any:

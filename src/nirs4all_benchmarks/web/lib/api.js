@@ -34,4 +34,22 @@ export const api = {
   residuals: (hash, partition) => request("GET", `/api/run/${hash}/residuals`, { params: { partition } }),
   compare: (a, b, partition) => request("GET", "/api/compare", { params: { a, b, partition } }),
   ingest: (manifest, params) => request("POST", "/api/ingest", { params, body: manifest }),
+  // ── faceting / pivot / playground / upload ──
+  facets: () => request("GET", "/api/facets"),
+  facetValues: (key) => request("GET", "/api/facet-values", { params: { key } }),
+  pivot: (params) => request("GET", "/api/pivot", { params }),
+  parallel: (params) => request("GET", "/api/parallel", { params }),
+  planned: () => request("GET", "/api/planned"),
+  graph: (params) => request("GET", "/api/graph", { params }),
+  composition: (params) => request("GET", "/api/composition", { params }),
+  // multipart upload (file and/or text + target datasets); returns the state-machine result
+  upload: async (formData) => {
+    const res = await fetch(new URL("/api/upload", window.location.origin), { method: "POST", body: formData });
+    if (!res.ok) {
+      let detail;
+      try { detail = (await res.json()).detail; } catch { detail = res.statusText; }
+      throw new Error(`${res.status}: ${detail}`);
+    }
+    return res.json();
+  },
 };

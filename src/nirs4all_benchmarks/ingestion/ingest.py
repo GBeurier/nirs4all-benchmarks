@@ -469,6 +469,16 @@ def _write_facts(
             "created_at": now,
         })),
     )
+    # Role-aware facets (split / aug / pp / model / params …) for the pivot dataviz.
+    from nirs4all_benchmarks.indexing import build_run_facets
+
+    for facet in build_run_facets(r, model):
+        store.upsert("run_facets", facet)
+    # A planned run for this (pipeline, dataset) is now fulfilled by a real execution.
+    store.conn.execute(
+        "UPDATE planned_runs SET status = 'fulfilled' WHERE pipeline_dag_hash = ? AND dataset_fingerprint = ?",
+        (r.pipeline_dag_hash, r.dataset_fingerprint),
+    )
     att = model.leakage_attestation
     if store.upsert("executions", {
         "execution_hash": r.execution_hash,
