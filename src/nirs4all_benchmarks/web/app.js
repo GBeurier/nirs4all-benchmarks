@@ -3,6 +3,7 @@
 import { api } from "./lib/api.js";
 import * as dom from "./lib/dom.js";
 import * as plot from "./lib/plot.js";
+import { createStaticApi } from "./lib/static-engine.js";
 
 import overview from "./views/overview.js";
 import leaderboard from "./views/leaderboard.js";
@@ -139,6 +140,18 @@ async function renderChrome() {
   }
 }
 
+function renderProtoBanner() {
+  const host = document.getElementById("proto-banner");
+  if (!host || localStorage.getItem("arena.proto.dismissed")) return;
+  dom.clear(host);
+  host.className = "proto-banner";
+  host.appendChild(dom.el("div", { class: "proto-banner-inner" },
+    dom.el("span", {}, "⚠ Early ", dom.el("strong", {}, "prototype"),
+      window.ARENA_STATIC ? " — a static snapshot of demo data; the live service ingests real runs." : " — schemas, scores and views may still change."),
+    dom.el("button", { class: "proto-x", title: "Dismiss",
+      onclick: () => { localStorage.setItem("arena.proto.dismissed", "1"); host.remove(); } }, "✕")));
+}
+
 function parseHash() {
   const h = (location.hash || "#/overview").replace(/^#\/?/, "");
   const [id, ...rest] = h.split("/");
@@ -166,7 +179,12 @@ async function route() {
 
 window.addEventListener("hashchange", route);
 window.addEventListener("DOMContentLoaded", async () => {
+  // Static mode: replace the live API client with the client-side snapshot engine.
+  if (window.ARENA_STATIC) {
+    try { Object.assign(api, await createStaticApi()); } catch (e) { console.error("static snapshot failed to load", e); }
+  }
   if (!location.hash) location.hash = "#/overview";
+  renderProtoBanner();
   await renderChrome();
   await refreshHeader();
   await route();

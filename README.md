@@ -23,6 +23,20 @@ It stores identity cards, canonical pipeline DAGs, versioned scores, and **sampl
 
 Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem).
 
+## Status & roadmap
+
+> ⚠️ **Early prototype.** Schemas, scores, views and the public page may still change.
+
+- **Now (v0.1.x): static, client-side.** The public page at **[benchmarks.nirs4all.org](https://benchmarks.nirs4all.org)**
+  is a fully static snapshot deployed on GitHub Pages — the whole dataviz runs in the browser from a
+  JSON snapshot, **no backend required**. The FastAPI service runs locally for ingestion and real stores.
+- **Next (medium term): a live meta-analysis server** that manages **runs, pipelines and meta-analyses**
+  and interacts with **[`nirs4all-repository`](https://github.com/GBeurier/nirs4all-repository)** (pipeline
+  recipes to score) and **[`nirs4all-datasets`](https://github.com/GBeurier/nirs4all-datasets)** (the dataset
+  catalog) — turning the static demo into a continuously-updated public benchmark.
+
+Full plan: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
+
 ---
 
 ## What it does
@@ -87,6 +101,7 @@ docker compose run --rm arena n4a-benchmarks fixtures   # seed demo data once
 
 | Doc | What |
 |---|---|
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Status (prototype) + the static-now / live-server-next plan |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, module map, data flow |
 | [docs/CONTRACT.md](docs/CONTRACT.md) | The `ArenaRunExport` v1 ingestion contract (frozen) |
 | [docs/IDENTITY.md](docs/IDENTITY.md) | The identity spine + `pipeline_dag_hash` |
