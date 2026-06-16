@@ -60,10 +60,13 @@ export default {
       || keys.find((k) => k !== defaultX)
       || keys[0];
 
+    const Z_METRIC = "__metric__";
     const bar = dom.controls([
       { id: "x", type: "select", label: "X axis", options: facetOptions, value: defaultX },
       { id: "y", type: "select", label: "Y axis", options: facetOptions, value: defaultY },
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
+      { id: "z", type: "select", label: "Z axis",
+        options: [{ value: Z_METRIC, label: "metric (score)" }, ...facetOptions], value: Z_METRIC },
+      { id: "metric", type: "select", label: "Metric / color", options: metrics, value: state.metric },
       { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
       { id: "chart", type: "select", label: "Chart", options: ["scatter3d", "surface"], value: "scatter3d" },
     ], () => refresh());
@@ -81,13 +84,18 @@ export default {
       const x = bar.get("x");
       const y = bar.get("y");
       const chart = bar.get("chart");
+      const zKey = bar.get("z");
+      const zReal = chart === "scatter3d" && zKey !== Z_METRIC && zKey !== x && zKey !== y;
       state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
 
       const plotNode = document.getElementById("ls-plot");
       const titleNode = document.getElementById("ls-title");
       const bannerNode = document.getElementById("ls-banner");
       dom.clear(bannerNode);
-      titleNode.textContent = `${state.metric} over ${pretty(x)} × ${pretty(y)}`;
+      const zLabel = zReal ? pretty(zKey) : state.metric;
+      titleNode.textContent = chart === "scatter3d"
+        ? `${pretty(x)} × ${pretty(y)} × ${zLabel}` + (zReal ? ` (color ${state.metric})` : "")
+        : `${state.metric} over ${pretty(x)} × ${pretty(y)}`;
       plot.purge(plotNode);
 
       if (x === y) {
@@ -96,7 +104,8 @@ export default {
         return;
       }
 
-      const pc = await api.parallel({ dimensions: [x, y].join(","), metric: state.metric, scope: state.scope });
+      const dims = zReal ? [x, y, zKey] : [x, y];
+      const pc = await api.parallel({ dimensions: dims.join(","), metric: state.metric, scope: state.scope });
       const rows = pc.rows || [];
       if (!rows.length) {
         dom.mount(plotNode, dom.empty("No runs match these dimensions at this score level."));
@@ -122,7 +131,12 @@ export default {
       };
 
       if (chart === "scatter3d") {
-        const z = rows.map((r) => r.metric);
+        const color = rows.map((r) => r.metric);
+        const dz = zReal ? codeDim(rows, zKey) : null;
+        const z = zReal ? dz.vals : color;
+        const zAxis = zReal
+          ? (() => { const a = { title: pretty(zKey) }; if (dz.categorical) { a.tickvals = dz.tickvals; a.ticktext = dz.ticktext; } return a; })()
+          : { title: state.metric };
         const labelFor = (r) => r.pipeline_label || (r.execution_hash ? String(r.execution_hash).slice(0, 10) : "run");
         plot.draw(plotNode, [{
           type: "scatter3d",
@@ -131,10 +145,10 @@ export default {
           y: dy.vals,
           z,
           text: rows.map(labelFor),
-          customdata: rows.map((r) => [String(r[x]), String(r[y])]),
+          customdata: rows.map((r) => [String(r[x]), String(r[y]), zReal ? String(r[zKey]) : "", r.metric]),
           marker: {
             size: 4,
-            color: z,
+            color,
             colorscale: "Viridis",
             reversescale: dir !== "max",
             showscale: true,
@@ -144,13 +158,14 @@ export default {
             "%{text}<br>" +
             `${pretty(x)} = %{customdata[0]}<br>` +
             `${pretty(y)} = %{customdata[1]}<br>` +
-            `${state.metric} = %{z:.4f}<extra></extra>`,
+            (zReal ? `${pretty(zKey)} = %{customdata[2]}<br>` : "") +
+            `${state.metric} = %{customdata[3]:.4f}<extra></extra>`,
         }], {
           margin: { l: 0, r: 0, t: 10, b: 0 },
           scene: {
             xaxis: axisFor(x, dx, false),
             yaxis: axisFor(y, dy, false),
-            zaxis: axisFor(null, null, true),
+            zaxis: zAxis,
           },
         });
       } else {

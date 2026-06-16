@@ -42,6 +42,8 @@ export const api = {
   planned: () => request("GET", "/api/planned"),
   graph: (params) => request("GET", "/api/graph", { params }),
   composition: (params) => request("GET", "/api/composition", { params }),
+  stats: (params) => request("GET", "/api/stats", { params }),
+  healthz: () => request("GET", "/api/healthz"),
   // multipart upload (file and/or text + target datasets); returns the state-machine result
   upload: async (formData) => {
     const res = await fetch(new URL("/api/upload", window.location.origin), { method: "POST", body: formData });
