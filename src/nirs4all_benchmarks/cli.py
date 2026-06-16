@@ -202,6 +202,21 @@ def leaderboard(
     console.print(table)
 
 
+@app.command("build-site")
+def build_site_cmd(
+    store: str = StoreOpt,
+    out: Path = typer.Option(Path("site"), "--out", "-o", help="Output directory for the static site."),
+    domain: str = typer.Option("benchmarks.nirs4all.org", "--domain", help="Custom domain (CNAME); empty to skip."),
+) -> None:
+    """Build a fully static, client-side copy of the Arena (for GitHub Pages — no backend)."""
+    from nirs4all_benchmarks.site_build import build_site
+
+    summary = build_site(store, out, domain=domain or None)
+    console.print(f"[green]✓[/] static site built at [bold]{summary['out']}[/]: "
+                  f"{summary['executions']} runs · {summary['pipelines']} pipelines · {summary['datasets']} datasets"
+                  + (f" · {domain}" if domain else ""))
+
+
 @app.command()
 def serve(
     store: str = StoreOpt,

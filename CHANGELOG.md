@@ -9,6 +9,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 Second + third iterations — richer ingestion surface, deep faceted dataviz, the
 ecosystem visual identity, and graph/3D visualizations.
 
+### Added (iteration 6 — static GitHub Pages site + roadmap)
+
+- **Static, client-side deployment.** `n4a-benchmarks build-site` snapshots a store to JSON and copies
+  the SPA; a new client-side engine (`web/lib/static-engine.js`) answers every query in the browser
+  from that snapshot (verified at parity with the Python `Queries`), so the whole dataviz runs on
+  **GitHub Pages with no backend**. A `pages.yml` workflow builds + deploys to
+  **benchmarks.nirs4all.org** (CNAME); `config.js` flips the SPA into static mode.
+- **Prototype notice + roadmap everywhere** — a dismissible prototype banner, and a documented plan
+  ([docs/ROADMAP.md](ROADMAP.md), README, deployment docs): *static client-side now → a live server
+  managing runs / pipelines / meta-analyses with `nirs4all-repository` & `nirs4all-datasets` next.*
+- **Fixed** a real `operator_effect` bug (it counted the `input` pseudo-operator `X`); now excluded,
+  matching `operator_graph`/`composition`.
+
 ### Changed (iteration 5 — meta-analysis UX overhaul)
 
 - **Single shared lens** — a sticky context bar (Metric · Score level · Dataset) now drives **every**
