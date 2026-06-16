@@ -253,7 +253,7 @@ class Queries:
             FROM pipeline_nodes pn
             JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
             WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.execution_validity = 'valid'
-                  AND pn.operator IS NOT NULL
+                  AND pn.operator IS NOT NULL AND pn.role != 'input'
             """,
             [metric, scope],
         )

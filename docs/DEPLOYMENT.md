@@ -341,3 +341,27 @@ re-ingesting the same export is a no-op rather than a duplicate.
 - **Single store per service.** One running service points at exactly one store
   root. To serve multiple stores, run multiple instances on different ports, each
   with its own `NIRS4ALL_BENCHMARKS_STORE`.
+
+## Static deployment on GitHub Pages (no backend)
+
+The public page at **benchmarks.nirs4all.org** is a fully static, client-side snapshot — GitHub Pages
+serves it with no server. The SPA loads a JSON snapshot and answers every query in the browser via
+`web/lib/static-engine.js` (a parity-checked mirror of the Python `Queries`).
+
+Build it locally:
+
+```bash
+n4a-benchmarks fixtures   --store ./pages-store           # or ingest a real store
+n4a-benchmarks build-site --store ./pages-store --out ./site --domain benchmarks.nirs4all.org
+# ./site is self-contained: index.html, app.js, lib/, views/, vendor/, brand/,
+# config.js (window.ARENA_STATIC = true), CNAME, .nojekyll, and data/ (bundle.json + runs/*.json)
+python -m http.server -d ./site 8080   # preview
+```
+
+CI does this automatically: `.github/workflows/pages.yml` seeds the demo store, runs `build-site`,
+and deploys `./site` to Pages on every push to `main`. Point a DNS `CNAME` record for
+`benchmarks.nirs4all.org` at `gbeurier.github.io`, and enable Pages (source: GitHub Actions) in the
+repo settings.
+
+This is the **prototype** stage; the medium-term plan is a live server backing the same SPA — see
+[ROADMAP.md](ROADMAP.md).
