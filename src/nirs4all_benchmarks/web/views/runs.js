@@ -3,13 +3,10 @@
 export default {
   id: "runs",
   title: "Run explorer",
-  subtitle: "Filterable table of every individual run.",
+  subtitle: "Every individual run — filter, sort, and drill into one.",
   icon: "🧪",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    const datasets = await api.datasets();
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
@@ -24,12 +21,6 @@ export default {
       : null;
 
     const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-      { id: "dataset", type: "select", label: "Dataset", value: state.dataset, options: [
-        { value: "", label: "All datasets" },
-        ...datasets.map((d) => ({ value: d.dataset_fingerprint, label: d.name || d.dataset_fingerprint.slice(0, 10) })),
-      ] },
       { id: "operator", type: "search", label: "Operator", placeholder: "operator dotted path…", value: "" },
       { id: "quar", type: "toggle", label: "Include quarantined", value: true },
     ], () => refresh());
@@ -42,7 +33,6 @@ export default {
     dom.mount(root, head, banner, bar.element, chartCard, tableHost);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.dataset = bar.get("dataset"); state.save();
       const plotNode = document.getElementById("runs-plot");
       dom.mount(tableHost, dom.loading());
       const operatorSearch = (bar.get("operator") || "").trim();
