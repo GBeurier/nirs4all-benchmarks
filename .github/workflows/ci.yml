@@ -25,7 +25,7 @@ jobs:
       - name: Create venv and install
         run: |
           uv venv --python ${{ matrix.python-version }} .venv
-          uv pip install --python .venv -e ".[service,dev]"
+          uv pip install --python .venv -e ".[service,dev]" pytest-cov
 
       - name: Ruff (lint)
         run: .venv/bin/ruff check src tests
@@ -33,8 +33,15 @@ jobs:
       - name: Mypy (types)
         run: .venv/bin/mypy
 
-      - name: Pytest
-        run: .venv/bin/pytest -q
+      - name: Pytest (with coverage)
+        run: .venv/bin/pytest -q --cov=nirs4all_benchmarks --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
 
   frontend-syntax:
     runs-on: ubuntu-latest
