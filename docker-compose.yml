@@ -1,0 +1,18 @@
+# Run the Arena dataviz service with a persistent store volume.
+#   docker compose up --build
+#   # seed demo data once:
+#   docker compose run --rm arena n4a-benchmarks fixtures
+services:
+  arena:
+    build: .
+    image: nirs4all-benchmarks:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - arena-store:/data
+    environment:
+      NIRS4ALL_BENCHMARKS_STORE: /data/arena-store
+    restart: unless-stopped
+
+volumes:
+  arena-store:
