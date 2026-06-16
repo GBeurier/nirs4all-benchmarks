@@ -1,4 +1,4 @@
-// The Arena SPA — router, shared state, nav, view registry. No build step.
+// The Arena SPA — router, shared lens, nav, view registry. No build step.
 
 import { api } from "./lib/api.js";
 import * as dom from "./lib/dom.js";
@@ -31,19 +31,24 @@ const VIEWS = [
 ];
 const BY_ID = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
 
-// Shared, persisted cross-view state (metric / scope / dataset filter).
+// Views that do NOT use the shared metric/scope/dataset lens (catalog, contribute, detail).
+const NO_LENS = new Set(["datasets", "pipelines", "planned", "upload", "run", "overview"]);
+
+// Shared, persisted lens — set ONCE in the context bar, read by every analysis view.
 const STATE_KEY = "arena.state.v1";
 const state = {
-  metric: "rmse", scope: "cv", dataset: "", _overview: null,
+  metric: "rmse", scope: "cv", dataset: "", _overview: null, _datasets: null,
   ...(JSON.parse(localStorage.getItem(STATE_KEY) || "{}")),
   save() { localStorage.setItem(STATE_KEY, JSON.stringify({ metric: this.metric, scope: this.scope, dataset: this.dataset })); },
 };
 
+// Meta-analysis narrative: rank → understand drivers → see structure → drill into runs.
 const GROUPS = [
-  { name: "Explore", ids: ["overview", "leaderboard", "matrix", "playground"] },
-  { name: "Effects", ids: ["param-effect", "operator-effect", "parallel", "robustness", "statistics"] },
-  { name: "Graphs", ids: ["landscape", "composition", "network"] },
-  { name: "Runs", ids: ["runs", "compare"] },
+  { name: "Start", ids: ["overview"] },
+  { name: "Rankings", ids: ["leaderboard", "matrix"] },
+  { name: "Drivers", ids: ["playground", "param-effect", "operator-effect", "statistics"] },
+  { name: "Structure", ids: ["parallel", "landscape", "composition", "network"] },
+  { name: "Runs", ids: ["runs", "compare", "robustness"] },
   { name: "Catalog", ids: ["datasets", "pipelines", "planned"] },
   { name: "Contribute", ids: ["upload"] },
 ];
@@ -63,10 +68,44 @@ function renderNav(activeId) {
   }
 }
 
+// ── the shared lens (one place to choose metric / score level / dataset) ──
+function renderContextBar(activeId) {
+  const host = document.getElementById("context-bar");
+  if (!host) return;
+  if (NO_LENS.has(activeId)) { host.style.display = "none"; host.innerHTML = ""; return; }
+  host.style.display = "";
+  const ov = state._overview || {};
+  const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
+  const ds = state._datasets || [];
+
+  const sel = (id, label, options, value, onChange) => {
+    const s = dom.el("select", { onchange: (e) => onChange(e.target.value) });
+    for (const o of options) {
+      const val = o.value ?? o, lbl = o.label ?? o;
+      const opt = dom.el("option", { value: val }, lbl);
+      if (String(val) === String(value)) opt.selected = true;
+      s.appendChild(opt);
+    }
+    return dom.el("div", { class: "ctx-field" }, dom.el("label", {}, label), s);
+  };
+
+  dom.clear(host);
+  host.appendChild(dom.el("div", { class: "ctx-inner" },
+    dom.el("span", { class: "ctx-lens" }, "Lens"),
+    sel("metric", "Metric", metrics, state.metric, (v) => { state.metric = v; state.save(); route(); }),
+    sel("scope", "Score level", ["cv", "test", "refit", "fold"], state.scope, (v) => { state.scope = v; state.save(); route(); }),
+    sel("dataset", "Dataset",
+      [{ value: "", label: "All datasets" },
+        ...ds.map((d) => ({ value: d.dataset_fingerprint, label: d.name || d.dataset_fingerprint.slice(0, 10) }))],
+      state.dataset, (v) => { state.dataset = v; state.save(); route(); }),
+    dom.el("span", { class: "ctx-hint" }, "applies to every analysis view")));
+}
+
 async function refreshHeader() {
   try {
     const ov = await api.overview();
     state._overview = ov;
+    if (!state._datasets) { try { state._datasets = await api.datasets(); } catch { state._datasets = []; } }
     document.getElementById("header-pill").textContent =
       `${ov.valid_executions}/${ov.executions} runs · ${ov.pipelines} pipelines · ${ov.datasets} datasets`;
   } catch {
@@ -110,6 +149,7 @@ async function route() {
   const { id, param } = parseHash();
   const view = BY_ID[id] || BY_ID.overview;
   renderNav(view.id);
+  renderContextBar(view.id);
   const root = document.getElementById("view-root");
   dom.mount(root, dom.loading());
   const ctx = {
@@ -131,5 +171,4 @@ window.addEventListener("DOMContentLoaded", async () => {
   await refreshHeader();
   await route();
 });
-// expose for views that change shared state and want the header to update
 window.__arena = { refreshHeader };

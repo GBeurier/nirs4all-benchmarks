@@ -4,14 +4,10 @@
 export default {
   id: "param-effect",
   title: "Parameter effect",
-  subtitle: "How a hyperparameter moves the score (e.g. PLS n_components).",
+  subtitle: "Does a hyperparameter move the score?",
   icon: "🎚",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
-
     const params = await api.parameters();
     const paramNames = params.map((p) => p.name);
     const defaultParam = paramNames.includes("n_components") ? "n_components" : paramNames[0];
@@ -31,8 +27,6 @@ export default {
 
     const bar = dom.controls([
       { id: "param", type: "select", label: "Parameter", options: paramNames, value: defaultParam },
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
     ], () => refresh());
 
     const chartCard = dom.el("div", { class: "card" },
@@ -44,7 +38,6 @@ export default {
 
     const refresh = async () => {
       const param = bar.get("param");
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const plotNode = document.getElementById("pe-plot");
       const titleNode = document.getElementById("pe-title");
       const subNode = document.getElementById("pe-sub");
@@ -82,7 +75,7 @@ export default {
           traces.push({
             type: "scatter", mode: "markers", name, legendgroup: df,
             x: pts.map((p) => p.numeric), y: pts.map((p) => p.metric_value),
-            marker: { color, size: 6, opacity: 0.55 },
+            marker: plot.marker({ color }),
             hovertemplate: `${name}<br>${param} = %{x}<br>${state.metric} = %{y:.4f}<extra></extra>`,
           });
           // Per-x mean, sorted by x, to expose the U-curve / trend.
@@ -96,7 +89,7 @@ export default {
             type: "scatter", mode: "lines+markers", name: `${name} (mean)`,
             legendgroup: df, showlegend: false,
             x: xs, y: xs.map((x) => sums.get(x).s / sums.get(x).n),
-            line: { color, width: 2 }, marker: { color, size: 7 },
+            line: { color, width: 2 }, marker: plot.marker({ color, size: 5 }),
             hovertemplate: `${name} mean<br>${param} = %{x}<br>${state.metric} = %{y:.4f}<extra></extra>`,
           });
         }

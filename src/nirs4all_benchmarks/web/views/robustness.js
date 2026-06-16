@@ -8,26 +8,18 @@ export default {
   icon: "📉",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
-
-    const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-    ], () => refresh());
 
     const chartCard = dom.el("div", { class: "card" },
       dom.el("h3", {}, "Stability landscape"),
       dom.el("div", { class: "sub" }, "Each point is one pipeline on one dataset; marker size scales with the number of observations."),
       dom.el("div", { class: "plot tall", id: "rb-plot" }));
     const tableHost = dom.el("div", {});
-    dom.mount(root, head, bar.element, chartCard, tableHost);
+    dom.mount(root, head, chartCard, tableHost);
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const plotNode = document.getElementById("rb-plot");
       dom.mount(tableHost, dom.loading());
       const rows = await api.robustness({ metric: state.metric, scope: state.scope });
@@ -44,12 +36,11 @@ export default {
           x: pts.map((r) => r.mean),
           y: pts.map((r) => r.stdev),
           text: pts.map((r) => r.label),
-          marker: {
+          marker: plot.marker({
             color: plot.palette[i % plot.palette.length],
-            size: pts.map((r) => 8 + 22 * Math.sqrt((r.n || 1) / maxN)),
-            line: { color: "rgba(15,31,26,.25)", width: 1 },
-            opacity: 0.82,
-          },
+            size: pts.map((r) => 5 + 4 * Math.sqrt((r.n || 1) / maxN)),
+            opacity: 0.7,
+          }),
           hovertemplate: "%{text}<br>" + state.metric + " mean = %{x:.4f}<br>" + state.metric + " stdev = %{y:.4f}<extra></extra>",
         };
       });

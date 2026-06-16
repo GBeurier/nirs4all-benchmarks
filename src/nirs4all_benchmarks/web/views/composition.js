@@ -13,20 +13,15 @@ function pretty(facetKey) {
 export default {
   id: "composition",
   title: "Composition",
-  subtitle: "How pipelines are built — stage roles and their operators, sized by usage and colored by score.",
+  subtitle: "How pipelines are built — roles and operators, sized by use, colored by score.",
   icon: "☀",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
 
     const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
       { id: "size_by", type: "select", label: "Size by", options: [
         { value: "n_runs", label: "runs" },
         { value: "n_pipes", label: "pipelines" },
@@ -44,7 +39,6 @@ export default {
     const refresh = async () => {
       const size_by = bar.get("size_by");
       const chart = bar.get("chart");
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
 
       const plotNode = document.getElementById("comp-plot");
       const titleNode = document.getElementById("comp-title");
@@ -68,7 +62,8 @@ export default {
       const values = [];
       const colors = [];
 
-      // Root.
+      // Root — value is filled in after summing children (branchvalues:"total"
+      // requires parent value == sum of children, else the chart renders nothing).
       ids.push("All"); labels.push("All"); parents.push(""); values.push(0); colors.push(null);
 
       // Group rows by role to aggregate role-level value and weighted-mean score.
@@ -79,6 +74,7 @@ export default {
         roleMap.get(role).push(r);
       }
 
+      let total = 0;
       for (const [role, opsRows] of roleMap) {
         let roleValue = 0;
         let weightSum = 0;
@@ -88,6 +84,7 @@ export default {
           roleValue += v;
           if (r.score != null && !Number.isNaN(r.score)) { weightSum += v; scoreWeighted += v * r.score; }
         }
+        total += roleValue;
         ids.push(role); labels.push(pretty(role)); parents.push("All");
         values.push(roleValue);
         colors.push(weightSum > 0 ? scoreWeighted / weightSum : null);
@@ -100,6 +97,7 @@ export default {
           colors.push(r.score);
         }
       }
+      values[0] = total;  // root must total its children for branchvalues:"total"
 
       // Color range from operator scores only (the meaningful leaves).
       const scoreVals = rows.map((r) => r.score).filter((s) => s != null && !Number.isNaN(s));

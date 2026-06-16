@@ -9,6 +9,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 Second + third iterations — richer ingestion surface, deep faceted dataviz, the
 ecosystem visual identity, and graph/3D visualizations.
 
+### Changed (iteration 5 — meta-analysis UX overhaul)
+
+- **Single shared lens** — a sticky context bar (Metric · Score level · Dataset) now drives **every**
+  analysis view; the per-view metric/scope/dataset selectors were removed (major declutter). Set the
+  lens once; the whole app follows.
+- **Meta-analysis IA** — nav reorganized into a narrative (Start · Rankings · Drivers · Structure ·
+  Runs · Catalog · Contribute) and every view reframed around the question it answers.
+- **Overview is now a findings dashboard** — headline insights (top pipeline, best model family, best
+  preprocessing, augmentation effect, split sensitivity, most robust), each linking to the relevant view.
+- **Professional charts** — centralized Plotly theme (muted grid, readable hover, brand colorway),
+  small consistent markers (no more oversized dots), tidy legends/colorbars.
+- **Fixed Composition** — the sunburst/treemap rendered blank because the `branchvalues:"total"` root
+  value was 0; the root now totals its children.
+
 ### Added (iteration 4 — stats, more 3D, polish, prototype/version)
 
 - **Statistics view** + `/api/stats` (`Queries.stats`) — score distribution (histogram), spread per

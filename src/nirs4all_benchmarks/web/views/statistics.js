@@ -1,5 +1,6 @@
 // Statistics — score distributions, per-dataset spread, and what correlates with
-// the score. Same reactive pattern as the other views (page-head + controls + refresh).
+// the score. Metric/score level come from the shared lens; this view is a one-shot
+// (page-head + refresh) with no local controls bar.
 
 function pretty(facetKey) {
   if (facetKey == null) return "";
@@ -15,19 +16,11 @@ export default {
   icon: "📊",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
-    const ov = state._overview || (await api.overview());
-    state._overview = ov;
-    const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("div", { class: "eyebrow" }, "Statistics"),
       dom.el("h1", {}, this.title),
       dom.el("p", {}, this.subtitle));
-
-    const bar = dom.controls([
-      { id: "metric", type: "select", label: "Metric", options: metrics, value: state.metric },
-      { id: "scope", type: "select", label: "Score level", options: ["cv", "test", "refit", "fold"], value: state.scope },
-    ], () => refresh());
 
     const statsRow = dom.el("div", { class: "grid cols-4", id: "st-summary" });
     const distCard = dom.el("div", { class: "card" }, dom.el("h3", {}, "Score distribution"),
@@ -40,13 +33,12 @@ export default {
       dom.el("div", { class: "plot", id: "st-corr" }));
     const tableHost = dom.el("div", {});
 
-    dom.mount(root, head, bar.element, statsRow,
+    dom.mount(root, head, statsRow,
       dom.el("div", { class: "grid cols-2", style: { marginTop: "16px" } }, distCard, spreadCard),
       dom.el("div", { style: { marginTop: "16px" } }, corrCard),
       dom.el("div", { style: { marginTop: "16px" } }, tableHost));
 
     const refresh = async () => {
-      state.metric = bar.get("metric"); state.scope = bar.get("scope"); state.save();
       const st = await api.stats({ metric: state.metric, scope: state.scope });
       const s = st.summary || {};
       const dirArrow = st.direction === "max" ? "↑ higher is better" : "↓ lower is better";
