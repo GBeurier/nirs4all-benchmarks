@@ -87,6 +87,15 @@ def test_upload_file_multipart_does_not_500(client: TestClient):
     assert r.json()["kind"] == "pipeline"
 
 
+def test_stats_graph_composition_endpoints(client: TestClient):
+    st = client.get("/api/stats", params={"metric": "rmse", "scope": "cv"}).json()
+    assert st["summary"]["n"] > 0 and "values" in st
+    g = client.get("/api/graph", params={"kind": "pipelines", "metric": "rmse"}).json()
+    assert "nodes" in g
+    c = client.get("/api/composition", params={"metric": "rmse"}).json()
+    assert "rows" in c
+
+
 def test_upload_text_arena_export(client: TestClient):
     from nirs4all_benchmarks.fixtures import generate_fixture_exports
 
