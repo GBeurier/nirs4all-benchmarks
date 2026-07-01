@@ -12,6 +12,7 @@ Layout produced::
       index.html  app.js  styles.css  lib/  views/  vendor/  brand/
       config.js                 # window.ARENA_STATIC = true
       CNAME                     # the custom domain
+      robots.txt / sitemap.xml  # crawl discovery for the public domain
       data/
         bundle.json             # aggregation backbone (loaded on boot)
         runs/<execution_hash>.json   # per-run detail + residuals (loaded on demand)
@@ -54,6 +55,7 @@ def build_site(
     (out / "config.js").write_text("window.ARENA_STATIC = true;\n", encoding="utf-8")
     if domain:
         (out / "CNAME").write_text(domain + "\n", encoding="utf-8")
+        _write_seo(out, domain)
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
     # 3. the data bundle
@@ -77,6 +79,26 @@ def build_site(
     return {"out": str(out), "executions": len(execs), "pipelines": bundle["overview"]["pipelines"],
             "datasets": bundle["overview"]["datasets"], "metric_rows": len(bundle["metrics"]),
             "facet_rows": len(bundle["facets"]), "domain": domain}
+
+
+def _write_seo(out: Path, domain: str) -> None:
+    base = f"https://{domain.strip('/')}/"
+    (out / "robots.txt").write_text(
+        f"User-agent: *\nAllow: /\n\nSitemap: {base}sitemap.xml\n",
+        encoding="utf-8",
+    )
+    (out / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        f"    <loc>{base}</loc>\n"
+        "    <lastmod>2026-07-01</lastmod>\n"
+        "    <changefreq>weekly</changefreq>\n"
+        "    <priority>0.7</priority>\n"
+        "  </url>\n"
+        "</urlset>\n",
+        encoding="utf-8",
+    )
 
 
 def _build_bundle(store: ArenaStore, q: Queries) -> dict[str, Any]:
