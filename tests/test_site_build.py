@@ -21,6 +21,8 @@ def test_build_site_produces_static_snapshot(tmp_path: Path):
     assert (out / "brand" / "icon.svg").exists()
     assert (out / "config.js").read_text().strip() == "window.ARENA_STATIC = true;"
     assert (out / "CNAME").read_text().strip() == "benchmarks.nirs4all.org"
+    assert "Sitemap: https://benchmarks.nirs4all.org/sitemap.xml" in (out / "robots.txt").read_text()
+    assert "<loc>https://benchmarks.nirs4all.org/</loc>" in (out / "sitemap.xml").read_text()
     assert (out / ".nojekyll").exists()
 
     # bundle is well-formed and carries the aggregation backbone
