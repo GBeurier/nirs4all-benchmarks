@@ -19,7 +19,7 @@ from nirs4all_benchmarks.store import ArenaStore, Queries
 try:
     from fastapi import UploadFile
 except ImportError:  # pragma: no cover - optional dependency
-    UploadFile = None  # type: ignore[assignment, misc]
+    UploadFile = None
 
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
