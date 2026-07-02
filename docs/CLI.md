@@ -26,6 +26,7 @@ Both names invoke the same Typer app; the examples below use `n4a-benchmarks` in
   - [`fixtures`](#fixtures)
   - [`stats`](#stats)
   - [`leaderboard`](#leaderboard)
+  - [`perf-compare`](#perf-compare)
   - [`serve`](#serve)
 - [End-to-end session](#end-to-end-session)
 - [Installation extras](#installation-extras)
@@ -246,6 +247,40 @@ n4a-benchmarks leaderboard \
   --scope test \
   --dataset 9ab3... \
   --limit 5
+```
+
+### `perf-compare`
+
+Run the RC-v1 legacy-vs-dag-ml timing harness. This command compares the same
+seeded synthetic case across two surfaces:
+
+- direct `nirs4all.run()`
+- Studio's training worker path
+
+The parent process only orchestrates subprocesses; the measured children
+auto-select a Python interpreter that can import Studio plus a usable workspace
+`nirs4all` source tree, alongside the `dag-ml` and `dag-ml-data` worktrees.
+
+| Option | Default | Description |
+|---|---|---|
+| `--suite` | both suites | Repeat to restrict to `python_run` and/or `studio_run`. |
+| `--repeats` | `3` | Measured repeats per suite/engine. |
+| `--warmups` | `0` | Discarded warmup runs per measurement child. |
+| `--python` | auto | Override the child interpreter used for the timed subprocesses. |
+| `--json-out` | none | Write the full machine-readable report as JSON. |
+| `--markdown-out` | none | Write the rendered summary table as Markdown. |
+| `--assert-max-ratio` | none | Repeat `SUITE=FLOAT` to fail when `dag-ml/legacy` run ratio for that suite exceeds the limit. |
+
+```bash
+PYTHONPATH=src \
+  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --json-out ./perf-report.json \
+  --markdown-out ./perf-report.md
+
+PYTHONPATH=src \
+  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --assert-max-ratio python_run=1.25 \
+  --assert-max-ratio studio_run=1.35
 ```
 
 ### `serve`

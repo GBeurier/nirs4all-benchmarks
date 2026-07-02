@@ -90,6 +90,21 @@ n4a-benchmarks ingest-bundle bundle.json --graph graph.json --store ./arena-stor
 n4a-benchmarks ingest-export run.json --store ./arena-store --release
 ```
 
+Compare the RC-v1 legacy and dag-ml execution surfaces without touching the
+runtime repos:
+
+```bash
+PYTHONPATH=src \
+  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --json-out ./perf-report.json \
+  --markdown-out ./perf-report.md
+```
+
+The harness auto-picks a child interpreter that can import Studio plus a usable
+workspace `nirs4all` source tree (preferring the RC-v1 worktree, then falling
+back to the sibling `nirs4all/` checkout when needed), runs fresh subprocesses
+for each engine/surface pair, and records the `dag-ml/legacy` timing ratios.
+
 Plan repository pipelines locally without executing them:
 
 ```python
@@ -126,6 +141,7 @@ docker compose run --rm arena n4a-benchmarks fixtures   # seed demo data once
 | [docs/DATAVIZ.md](docs/DATAVIZ.md) | The dataviz web app |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Running the service online + persistently |
 | [docs/CLI.md](docs/CLI.md) | `n4a-benchmarks` command reference |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | RC-v1 legacy vs dag-ml comparison harness |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Dev setup + green gate |
 
 ## Architecture at a glance
