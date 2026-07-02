@@ -217,6 +217,51 @@ def build_site_cmd(
                   + (f" · {domain}" if domain else ""))
 
 
+@app.command("perf-compare")
+def perf_compare_cmd(
+    suite: list[str] | None = typer.Option(
+        None,
+        "--suite",
+        help="Repeat to restrict to one or more suites: python_run, studio_run.",
+    ),
+    repeats: int = typer.Option(3, "--repeats", min=1, help="Measured repeats per suite/engine."),
+    warmups: int = typer.Option(0, "--warmups", min=0, help="Discarded warmup runs per measurement child."),
+    python: str | None = typer.Option(None, "--python", help="Override the child interpreter."),
+    json_out: Path | None = typer.Option(None, "--json-out", help="Write the full report as JSON."),
+    markdown_out: Path | None = typer.Option(None, "--markdown-out", help="Write the markdown summary to a file."),
+    assert_max_ratio: list[str] | None = typer.Option(
+        None,
+        "--assert-max-ratio",
+        help="Repeat SUITE=FLOAT to fail when dag-ml/legacy run ratio exceeds FLOAT.",
+    ),
+) -> None:
+    """Compare RC-v1 legacy vs dag-ml timings for the Python API and Studio worker path."""
+    from nirs4all_benchmarks.performance_compare import (
+        DEFAULT_SUITES,
+        parse_ratio_overrides,
+        render_markdown,
+        run_comparison,
+    )
+
+    report = run_comparison(
+        suites=suite or DEFAULT_SUITES,
+        repeats=repeats,
+        warmups=warmups,
+        child_python=python,
+        max_ratios=parse_ratio_overrides(assert_max_ratio or []),
+    )
+    console.print(render_markdown(report))
+    if json_out:
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(__import__("json").dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        console.print(f"[green]✓[/] wrote JSON report to [bold]{json_out}[/]")
+    if markdown_out:
+        markdown = render_markdown(report)
+        markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        markdown_out.write_text(markdown + "\n", encoding="utf-8")
+        console.print(f"[green]✓[/] wrote markdown report to [bold]{markdown_out}[/]")
+
+
 @app.command()
 def serve(
     store: str = StoreOpt,
