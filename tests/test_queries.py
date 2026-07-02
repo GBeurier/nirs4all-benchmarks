@@ -2,7 +2,37 @@
 
 from __future__ import annotations
 
+import hashlib
+import sqlite3
+from pathlib import Path
+
+import pytest
+
 from nirs4all_benchmarks.store import Queries
+
+
+def _store_snapshot(root: Path) -> dict[str, object]:
+    conn = sqlite3.connect(f"file:{root / 'arena.sqlite'}?mode=ro", uri=True)
+    try:
+        user_version = conn.execute("PRAGMA user_version").fetchone()[0]
+        database = tuple(conn.iterdump())
+    finally:
+        conn.close()
+
+    files = {}
+    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+        if path.name.endswith("-shm"):
+            continue
+        files[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return {"user_version": user_version, "database": database, "files": files}
+
+
+def _forbid_store_mutators(queries: Queries, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("Queries.pipelines() must stay read-only")
+
+    for name in ("set_meta", "upsert", "insert", "update", "ensure_collection", "transaction"):
+        monkeypatch.setattr(queries.store, name, fail)
 
 
 def test_overview_counts(queries: Queries):
@@ -11,6 +41,26 @@ def test_overview_counts(queries: Queries):
     assert ov["pipelines"] == 7
     assert ov["run_conditions"] == 14
     assert "rmse" in ov["metrics"]
+
+
+def test_pipelines_catalogue_is_read_only(queries: Queries, monkeypatch: pytest.MonkeyPatch):
+    _forbid_store_mutators(queries, monkeypatch)
+    before_snapshot = _store_snapshot(queries.store.root)
+    before_changes = queries.store.conn.total_changes
+    before = queries.overview()
+
+    rows = queries.pipelines()
+
+    after = queries.overview()
+    after_snapshot = _store_snapshot(queries.store.root)
+
+    assert before == after
+    assert queries.store.conn.total_changes == before_changes
+    assert after_snapshot == before_snapshot
+    assert len(rows) == 7
+    assert {row["n_run_conditions"] for row in rows} == {2}
+    assert all(row["pipeline_dag_hash"] and row["human_label"] for row in rows)
+    assert rows == sorted(rows, key=lambda row: (row["main_model"], row["human_label"]))
 
 
 def test_leaderboard_sorted_by_direction(queries: Queries):
