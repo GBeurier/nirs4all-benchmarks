@@ -42,6 +42,15 @@ def _repository_kwargs(
     return kwargs
 
 
+def _repository_function(repository: Any, *names: str) -> Any:
+    for name in names:
+        fn = getattr(repository, name, None)
+        if callable(fn):
+            return fn
+    expected = " / ".join(names)
+    raise AttributeError(f"nirs4all_repository must expose {expected}")
+
+
 def _pipeline_label(pipeline: Any, fallback: str) -> str:
     descriptor = getattr(pipeline, "descriptor", None)
     return (
@@ -68,12 +77,13 @@ def register_repository_pipeline(
     The repository dependency is imported lazily. The fetched pipeline is asked
     for its recipe only (``with_artifacts=False``), then the existing
     ``register_pipeline`` path handles Arena identity rows and planned runs.
+    Provider-style ``get_pipeline(...)`` is preferred when present, with a
+    fallback to the historical ``get(...)`` API.
     """
     repository = _load_repository_module()
-    if not hasattr(repository, "get"):
-        raise AttributeError("nirs4all_repository must expose get(name, ...)")
+    get_fn = _repository_function(repository, "get_pipeline", "get")
 
-    pipeline = repository.get(
+    pipeline = get_fn(
         name,
         **_repository_kwargs(repository_root=repository_root, cache_dir=cache_dir, verify=verify),
         with_artifacts=False,
@@ -102,9 +112,11 @@ def list_repository_pipelines(
     trust: str | None = None,
     repository_root: str | Path | None = None,
 ) -> Any:
-    """Return ``nirs4all-repository`` pipeline listings through its lazy import."""
+    """Return ``nirs4all-repository`` pipeline listings through its lazy import.
+
+    Provider-style ``get_pipeline_list(...)`` is preferred when present, then
+    ``list_pipelines(...)``, then the original ``list(...)`` function.
+    """
     repository = _load_repository_module()
-    list_fn = getattr(repository, "list", None)
-    if not callable(list_fn):
-        raise AttributeError("nirs4all_repository must expose list(...)")
+    list_fn = _repository_function(repository, "get_pipeline_list", "list_pipelines", "list")
     return list_fn(framework=framework, task=task, tag=tag, kind=kind, trust=trust, root=repository_root)

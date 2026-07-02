@@ -93,6 +93,60 @@ def test_list_repository_pipelines_is_lazy(monkeypatch: pytest.MonkeyPatch, tmp_
     ]
 
 
+def test_register_repository_pipeline_prefers_provider_named_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    calls: list[dict[str, object]] = []
+
+    def fake_get_pipeline(name: str, **kwargs: object) -> FakeRepositoryPipeline:
+        calls.append({"name": name, **kwargs})
+        return FakeRepositoryPipeline()
+
+    def legacy_get(*args: object, **kwargs: object) -> FakeRepositoryPipeline:
+        raise AssertionError("register_repository_pipeline should prefer get_pipeline()")
+
+    fake_repository = types.SimpleNamespace(get_pipeline=fake_get_pipeline, get=legacy_get)
+    monkeypatch.setattr(importlib, "import_module", lambda name: fake_repository if name == "nirs4all_repository" else None)
+
+    with ArenaStore(tmp_path / "arena") as store:
+        result = register_repository_pipeline(store, "baseline-pls", target_datasets=["corn"])
+
+    assert result.kind == "pipeline"
+    assert calls == [{"name": "baseline-pls", "verify": True, "with_artifacts": False}]
+
+
+def test_list_repository_pipelines_prefers_provider_named_listing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    calls: list[dict[str, object]] = []
+
+    def fake_get_pipeline_list(**kwargs: object) -> list[str]:
+        calls.append(kwargs)
+        return ["baseline-pls"]
+
+    def legacy_list(**kwargs: object) -> list[str]:
+        raise AssertionError("list_repository_pipelines should prefer get_pipeline_list()")
+
+    fake_repository = types.SimpleNamespace(get_pipeline_list=fake_get_pipeline_list, list=legacy_list)
+    monkeypatch.setattr(importlib, "import_module", lambda name: fake_repository if name == "nirs4all_repository" else None)
+
+    result = list_repository_pipelines(repository_root=tmp_path / "repository", framework="nirs4all")
+
+    assert result == ["baseline-pls"]
+    assert calls == [
+        {
+            "framework": "nirs4all",
+            "task": None,
+            "tag": None,
+            "kind": None,
+            "trust": None,
+            "root": tmp_path / "repository",
+        }
+    ]
+
+
 def test_register_repository_pipeline_errors_when_optional_dependency_missing(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
