@@ -135,10 +135,7 @@ def _probe_source(require_studio: bool) -> str:
             paths["dagml_python_root"],
         )
     )
-    if require_studio:
-        body = "import api.runs\n"
-    else:
-        body = "import numpy\n"
+    body = "import api.runs\n" if require_studio else "import numpy\n"
     template = """
     import sys
     __BOOTSTRAP__
@@ -246,7 +243,7 @@ def choose_nirs4all_root(python: Path) -> Path:
 
 
 def _thread_env() -> dict[str, str]:
-    return {name: "1" for name in THREAD_ENV_VARS}
+    return dict.fromkeys(THREAD_ENV_VARS, "1")
 
 
 def _child_source(nirs4all_root: Path) -> str:
