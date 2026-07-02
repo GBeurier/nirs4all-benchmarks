@@ -90,6 +90,21 @@ n4a-benchmarks ingest-bundle bundle.json --graph graph.json --store ./arena-stor
 n4a-benchmarks ingest-export run.json --store ./arena-store --release
 ```
 
+Plan repository pipelines locally without executing them:
+
+```python
+from nirs4all_benchmarks.ingestion import list_repository_pipelines, register_repository_pipeline
+from nirs4all_benchmarks.store import ArenaStore
+
+rows = list_repository_pipelines(framework="nirs4all")  # optional nirs4all-repository dependency
+with ArenaStore("./arena-store") as store:
+    register_repository_pipeline(store, rows[0]["id"], target_datasets=["corn"])
+```
+
+This bridge is consumer-only: it reads a repository recipe, registers its pipeline identity in the
+Arena, and writes only local `planned_runs` rows in the Arena store. It does not execute the
+pipeline and it never writes back to `nirs4all-repository`, datasets, or papers.
+
 With Docker:
 
 ```bash
