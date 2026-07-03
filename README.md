@@ -18,6 +18,10 @@ and serves an interactive web app to explore the results.
 It stores identity cards, canonical pipeline DAGs, versioned scores, and **sample-keyed residuals** —
 **never fitted artifacts**.
 
+Part of the [open-source NIRS tools](https://nirs4all.org/open-source-nirs-tools.html)
+ecosystem: file readers, datasets, methods, browser modelling, reproducible pipelines,
+papers, benchmarks, and release dashboards for near-infrared spectroscopy.
+
 > **nirs4all-benchmarks** is the public package name; the project is referred to as *the Arena*
 > internally (design docs, code, the engine output contract). Same project.
 
