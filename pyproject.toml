@@ -59,8 +59,8 @@ service = [
 # Optional producer adapters. The Arena works without these (degraded paths);
 # install them only when ingesting live from the corresponding producer.
 nirs4all = ["nirs4all>=0.10"]
-dagml = ["dag-ml-py>=0.1"]
-datasets = ["nirs4all-datasets>=0.2", "pyyaml>=6.0"]
+dagml = ["dag-ml>=0.2.1"]
+datasets = ["nirs4all-datasets>=0.3.1", "pyyaml>=6.0"]
 all = [
     "nirs4all-benchmarks[service,datasets]",
 ]
