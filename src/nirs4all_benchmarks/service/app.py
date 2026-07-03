@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -17,7 +18,7 @@ from nirs4all_benchmarks.store import ArenaStore, Queries
 # factory-local import would make every multipart file POST raise at TypeAdapter
 # build time. Guarded so the package still imports without the `service` extra.
 try:
-    from fastapi import UploadFile
+    UploadFile: Any = importlib.import_module("fastapi").UploadFile
 except ImportError:  # pragma: no cover - optional dependency
     UploadFile = None
 
