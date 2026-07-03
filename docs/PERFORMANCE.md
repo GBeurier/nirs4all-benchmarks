@@ -9,8 +9,8 @@ workspace dataset on disk.
 The harness runs one seeded synthetic PLS case on two surfaces:
 
 - `python_run`: direct `nirs4all.run(...)`
-- `studio_run`: Studio's real training worker
-  `api.runs._execute_pipeline_training(...)`
+- `studio_run`: Studio's real pipeline job worker
+  `api.pipelines._run_pipeline_task(...)`
 
 Each surface is measured twice: once with `engine="legacy"` and once with
 `engine="dag-ml"`. Fallback is disabled, so an unsupported dag-ml path fails

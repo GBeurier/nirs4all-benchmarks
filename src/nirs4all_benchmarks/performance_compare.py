@@ -10,8 +10,8 @@ The harness is intentionally small and CI-friendly:
 It compares two execution surfaces:
 
 * `python_run`: the public `nirs4all.run()` API;
-* `studio_run`: Studio's real training worker path
-  (`api.runs._execute_pipeline_training`) with only the workspace-bound seams
+* `studio_run`: Studio's real pipeline job worker path
+  (`api.pipelines._run_pipeline_task`) with only the workspace-bound seams
   stubbed so the scientific execution stays real.
 """
 
@@ -135,7 +135,7 @@ def _probe_source(require_studio: bool) -> str:
             paths["dagml_python_root"],
         )
     )
-    body = "import api.runs\n" if require_studio else "import numpy\n"
+    body = "import api.pipelines\n" if require_studio else "import numpy\n"
     template = """
     import sys
     __BOOTSTRAP__
@@ -469,7 +469,7 @@ def _ratio(numerator: float, denominator: float) -> float | None:
 def _suite_label(name: str) -> str:
     labels = {
         "python_run": "nirs4all.run() direct",
-        "studio_run": "Studio training worker",
+        "studio_run": "Studio pipeline job worker",
     }
     return labels.get(name, name)
 

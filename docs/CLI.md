@@ -255,7 +255,7 @@ Run the RC-v1 legacy-vs-dag-ml timing harness. This command compares the same
 seeded synthetic case across two surfaces:
 
 - direct `nirs4all.run()`
-- Studio's training worker path
+- Studio's pipeline job worker path
 
 The parent process only orchestrates subprocesses; the measured children
 auto-select a Python interpreter that can import Studio plus a usable workspace
