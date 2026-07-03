@@ -31,7 +31,7 @@ jobs:
         run: .venv/bin/ruff check src tests
 
       - name: Mypy (types)
-        run: .venv/bin/mypy
+        run: .venv/bin/mypy --python-version ${{ matrix.python-version }}
 
       - name: Pytest (with coverage)
         run: .venv/bin/pytest -q --cov=nirs4all_benchmarks --cov-report=xml
