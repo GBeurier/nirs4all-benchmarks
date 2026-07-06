@@ -7,7 +7,7 @@
 > moved past 0.1.0). The **Deepest hardening roadmap** section below is the forward-looking list. Reviewed at
 > Codex Gate 1.
 
-- **Mode:** AUDIT-ONLY (diverged; will NOT be pushed)
+- **Mode:** IN SCOPE — reconciled to origin/main; hardened + pushed. *(Was audit-only/diverged at the 2026-07-04 scan; the divergence has since been reconciled.)*
 - **Baseline HEAD:** `1a32b38 (DIVERGED — audit only)`
 - **Role:** Reproducible & scored NIRS pipelines on nirs4all-datasets — the Arena: a weights-free benchmark store + dataviz service (Python).
 - **Stack:** Python >=3.10 (src layout, package nirs4all_benchmarks). Build backend: Hatchling (dynamic version from version.py). Package manager in CI: uv. Core deps: pydantic>=2.6, jsonschema, pyarrow, numpy, typer, rich, pyyaml; optional extras: fastapi/uvicorn/python-multipart (service), nirs4all/dag-ml-py/nirs4all-datasets (producers). Store = SQLite (stdlib) + Parquet. Frontend = no-build vanilla-JS SPA with vendored plotly/cytoscape. Docker image on python:3.11-slim + uv. Tooling: ruff (line 120), mypy (pydantic plugin), pytest+pytest-cov.
