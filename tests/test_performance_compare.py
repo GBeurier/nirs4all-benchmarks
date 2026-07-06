@@ -201,3 +201,143 @@ def test_perf_compare_cli_writes_json_and_markdown(monkeypatch: pytest.MonkeyPat
     markdown = markdown_out.read_text(encoding="utf-8")
     assert "nirs4all.run() direct" in markdown
     assert "dag-ml/legacy run ratio" in markdown
+
+
+def _install_scored_children(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    legacy_score: float | None,
+    dagml_score: float | None,
+) -> None:
+    monkeypatch.setattr(pc, "choose_child_python", lambda *a, **k: Path("/fake/python"))
+    monkeypatch.setattr(pc, "choose_nirs4all_root", lambda python: Path("/fake/nirs4all"))
+
+    def run_child(*, suite: str, engine: str, python: Path, nirs4all_root: Path, warmups: int) -> dict[str, Any]:
+        return {
+            "engine_recorded": engine,
+            "best_score": dagml_score if engine == "dag-ml" else legacy_score,
+            "import_s": 0.01,
+            "run_s": 1.0,
+            "total_s": 1.1,
+        }
+
+    monkeypatch.setattr(pc, "_run_child", run_child)
+
+
+def test_run_comparison_reports_score_agreement(monkeypatch: pytest.MonkeyPatch):
+    calls: list[dict[str, Any]] = []
+    _install_fake_perf_children(monkeypatch, calls)
+
+    report = pc.run_comparison(repeats=1, warmups=0)
+
+    for suite in report["suites"].values():
+        scores = suite["scores"]
+        assert scores["legacy"] == pytest.approx(0.91)
+        assert scores["dag_ml"] == pytest.approx(0.91)
+        assert scores["abs_delta"] == pytest.approx(0.0)
+
+    markdown = pc.render_markdown(report)
+    assert "legacy score" in markdown
+    assert "abs score delta" in markdown
+
+
+def test_score_gate_fails_on_large_delta(monkeypatch: pytest.MonkeyPatch):
+    _install_scored_children(monkeypatch, legacy_score=0.90, dagml_score=0.50)
+
+    with pytest.raises(RuntimeError, match="score agreement gate failed: python_run"):
+        pc.run_comparison(
+            suites=("python_run",),
+            repeats=1,
+            warmups=0,
+            max_score_deltas={"python_run": 0.01},
+        )
+
+
+def test_score_gate_passes_within_tolerance(monkeypatch: pytest.MonkeyPatch):
+    _install_scored_children(monkeypatch, legacy_score=0.90, dagml_score=0.9005)
+
+    report = pc.run_comparison(
+        suites=("python_run",),
+        repeats=1,
+        warmups=0,
+        max_score_deltas={"python_run": 0.01},
+    )
+
+    assert report["suites"]["python_run"]["scores"]["abs_delta"] == pytest.approx(0.0005)
+
+
+def test_score_gate_unavailable_when_score_missing(monkeypatch: pytest.MonkeyPatch):
+    _install_scored_children(monkeypatch, legacy_score=None, dagml_score=0.9)
+
+    with pytest.raises(RuntimeError, match="score delta unavailable"):
+        pc.run_comparison(
+            suites=("python_run",),
+            repeats=1,
+            warmups=0,
+            max_score_deltas={"python_run": 0.01},
+        )
+
+
+def test_render_markdown_handles_engine_error_and_missing_scores():
+    report = {
+        "suites": {
+            "python_run": {
+                "label": "nirs4all.run() direct",
+                "engines": {
+                    "legacy": {"engine": "legacy", "error": "boom"},
+                    "dag-ml": {
+                        "engine": "dag-ml",
+                        "engine_recorded": "dag-ml",
+                        "run_s_median": 1.0,
+                        "total_s_median": 1.1,
+                        "import_s_median": 0.01,
+                        "best_score": 0.9,
+                    },
+                },
+                "ratios": {},
+                "scores": {},
+            }
+        }
+    }
+
+    markdown = pc.render_markdown(report)
+
+    assert "ERROR" in markdown
+    assert "boom" in markdown
+    # A failed engine leaves ratios and scores unavailable -> rendered as n/a.
+    assert "n/a" in markdown
+
+
+def test_parse_ratio_overrides_valid_and_errors():
+    assert pc.parse_ratio_overrides(["python_run=1.25", "studio_run=1.3"]) == {
+        "python_run": 1.25,
+        "studio_run": 1.3,
+    }
+    with pytest.raises(ValueError, match="expected SUITE=FLOAT"):
+        pc.parse_ratio_overrides(["python_run"])
+    with pytest.raises(ValueError, match="unknown suite"):
+        pc.parse_ratio_overrides(["bogus=1.0"])
+
+
+def test_perf_compare_cli_forwards_score_delta_gate(monkeypatch: pytest.MonkeyPatch):
+    seen: dict[str, Any] = {}
+
+    def run_comparison(**kwargs: Any) -> dict[str, Any]:
+        seen.update(kwargs)
+        return _sample_report()
+
+    monkeypatch.setattr(pc, "run_comparison", run_comparison)
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "perf-compare",
+            "--suite",
+            "python_run",
+            "--assert-max-score-delta",
+            "python_run=0.02",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert seen["max_score_deltas"] == {"python_run": 0.02}

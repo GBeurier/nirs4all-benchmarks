@@ -466,6 +466,23 @@ def _ratio(numerator: float, denominator: float) -> float | None:
     return numerator / denominator
 
 
+def _score_agreement(legacy: Mapping[str, Any], dagml: Mapping[str, Any]) -> dict[str, Any]:
+    """Compare the two engines' best score on the same seeded case.
+
+    Both engines in a suite run the *same* runner (only ``engine`` differs), so
+    their ``best_score`` values are the same metric on the same data and are
+    directly comparable. Returns ``abs_delta=None`` when either score is
+    missing (a non-finite or absent score) so callers can treat it as
+    "unavailable" rather than "agrees".
+    """
+    legacy_score = legacy.get("best_score")
+    dagml_score = dagml.get("best_score")
+    if legacy_score is None or dagml_score is None:
+        return {"legacy": legacy_score, "dag_ml": dagml_score, "abs_delta": None}
+    delta = abs(float(dagml_score) - float(legacy_score))
+    return {"legacy": float(legacy_score), "dag_ml": float(dagml_score), "abs_delta": delta}
+
+
 def _suite_label(name: str) -> str:
     labels = {
         "python_run": "nirs4all.run() direct",
@@ -481,6 +498,7 @@ def run_comparison(
     warmups: int = 0,
     child_python: str | Path | None = None,
     max_ratios: Mapping[str, float] | None = None,
+    max_score_deltas: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     suite_list = tuple(suites)
     invalid = sorted(set(suite_list) - set(DEFAULT_SUITES))
@@ -529,6 +547,7 @@ def run_comparison(
             engines[engine] = _summarize_runs(engine, runs)
 
         ratios: dict[str, Any] = {}
+        scores: dict[str, Any] = {}
         legacy = engines["legacy"]
         dagml = engines["dag-ml"]
         if "error" not in legacy and "error" not in dagml:
@@ -540,10 +559,12 @@ def run_comparison(
                 float(dagml["total_s_median"]),
                 float(legacy["total_s_median"]),
             )
+            scores = _score_agreement(legacy, dagml)
         report["suites"][suite] = {
             "label": _suite_label(suite),
             "engines": engines,
             "ratios": ratios,
+            "scores": scores,
         }
 
     if max_ratios:
@@ -561,6 +582,22 @@ def run_comparison(
                 failures.append(f"{suite}: {actual:.3f} > {limit:.3f}")
         if failures:
             raise RuntimeError("performance ratio gate failed: " + "; ".join(failures))
+
+    if max_score_deltas:
+        failures = []
+        for suite, limit in max_score_deltas.items():
+            actual = (
+                report["suites"]
+                .get(suite, {})
+                .get("scores", {})
+                .get("abs_delta")
+            )
+            if actual is None:
+                failures.append(f"{suite}: score delta unavailable")
+            elif float(actual) > float(limit):
+                failures.append(f"{suite}: {actual:.6f} > {limit:.6f}")
+        if failures:
+            raise RuntimeError("score agreement gate failed: " + "; ".join(failures))
 
     return report
 
@@ -602,6 +639,24 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         run_text = "n/a" if run_ratio is None else f"{float(run_ratio):.3f}x"
         total_text = "n/a" if total_ratio is None else f"{float(total_ratio):.3f}x"
         lines.append(f"| {label} | {run_text} | {total_text} |")
+
+    lines.extend(
+        [
+            "",
+            "| suite | legacy score | dag-ml score | abs score delta |",
+            "|---|---|---|---|",
+        ]
+    )
+    for suite_name, suite in report["suites"].items():
+        label = suite.get("label", suite_name)
+        scores = suite.get("scores", {})
+        legacy_score = scores.get("legacy")
+        dagml_score = scores.get("dag_ml")
+        abs_delta = scores.get("abs_delta")
+        legacy_text = "n/a" if legacy_score is None else f"{float(legacy_score):.6f}"
+        dagml_text = "n/a" if dagml_score is None else f"{float(dagml_score):.6f}"
+        delta_text = "n/a" if abs_delta is None else f"{float(abs_delta):.6f}"
+        lines.append(f"| {label} | {legacy_text} | {dagml_text} | {delta_text} |")
 
     return "\n".join(lines)
 
