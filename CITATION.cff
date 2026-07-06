@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "nirs4all-benchmarks"
+abstract: >-
+  Reproducible, scored NIRS pipeline benchmarks on nirs4all-datasets (internal codename the Arena), published as a browsable benchmark resource.
+type: software
+authors:
+  - family-names: Beurier
+    given-names: Gregory
+    email: beurier@cirad.fr
+    affiliation: CIRAD
+repository-code: "https://github.com/GBeurier/nirs4all-benchmarks"
+url: "https://benchmarks.nirs4all.org"
+license:
+  - CECILL-2.1
+  - AGPL-3.0-or-later
+version: "0.1.3"
+keywords:
+  - NIRS
+  - spectroscopy
+  - benchmarks
+  - reproducibility
+  - chemometrics
+  - scoring
