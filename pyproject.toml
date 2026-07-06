@@ -61,8 +61,9 @@ service = [
 nirs4all = ["nirs4all>=0.10"]
 dagml = ["dag-ml>=0.2.2"]
 datasets = ["nirs4all-datasets>=0.3.2", "pyyaml>=6.0"]
+repository = ["nirs4all-repository>=0.1.5; python_version >= '3.11'"]
 all = [
-    "nirs4all-benchmarks[service,datasets]",
+    "nirs4all-benchmarks[service,datasets,repository]",
 ]
 dev = [
     "ruff>=0.5",

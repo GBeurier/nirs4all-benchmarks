@@ -313,6 +313,11 @@ with ArenaStore("./arena-store") as store:
     assert res.kind == "arena_export"
 ```
 
+For any public benchmark release publication, pass `as_release=True` on result uploads. That is the switch that
+creates a `benchmark_release` collection and applies release-safe leakage handling: runs without OOF attestation
+are stored as `quarantined`, not silently shown as valid. As a guardrail, result uploads to release-like public
+collection ids such as `benchmark_release`, `release`, or `public` are rejected unless `as_release=True` is set.
+
 #### REST: POST /api/upload
 
 The service exposes the same machine as a multipart form (`service/app.py`). Provide **either** a `file` (a `.n4a` / pipeline JSON·YAML / dag-ml bundle / `ArenaRunExport`) **or** a `text` field (raw JSON/YAML), plus `target_datasets` (comma-separated fingerprints or names), `collection`, and `as_release`:

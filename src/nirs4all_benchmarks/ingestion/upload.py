@@ -35,6 +35,17 @@ from nirs4all_benchmarks.ingestion.resolve import _extract_pipeline_rows
 from nirs4all_benchmarks.store import ArenaStore
 from nirs4all_benchmarks.store.arena_store import utc_now
 
+_PUBLIC_RELEASE_COLLECTION_IDS = frozenset(
+    {
+        "benchmark_release",
+        "benchmark_releases",
+        "release",
+        "releases",
+        "public",
+        "published",
+    }
+)
+
 
 @dataclass
 class UploadResult:
@@ -228,6 +239,7 @@ def upload(
 
     # A results-bearing ArenaRunExport.
     if isinstance(payload, ArenaRunExport) or (isinstance(payload, dict) and "arena_export_schema_version" in payload):
+        _require_release_mode_for_public_collection(collection_id, as_release=as_release)
         policy = IngestionPolicy(
             collection_id=collection_id,
             collection_kind="benchmark_release" if as_release else "user_run_collection",
@@ -267,3 +279,11 @@ def _looks_like_path(value: str | Path) -> bool:
     if not s or s[0] in "{[\"" or "\n" in s or len(s) > 1024:
         return False
     return Path(s).exists()
+
+
+def _require_release_mode_for_public_collection(collection_id: str, *, as_release: bool) -> None:
+    normalized = collection_id.strip().lower().replace("-", "_")
+    if not as_release and normalized in _PUBLIC_RELEASE_COLLECTION_IDS:
+        raise ValueError(
+            "public benchmark release uploads must pass as_release=True so leakage-unattested runs are quarantined"
+        )

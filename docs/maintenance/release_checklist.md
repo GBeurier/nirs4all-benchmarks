@@ -1,7 +1,8 @@
 # Release checklist — nirs4all-benchmarks
 
 Publishing is via `publish.yml` (release / dispatch, PyPI Trusted Publishing). Branch pushes to `main`
-never publish to PyPI, **but do deploy the SPA to benchmarks.nirs4all.org**.
+never publish to PyPI. Pages deploys only on `workflow_dispatch` or site-affecting pushes
+(`pyproject.toml`, `VERSION`, `.github/workflows/pages.yml`, or `src/nirs4all_benchmarks/**`).
 
 ## Pre-release
 
@@ -23,5 +24,5 @@ never publish to PyPI, **but do deploy the SPA to benchmarks.nirs4all.org**.
 
 ## Notes
 
-- Single-registry (PyPI). The generated site is published to the shared `*.nirs4all.org` domain on push —
-  review site/content changes before merging to `main`.
+- Single-registry (PyPI). The generated site is published to the shared `*.nirs4all.org` domain on
+  site-affecting pushes — review site/content changes before merging to `main`.

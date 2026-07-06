@@ -21,7 +21,7 @@ Optional local hooks: `uvx pre-commit run --all-files`. Site preview:
 | workflow | trigger | gate |
 |---|---|---|
 | `ci.yml` | push/PR | ruff + mypy + pytest (coverage) matrix; Docker image build (not pushed) |
-| `pages.yml` | push `main` | build the SPA + **deploy GitHub Pages → benchmarks.nirs4all.org** |
+| `pages.yml` | dispatch or site-affecting push `main` | build the SPA + **deploy GitHub Pages → benchmarks.nirs4all.org** |
 | `version-guard.yml` | push/PR | manifest not ahead of latest `v*` tag |
 | `publish.yml` | **release / dispatch** | PyPI Trusted Publishing — **not** on branch push |
 
