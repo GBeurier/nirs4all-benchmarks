@@ -359,7 +359,8 @@ python -m http.server -d ./site 8080   # preview
 ```
 
 CI does this automatically: `.github/workflows/pages.yml` seeds the demo store, runs `build-site`,
-and deploys `./site` to Pages on every push to `main`. Point a DNS `CNAME` record for
+and deploys `./site` to Pages on `workflow_dispatch` or site-affecting pushes to `main`
+(`pyproject.toml`, `VERSION`, the workflow itself, or `src/nirs4all_benchmarks/**`). Point a DNS `CNAME` record for
 `benchmarks.nirs4all.org` at `gbeurier.github.io`, and enable Pages (source: GitHub Actions) in the
 repo settings.
 

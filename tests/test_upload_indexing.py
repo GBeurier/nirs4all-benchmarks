@@ -6,6 +6,8 @@ import json
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from nirs4all_benchmarks.indexing import (
     ROLE_AUGMENTATION,
     ROLE_MERGE,
@@ -109,6 +111,29 @@ def test_upload_arena_export_ingests(tmp_path: Path):
         res = upload(store, manifest, collection_id="up")
         assert res.kind == "arena_export" and res.status == "ingested"
         assert store.count("executions") == 1
+
+
+def test_public_release_upload_requires_as_release_for_results(tmp_path: Path):
+    from nirs4all_benchmarks.fixtures import generate_fixture_exports
+
+    manifest = generate_fixture_exports()[0].to_manifest()
+    with ArenaStore(tmp_path / "a") as store, pytest.raises(ValueError, match="as_release=True"):
+        upload(store, manifest, collection_id="benchmark_release")
+
+
+def test_release_upload_quarantines_unattested_leakage_when_as_release(tmp_path: Path):
+    from nirs4all_benchmarks.fixtures import generate_fixture_exports
+
+    exp = generate_fixture_exports()[0]
+    exp.leakage_attestation.oof_enforced = False
+    with ArenaStore(tmp_path / "a") as store:
+        res = upload(store, exp.to_manifest(), collection_id="benchmark_release", as_release=True)
+
+        assert res.kind == "arena_export"
+        assert res.status == "ingested"
+        assert res.ingestion is not None
+        assert res.ingestion["status"] == "quarantined"
+        assert res.ingestion["validity_status"] == "quarantined"
 
 
 def test_planned_fulfilled_by_execution(tmp_path: Path):

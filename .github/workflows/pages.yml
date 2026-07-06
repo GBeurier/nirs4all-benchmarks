@@ -9,6 +9,11 @@ name: pages
 on:
   push:
     branches: [main]
+    paths:
+      - ".github/workflows/pages.yml"
+      - "pyproject.toml"
+      - "VERSION"
+      - "src/nirs4all_benchmarks/**"
   workflow_dispatch:
 
 permissions:

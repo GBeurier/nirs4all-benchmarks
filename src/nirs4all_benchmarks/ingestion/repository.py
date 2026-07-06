@@ -24,7 +24,7 @@ def _load_repository_module() -> Any:
             raise
         raise ImportError(
             "nirs4all-repository support requires the optional 'nirs4all_repository' package. "
-            "Install it to register repository pipeline recipes."
+            "Install 'nirs4all-benchmarks[repository]' on Python 3.11+ to register repository pipeline recipes."
         ) from exc
 
 
