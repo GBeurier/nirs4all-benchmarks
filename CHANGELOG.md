@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-07-06
+
+Patch-version release candidate preparation for current HEAD.
+
+### Changed
+
+- Bump package and citation release metadata from 0.1.3 to 0.1.4.
+- Add a lightweight metadata consistency check for the release version sources.
+
 Second + third iterations — richer ingestion surface, deep faceted dataviz, the
 ecosystem visual identity, and graph/3D visualizations.
 
@@ -125,4 +134,5 @@ First implementation — the Arena goes from design docs to a working v1.
 - **Ops**: Dockerfile, docker-compose, GitHub Actions CI (green gate × Python 3.10–3.12 +
   frontend syntax check + Docker smoke test).
 
+[0.1.4]: https://github.com/GBeurier/nirs4all-benchmarks/compare/v0.1.3...v0.1.4
 [0.1.0]: https://github.com/GBeurier/nirs4all-benchmarks/releases/tag/v0.1.0
