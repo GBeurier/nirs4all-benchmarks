@@ -16,6 +16,12 @@ Each surface is measured twice: once with `engine="legacy"` and once with
 `engine="dag-ml"`. Fallback is disabled, so an unsupported dag-ml path fails
 the run instead of silently timing legacy.
 
+Because both engines in a suite run the *same* seeded case, their `best_score`
+values are directly comparable. The report therefore carries, per suite, a
+`scores` block (`legacy`, `dag_ml`, `abs_delta`) so the comparison shows not
+just *how fast* dag-ml is relative to legacy but *whether it computed the same
+answer*. This is a single-case agreement signal, not full numeric parity.
+
 ## Why it is stable enough for CI
 
 - fixed synthetic dataset (`80 x 50`, seed `2026`)
@@ -83,3 +89,21 @@ PYTHONPATH=src \
 The exact ceilings are coordinator policy, not package policy. Start by running
 the report a few times on the target CI class, then set conservative bounds
 above the observed medians.
+
+## Optional score-agreement gates
+
+Timing bounds only catch "dag-ml got slower". To also catch "dag-ml computed a
+different answer than legacy on this case", gate on the absolute score delta:
+
+```bash
+PYTHONPATH=src \
+  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --assert-max-score-delta python_run=0.001 \
+  --assert-max-score-delta studio_run=0.001
+```
+
+The gate fails when `|legacy_score - dag_ml_score|` for a suite exceeds the
+ceiling, or when either engine did not produce a finite score (reported as
+`score delta unavailable`). Like the ratio gate, the tolerance is coordinator
+policy: the two engines should agree closely on the seeded PLS case, so a tight
+bound is appropriate.

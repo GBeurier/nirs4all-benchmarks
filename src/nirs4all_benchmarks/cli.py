@@ -234,6 +234,11 @@ def perf_compare_cmd(
         "--assert-max-ratio",
         help="Repeat SUITE=FLOAT to fail when dag-ml/legacy run ratio exceeds FLOAT.",
     ),
+    assert_max_score_delta: list[str] | None = typer.Option(
+        None,
+        "--assert-max-score-delta",
+        help="Repeat SUITE=FLOAT to fail when the |legacy - dag-ml| score delta exceeds FLOAT.",
+    ),
 ) -> None:
     """Compare RC-v1 legacy vs dag-ml timings for the Python API and Studio worker path."""
     from nirs4all_benchmarks.performance_compare import (
@@ -249,6 +254,7 @@ def perf_compare_cmd(
         warmups=warmups,
         child_python=python,
         max_ratios=parse_ratio_overrides(assert_max_ratio or []),
+        max_score_deltas=parse_ratio_overrides(assert_max_score_delta or []),
     )
     console.print(render_markdown(report))
     if json_out:
