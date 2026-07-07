@@ -48,4 +48,20 @@ jobs:
         with:
           name: dist
           path: dist/
+      - name: Validate Trusted Publisher release tuple
+        run: |
+          set -euo pipefail
+          expected_repo="GBeurier/nirs4all-benchmarks"
+          if [[ "${GITHUB_REPOSITORY}" != "${expected_repo}" ]]; then
+            echo "::error::PyPI Trusted Publisher for project nirs4all-benchmarks must target owner=GBeurier repo=nirs4all-benchmarks workflow=publish.yml environment=pypi; current repository is ${GITHUB_REPOSITORY}." >&2
+            exit 1
+          fi
+          case "${GITHUB_WORKFLOW_REF}" in
+            */.github/workflows/publish.yml@*)
+              ;;
+            *)
+              echo "::error::Expected GITHUB_WORKFLOW_REF to point at .github/workflows/publish.yml, got ${GITHUB_WORKFLOW_REF}." >&2
+              exit 1
+              ;;
+          esac
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
