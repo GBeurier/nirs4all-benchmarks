@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-07-07
+
+Patch release for the V1 RC benchmark lane.
+
+### Added
+
+- Add a benchmark score-agreement gate for performance comparison reports so regressions between
+  nirs4all and dag-ml/native results are caught before publication.
+
 ## [0.1.4] — 2026-07-06
 
 Patch-version release candidate preparation for current HEAD.
@@ -134,5 +143,6 @@ First implementation — the Arena goes from design docs to a working v1.
 - **Ops**: Dockerfile, docker-compose, GitHub Actions CI (green gate × Python 3.10–3.12 +
   frontend syntax check + Docker smoke test).
 
+[0.1.5]: https://github.com/GBeurier/nirs4all-benchmarks/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/GBeurier/nirs4all-benchmarks/compare/v0.1.3...v0.1.4
 [0.1.0]: https://github.com/GBeurier/nirs4all-benchmarks/releases/tag/v0.1.0
