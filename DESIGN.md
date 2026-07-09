@@ -37,7 +37,7 @@ The Arena must serve two purposes:
 
 ## 2. Structural decisions
 
-1. **Single target producer: nirs4all.** Runs come to completion from nirs4all, whatever the capsule: Python lib, R lib, Studio, Studio Lite, batch/cluster. External sources are only accepted if they pass through a nirs4all-compatible export/manifest.
+1. **Single target producer: nirs4all.** Runs come to completion from nirs4all, whatever the capsule: Python lib, R lib, Studio, nirs4all-web, batch/cluster. External sources are only accepted if they pass through a nirs4all-compatible export/manifest.
 2. **No artifacts.** Arena does not retain trained models, fitted transformers, feature caches, bundles, or datasets. It keeps documented pipelines, scores, residuals, and identity cards.
 3. **Aligned nirs4all workspace storage.** The target format is SQLite for metadata and Parquet for result/residual arrays, aligned with the current nirs4all workspace. DuckDB is not the reference format.
 4. **Dataset split into three levels.** `DatasetCard` describes the data, `TaskSpec` describes the target/task, and `DatasetVariant` describes a view/subpopulation/aggregation.
@@ -278,7 +278,7 @@ The derived columns useful for querying (main model, presence of SNV,`n_componen
 
 Summary of a concrete execution, without fitted artifact:
 
--`execution_id`; -`run_condition_hash`; -`producer_capsule`: python, R, studio, studio-lite, cluster; -`nirs4all_version`,`dag_ml_version`if applicable; - OS, Python/R version, major dependencies; - hardware summary; - time/memory; - status: ok/failed/cancelled; - failure code/truncated message; -`execution_hash`.
+-`execution_id`; -`run_condition_hash`; -`producer_capsule`: python, R, studio, nirs4all-web, cluster; -`nirs4all_version`,`dag_ml_version`if applicable; - OS, Python/R version, major dependencies; - hardware summary; - time/memory; - status: ok/failed/cancelled; - failure code/truncated message; -`execution_hash`.
 
 ### 6.15 ScoreComputationSpec et ScoreSet
 
@@ -441,7 +441,7 @@ The key point is not to force nirs4all to abandon its artifact storage for its l
 
 - workspace nirs4all local;
 - export nirs4all dedie Arena;
-- runs Studio/Studio Lite via export;
+- runs Studio/nirs4all-web via export;
 - batch cluster nirs4all;
 - imports historiques convertis en format nirs4all si possible.
 
@@ -592,7 +592,7 @@ Sortie: site/app interne exploitable sur fixtures et premiers workspaces.
 
 Parallel tasks:
 
-- H1. Add clean Arena export to nirs4all. - H2. Add emission`PipelineDAGSpec`from nirs4all/dag-ml. - H3. Add full`RNGContext`to runs. - H4. Add Studio/Studio Lite hooks to Arena export. - D3. Validate import from exports produced by all capsules.
+- H1. Add clean Arena export to nirs4all. - H2. Add emission`PipelineDAGSpec`from nirs4all/dag-ml. - H3. Add full`RNGContext`to runs. - H4. Add Studio/nirs4all-web hooks to Arena export. - D3. Validate import from exports produced by all capsules.
 
 Sortie: producteur unifie nirs4all.
 
