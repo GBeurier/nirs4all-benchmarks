@@ -94,20 +94,26 @@ n4a-benchmarks ingest-bundle bundle.json --graph graph.json --store ./arena-stor
 n4a-benchmarks ingest-export run.json --store ./arena-store --release
 ```
 
-Compare the RC-v1 legacy and dag-ml execution surfaces without touching the
-runtime repos:
+Compare one Archive V2 across the Python oracle, direct Rust, Studio Rust and
+Web/WASM surfaces without importing or modifying runtime repos:
 
 ```bash
 PYTHONPATH=src \
   ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --workspace-root /home/delete/nirs4all \
+  --adapter python_oracle=/absolute/bin/python-oracle-adapter \
+  --adapter rust_direct=/absolute/bin/core-rust-adapter \
+  --adapter studio_rust=/absolute/bin/studio-rust-adapter \
+  --adapter web_wasm=/absolute/bin/web-wasm-adapter \
   --json-out ./perf-report.json \
-  --markdown-out ./perf-report.md
+  --handoff-dir ./artifacts
 ```
 
-The harness auto-picks a child interpreter that can import Studio plus a usable
-workspace `nirs4all` source tree (preferring the RC-v1 worktree, then falling
-back to the sibling `nirs4all/` checkout when needed), runs fresh subprocesses
-for each engine/surface pair, and records the `dag-ml/legacy` timing ratios.
+Every adapter receives the same content-addressed archive and ordered matrix.
+The report records exact candidate and predictor identities, numeric agreement,
+and separate startup/steady-state timings. Missing candidate artifacts remain
+explicit refusals. WSL measurements do not set a definitive performance gate;
+see [the PERF-001 contract](docs/PERFORMANCE.md).
 
 Plan repository pipelines locally without executing them:
 

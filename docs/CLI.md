@@ -251,36 +251,41 @@ n4a-benchmarks leaderboard \
 
 ### `perf-compare`
 
-Run the RC-v1 legacy-vs-dag-ml timing harness. This command compares the same
-seeded synthetic case across two surfaces:
+Run the PERF-001 Archive V2 harness. It compares the same content-addressed
+archive and ordered matrix across four surfaces:
 
-- direct `nirs4all.run()`
-- Studio's pipeline job worker path
+- full-Python public oracle
+- Core direct Rust
+- Studio Rust sidecar
+- Web Core/Methods WASM
 
-The parent process only orchestrates subprocesses; the measured children
-auto-select a Python interpreter that can import Studio plus a usable workspace
-`nirs4all` source tree, alongside the `dag-ml` and `dag-ml-data` worktrees.
+The parent process only orchestrates explicit stdio adapters. It does not import
+sibling checkouts, use the Studio Python worker, or run the historical
+legacy-vs-dag-ml comparison.
 
 | Option | Default | Description |
 |---|---|---|
-| `--suite` | both suites | Repeat to restrict to `python_run` and/or `studio_run`. |
-| `--repeats` | `3` | Measured repeats per suite/engine. |
-| `--warmups` | `0` | Discarded warmup runs per measurement child. |
-| `--python` | auto | Override the child interpreter used for the timed subprocesses. |
+| `--plan` | frozen repository plan | PERF-001 workload and candidate identity JSON. |
+| `--workspace-root` | inferred | Root containing exact candidate worktrees. |
+| `--archive` | plan source | Override with an explicit byte-identical Archive V2. |
+| `--adapter` | none | Repeat `SURFACE=/absolute/executable`; absent surfaces are refused. |
+| `--repeats` | `3` | Steady-state repetitions inside each loaded adapter. |
+| `--timeout` | `120` | Per-adapter timeout in seconds. |
+| `--evidence-kind` | `local_candidate` | Use `contract_fixture` for non-release smoke evidence. |
 | `--json-out` | none | Write the full machine-readable report as JSON. |
 | `--markdown-out` | none | Write the rendered summary table as Markdown. |
-| `--assert-max-ratio` | none | Repeat `SUITE=FLOAT` to fail when `dag-ml/legacy` run ratio for that suite exceeds the limit. |
+| `--handoff-dir` | none | Write the `performance-compare` Web handoff directory. |
 
 ```bash
 PYTHONPATH=src \
   ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+  --workspace-root /home/delete/nirs4all \
+  --adapter python_oracle=/absolute/bin/python-oracle-adapter \
+  --adapter rust_direct=/absolute/bin/core-rust-adapter \
+  --adapter studio_rust=/absolute/bin/studio-rust-adapter \
+  --adapter web_wasm=/absolute/bin/web-wasm-adapter \
   --json-out ./perf-report.json \
-  --markdown-out ./perf-report.md
-
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --assert-max-ratio python_run=1.25 \
-  --assert-max-ratio studio_run=1.35
+  --handoff-dir ./artifacts
 ```
 
 ### `serve`

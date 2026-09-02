@@ -1,0 +1,110 @@
+{
+  "schema_version": "nirs4all.performance-compare.plan.v1",
+  "scenario_id": "perf001-archive-v2-native-surfaces",
+  "scope": "local evidence; no publication, release lock, or performance budget claim",
+  "candidates": {
+    "methods": {
+      "commit_sha": "a71ee2927524d03482183de3d6e22661efc05d12",
+      "tree_sha": "f6749f4c4be7dca161f3c2677dd10a9ac4434b66",
+      "worktree": "_worktrees/MTH-abi24-inspect"
+    },
+    "dag_ml": {
+      "commit_sha": "189099119b69e74c69466f2308808cb423dc2e94",
+      "tree_sha": "6ce31722bdb999482932e9d4a3884987426d1dd6",
+      "worktree": "_worktrees/DAG-native-predictor-descriptor"
+    },
+    "core": {
+      "commit_sha": "3a3ce728cebf001ad25b20b3eeaed3bc76daf32f",
+      "tree_sha": "57e8203bf33a6c7b0b3f049f0dcbf3efa28991b1",
+      "worktree": "_worktrees/CORE-native-predictor-descriptor-v1"
+    },
+    "python": {
+      "commit_sha": "1ebe03ddbd99e691f1f0332655bee5ebf584f2e9",
+      "tree_sha": "e2f5d7f0df886fd29738e1b6fabb885537666540",
+      "worktree": "_worktrees/PY-descriptor-consumer",
+      "selection_note": "HPO is outside this Archive V2 prediction workload; descendant e99a7ab30086ef494e9f48a4863776480c964564 is not required."
+    },
+    "studio": {
+      "commit_sha": "c0ea53c33c675cdc21e3586851e0d3ece9641406",
+      "tree_sha": "200df7074072275f8f3141c29fc2fa04cf464d99",
+      "worktree": "_worktrees/RC-v1-studio-predictor-descriptor"
+    },
+    "web": {
+      "commit_sha": "ea842c2b910523e38c1d2761c49b20bdb8883c0d",
+      "tree_sha": "cda29a3616e0097f3c834ab6bc45dbae804f559b",
+      "worktree": "_worktrees/WEB-native-predictor-descriptor"
+    }
+  },
+  "surfaces": {
+    "python_oracle": {
+      "candidate": "python",
+      "entrypoint": "nirs4all.predict(model=archive_v2, data={X, sample_ids}, engine=native)"
+    },
+    "rust_direct": {
+      "candidate": "core",
+      "entrypoint": "nirs4all::predict_methods_archive_v2_matrix"
+    },
+    "studio_rust": {
+      "candidate": "studio",
+      "entrypoint": "POST /api/predict/archive-v2 on the Rust sidecar"
+    },
+    "web_wasm": {
+      "candidate": "web",
+      "entrypoint": "replayMethodsArchiveV2 through Core/Methods WASM"
+    }
+  },
+  "workload": {
+    "archive_v2": {
+      "sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+      "source": {
+        "candidate": "web",
+        "worktree": "_worktrees/WEB-native-predictor-descriptor",
+        "relative_path": "web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+      }
+    },
+    "sample_ids": ["predict.0", "predict.1"],
+    "x": [[1.5, 0.5], [3.5, 1.5]],
+    "target_names": ["protein", "moisture"],
+    "expected_native_predictions": [
+      [1.6363636363636365, 13.272727272727273],
+      [2.4999999999999996, 15.0]
+    ]
+  },
+  "predictor_descriptor": {
+    "descriptor_type": "dagml.native_predictor_descriptor.v1",
+    "schema_version": 1,
+    "artifact_sha256": "4c4aead1e669235595970ee40530315d02c2dad80a72845c6930424d1580edc4",
+    "owner_controller": "controller:methods.pls",
+    "format": "N4MM",
+    "format_version": 1,
+    "writer_abi": {"major": 2, "minor": 3, "patch": 0},
+    "storage_algorithm": 0,
+    "capabilities": 3,
+    "dimensions": {
+      "training_samples": 6,
+      "n_features": 2,
+      "n_targets": 2,
+      "n_components": 1
+    },
+    "descriptor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b"
+  },
+  "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+  "numeric_tolerance": {"absolute": 1e-9, "relative": 1e-9},
+  "web_handoff": {
+    "directory": "performance-compare",
+    "files": [
+      "archive-v2-performance-compare.v1.json",
+      "performance-report.v1.json"
+    ]
+  },
+  "local_smoke_hold": {
+    "status": "external_candidate_artifacts_required",
+    "missing": [
+      "Python candidate environment containing its exact native Core wheel and exact Methods a71ee292 libn4m",
+      "direct Rust runner linked to Core 3a3ce728, DAG 189099 and Methods a71ee292",
+      "Studio c0ea53 packaged runtime closure containing the exact Methods a71ee292 libn4m",
+      "PERF stdio adapter around Web ea842c replayMethodsArchiveV2 (its staged Core 3a3ce728 and Methods a71ee292 WASM closure is already present)"
+    ],
+    "fixture_policy": "Contract fixtures may exercise the runner but remain release_eligible=false and never substitute for candidate evidence."
+  }
+}

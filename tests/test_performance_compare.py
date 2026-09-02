@@ -1,343 +1,242 @@
-"""Performance comparison harness smoke test."""
+"""PERF-001 Archive V2 cross-surface contract tests."""
 
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 from typing import Any
 
 import pytest
-from typer.testing import CliRunner
 
 from nirs4all_benchmarks import performance_compare as pc
-from nirs4all_benchmarks.cli import app
 
 
-def _install_fake_perf_children(monkeypatch: pytest.MonkeyPatch, calls: list[dict[str, Any]]) -> None:
-    def choose_child_python(
-        explicit: str | Path | None = None,
-        *,
-        require_studio: bool = True,
-    ) -> Path:
-        calls.append({"kind": "choose_child_python", "explicit": explicit, "require_studio": require_studio})
-        return Path("/fake/python")
-
-    def choose_nirs4all_root(python: Path) -> Path:
-        calls.append({"kind": "choose_nirs4all_root", "python": python})
-        return Path("/fake/nirs4all")
-
-    def run_child(
-        *,
-        suite: str,
-        engine: str,
-        python: Path,
-        nirs4all_root: Path,
-        warmups: int,
-    ) -> dict[str, Any]:
-        calls.append(
-            {
-                "kind": "run_child",
-                "suite": suite,
-                "engine": engine,
-                "python": python,
-                "nirs4all_root": nirs4all_root,
-                "warmups": warmups,
-            }
-        )
-        base = 1.0 if suite == "python_run" else 2.0
-        multiplier = 1.2 if engine == "dag-ml" else 1.0
-        run_s = base * multiplier
-        return {
-            "engine_recorded": engine,
-            "best_score": 0.91,
-            "num_predictions": 40 if suite == "python_run" else None,
-            "variants_tested": 1 if suite == "studio_run" else None,
-            "runtime_source": "rt_result" if suite == "studio_run" else None,
-            "import_s": 0.01,
-            "run_s": run_s,
-            "total_s": run_s + 0.1,
-        }
-
-    monkeypatch.setattr(pc, "choose_child_python", choose_child_python)
-    monkeypatch.setattr(pc, "choose_nirs4all_root", choose_nirs4all_root)
-    monkeypatch.setattr(pc, "_run_child", run_child)
+def _fixture_plan(tmp_path: Path) -> tuple[Path, Path]:
+    plan = pc.load_plan()
+    archive = tmp_path / "fixture.n4a"
+    archive.write_bytes(b"deterministic Archive V2 contract fixture")
+    plan["workload"]["archive_v2"]["sha256"] = pc._sha256_file(archive)
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    return path, archive
 
 
-def _sample_report() -> dict[str, Any]:
-    return {
-        "case": {"name": "seeded_small_pls_cv"},
-        "environment": {"repeats": 1, "warmups": 0},
-        "suites": {
-            "python_run": {
-                "label": "nirs4all.run() direct",
-                "engines": {
-                    "legacy": {
-                        "engine": "legacy",
-                        "engine_recorded": "legacy",
-                        "run_s_median": 1.0,
-                        "total_s_median": 1.1,
-                        "import_s_median": 0.01,
-                        "best_score": 0.91,
-                    },
-                    "dag-ml": {
-                        "engine": "dag-ml",
-                        "engine_recorded": "dag-ml",
-                        "run_s_median": 1.2,
-                        "total_s_median": 1.3,
-                        "import_s_median": 0.01,
-                        "best_score": 0.91,
-                    },
-                },
-                "ratios": {
-                    "run_s_dag_ml_over_legacy": 1.2,
-                    "total_s_dag_ml_over_legacy": 1.1818181818,
-                },
-            }
-        },
-    }
-
-
-def test_child_source_uses_one_strict_workload_for_both_surfaces():
-    source = pc._child_source(Path("/fake/nirs4all"))
-
-    assert source.count("def _build_case():") == 1
-    assert "pipeline, dataset = _build_case()" in source
-    assert "runtime_pipeline, dataset = _build_case()" in source
-    assert "allow_fallback=False" in source
-    assert '"allow_fallback": False' in source
-
-
-def test_run_comparison_reports_both_surfaces(monkeypatch: pytest.MonkeyPatch):
-    calls: list[dict[str, Any]] = []
-    _install_fake_perf_children(monkeypatch, calls)
-
-    report = pc.run_comparison(repeats=1, warmups=0)
-
-    assert report["case"]["name"] == "seeded_small_pls_cv"
-    assert set(report["suites"]) == {"python_run", "studio_run"}
-    assert calls[0] == {"kind": "choose_child_python", "explicit": None, "require_studio": True}
-    assert calls[1] == {"kind": "choose_nirs4all_root", "python": Path("/fake/python")}
-    assert [
-        (call["suite"], call["engine"], call["warmups"])
-        for call in calls
-        if call["kind"] == "run_child"
-    ] == [
-        ("python_run", "legacy", 0),
-        ("python_run", "dag-ml", 0),
-        ("studio_run", "legacy", 0),
-        ("studio_run", "dag-ml", 0),
-    ]
-
-    for suite_name, suite in report["suites"].items():
-        assert suite["label"]
-        legacy = suite["engines"]["legacy"]
-        dagml = suite["engines"]["dag-ml"]
-        assert "error" not in legacy, f"{suite_name} legacy failed: {legacy.get('error')}"
-        assert "error" not in dagml, f"{suite_name} dag-ml failed: {dagml.get('error')}"
-        assert legacy["engine_recorded"] == "legacy"
-        assert dagml["engine_recorded"] == "dag-ml"
-        ratio = suite["ratios"]["run_s_dag_ml_over_legacy"]
-        assert isinstance(ratio, float)
-        assert math.isfinite(ratio)
-        assert ratio > 0
-
-    markdown = pc.render_markdown(report)
-    assert "nirs4all.run() direct" in markdown
-    assert "Studio pipeline job worker" in markdown
-    assert "dag-ml/legacy run ratio" in markdown
-
-
-def test_run_comparison_enforces_max_ratio(monkeypatch: pytest.MonkeyPatch):
-    calls: list[dict[str, Any]] = []
-    _install_fake_perf_children(monkeypatch, calls)
-
-    with pytest.raises(RuntimeError, match="performance ratio gate failed: python_run"):
-        pc.run_comparison(
-            suites=("python_run",),
-            repeats=1,
-            warmups=0,
-            max_ratios={"python_run": 1.1},
-        )
-
-
-def test_perf_compare_cli_writes_json_and_markdown(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    report = _sample_report()
-    seen: dict[str, Any] = {}
-
-    def run_comparison(**kwargs: Any) -> dict[str, Any]:
-        seen.update(kwargs)
-        return report
-
-    monkeypatch.setattr(pc, "run_comparison", run_comparison)
-
-    json_out = tmp_path / "perf.json"
-    markdown_out = tmp_path / "perf.md"
-    result = CliRunner().invoke(
-        app,
-        [
-            "perf-compare",
-            "--suite",
-            "python_run",
-            "--repeats",
-            "1",
-            "--warmups",
-            "0",
-            "--json-out",
-            str(json_out),
-            "--markdown-out",
-            str(markdown_out),
-            "--assert-max-ratio",
-            "python_run=1.5",
-        ],
+def _fixture_adapter(tmp_path: Path, *, divergent_surface: str | None = None) -> Path:
+    script = tmp_path / "adapter"
+    divergence = repr(divergent_surface)
+    script.write_text(
+        """#!/usr/bin/python3.11
+import json, sys
+request = json.load(sys.stdin)
+predictions = [[1.6363636363636365, 13.272727272727273], [2.4999999999999996, 15.0]]
+if request['surface'] == __DIVERGENCE__:
+    predictions[0][0] += 0.25
+json.dump({
+    'protocol': request['protocol'],
+    'surface': request['surface'],
+    'commit_sha': request['candidate']['commit_sha'],
+    'archive_sha256': request['archive_v2']['sha256'],
+    'matrix_sha256': request['matrix_sha256'],
+    'sample_ids': request['matrix']['sample_ids'],
+    'target_names': request['matrix']['target_names'],
+    'predictor_descriptor': request['predictor_descriptor'],
+    'predictor_fingerprint': request['predictor_fingerprint'],
+    'fallback_used': False,
+    'predictions': predictions,
+    'startup_ms': 4.0,
+    'steady_state_ms': [1.25] * request['repeats'],
+    'evidence': {'kind': 'deterministic-contract-fixture'},
+}, sys.stdout, sort_keys=True)
+""".replace("__DIVERGENCE__", divergence),
+        encoding="utf-8",
     )
-
-    assert result.exit_code == 0, result.output
-    assert seen["suites"] == ["python_run"]
-    assert seen["repeats"] == 1
-    assert seen["warmups"] == 0
-    assert seen["max_ratios"] == {"python_run": 1.5}
-    assert json.loads(json_out.read_text(encoding="utf-8")) == report
-    markdown = markdown_out.read_text(encoding="utf-8")
-    assert "nirs4all.run() direct" in markdown
-    assert "dag-ml/legacy run ratio" in markdown
+    script.chmod(0o755)
+    return script
 
 
-def _install_scored_children(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    legacy_score: float | None,
-    dagml_score: float | None,
-) -> None:
-    monkeypatch.setattr(pc, "choose_child_python", lambda *a, **k: Path("/fake/python"))
-    monkeypatch.setattr(pc, "choose_nirs4all_root", lambda python: Path("/fake/nirs4all"))
-
-    def run_child(*, suite: str, engine: str, python: Path, nirs4all_root: Path, warmups: int) -> dict[str, Any]:
-        return {
-            "engine_recorded": engine,
-            "best_score": dagml_score if engine == "dag-ml" else legacy_score,
-            "import_s": 0.01,
-            "run_s": 1.0,
-            "total_s": 1.1,
-        }
-
-    monkeypatch.setattr(pc, "_run_child", run_child)
+def _all_adapters(executable: Path) -> dict[str, Path]:
+    return dict.fromkeys(pc.SURFACES, executable)
 
 
-def test_run_comparison_reports_score_agreement(monkeypatch: pytest.MonkeyPatch):
-    calls: list[dict[str, Any]] = []
-    _install_fake_perf_children(monkeypatch, calls)
+def test_frozen_plan_pins_delivered_candidates_and_native_predictor() -> None:
+    plan = pc.load_plan()
 
-    report = pc.run_comparison(repeats=1, warmups=0)
+    assert {name: value["commit_sha"] for name, value in plan["candidates"].items()} == {
+        "methods": "a71ee2927524d03482183de3d6e22661efc05d12",
+        "dag_ml": "189099119b69e74c69466f2308808cb423dc2e94",
+        "core": "3a3ce728cebf001ad25b20b3eeaed3bc76daf32f",
+        "python": "1ebe03ddbd99e691f1f0332655bee5ebf584f2e9",
+        "studio": "c0ea53c33c675cdc21e3586851e0d3ece9641406",
+        "web": "ea842c2b910523e38c1d2761c49b20bdb8883c0d",
+    }
+    assert plan["workload"]["archive_v2"]["sha256"] == (
+        "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa"
+    )
+    assert plan["workload"]["sample_ids"] == ["predict.0", "predict.1"]
+    assert plan["workload"]["x"] == [[1.5, 0.5], [3.5, 1.5]]
+    assert plan["predictor_descriptor"]["dimensions"] == {
+        "training_samples": 6,
+        "n_features": 2,
+        "n_targets": 2,
+        "n_components": 1,
+    }
+    assert plan["predictor_fingerprint"] == (
+        "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b"
+    )
+    assert "e99a7ab30086ef494e9f48a4863776480c964564" in plan["candidates"]["python"]["selection_note"]
 
-    for suite in report["suites"].values():
-        scores = suite["scores"]
-        assert scores["legacy"] == pytest.approx(0.91)
-        assert scores["dag_ml"] == pytest.approx(0.91)
-        assert scores["abs_delta"] == pytest.approx(0.0)
 
-    markdown = pc.render_markdown(report)
-    assert "legacy score" in markdown
-    assert "abs score delta" in markdown
-
-
-def test_score_gate_fails_on_large_delta(monkeypatch: pytest.MonkeyPatch):
-    _install_scored_children(monkeypatch, legacy_score=0.90, dagml_score=0.50)
-
-    with pytest.raises(RuntimeError, match="score agreement gate failed: python_run"):
-        pc.run_comparison(
-            suites=("python_run",),
-            repeats=1,
-            warmups=0,
-            max_score_deltas={"python_run": 0.01},
-        )
-
-
-def test_score_gate_passes_within_tolerance(monkeypatch: pytest.MonkeyPatch):
-    _install_scored_children(monkeypatch, legacy_score=0.90, dagml_score=0.9005)
+def test_comparison_uses_same_archive_matrix_and_descriptor_for_all_surfaces(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    adapter = _fixture_adapter(tmp_path)
 
     report = pc.run_comparison(
-        suites=("python_run",),
-        repeats=1,
-        warmups=0,
-        max_score_deltas={"python_run": 0.01},
+        plan_path=plan,
+        workspace_root=tmp_path,
+        archive=archive,
+        adapters=_all_adapters(adapter),
+        repeats=2,
+        evidence_kind="contract_fixture",
     )
 
-    assert report["suites"]["python_run"]["scores"]["abs_delta"] == pytest.approx(0.0005)
+    assert report["overall_disposition"] == "passed"
+    assert report["release_eligible"] is False
+    assert report["performance_policy"]["thresholds"] is None
+    assert report["performance_policy"]["startup_and_steady_state_separate"] is True
+    assert report["historical_compatibility"]["studio_python_worker"] == "excluded_from_v1"
+    for surface, result in report["surfaces"].items():
+        assert result["surface"] == surface
+        assert result["disposition"] == "passed"
+        assert result["fallback_used"] is False
+        assert result["predictor_fingerprint"] == report["predictor_fingerprint"]
+        assert result["timings_ms"]["startup"] == 4.0
+        assert result["timings_ms"]["steady_state"] == [1.25, 1.25]
+        assert result["numeric_consistency"]["outside_tolerance"] == 0
+        assert result["numeric_consistency"]["passed"] is True
 
 
-def test_score_gate_unavailable_when_score_missing(monkeypatch: pytest.MonkeyPatch):
-    _install_scored_children(monkeypatch, legacy_score=None, dagml_score=0.9)
+def test_missing_surface_artifacts_are_visible_refusals(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
 
-    with pytest.raises(RuntimeError, match="score delta unavailable"):
-        pc.run_comparison(
-            suites=("python_run",),
-            repeats=1,
-            warmups=0,
-            max_score_deltas={"python_run": 0.01},
-        )
+    report = pc.run_comparison(
+        plan_path=plan,
+        workspace_root=tmp_path,
+        archive=archive,
+        adapters={},
+        repeats=1,
+    )
+
+    assert report["overall_disposition"] == "refused"
+    assert all(value["disposition"] == "refused" for value in report["surfaces"].values())
+    assert all("not supplied" in value["reason"] for value in report["surfaces"].values())
 
 
-def test_render_markdown_handles_engine_error_and_missing_scores():
-    report = {
+def test_numeric_divergence_fails_surface_without_a_performance_threshold(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    adapter = _fixture_adapter(tmp_path, divergent_surface="web_wasm")
+
+    report = pc.run_comparison(
+        plan_path=plan,
+        workspace_root=tmp_path,
+        archive=archive,
+        adapters=_all_adapters(adapter),
+        repeats=1,
+        evidence_kind="contract_fixture",
+    )
+
+    assert report["overall_disposition"] == "failed"
+    assert report["surfaces"]["web_wasm"]["numeric_consistency"]["outside_tolerance"] == 1
+    assert report["surfaces"]["web_wasm"]["disposition"] == "failed"
+    assert report["performance_policy"]["thresholds"] is None
+
+
+def test_adapter_identity_drift_is_rejected(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    adapter = _fixture_adapter(tmp_path)
+    original = adapter.read_text(encoding="utf-8")
+    adapter.write_text(original.replace("request['candidate']['commit_sha']", "'0' * 40"), encoding="utf-8")
+
+    report = pc.run_comparison(
+        plan_path=plan,
+        workspace_root=tmp_path,
+        archive=archive,
+        adapters=_all_adapters(adapter),
+        repeats=1,
+        evidence_kind="contract_fixture",
+    )
+
+    assert report["overall_disposition"] == "failed"
+    assert all("commit_sha mismatch" in value["reason"] for value in report["surfaces"].values())
+
+
+def test_web_handoff_contains_archive_matrix_predictor_and_web_candidate(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    adapter = _fixture_adapter(tmp_path)
+    report = pc.run_comparison(
+        plan_path=plan,
+        workspace_root=tmp_path,
+        archive=archive,
+        adapters=_all_adapters(adapter),
+        repeats=1,
+        evidence_kind="contract_fixture",
+    )
+
+    handoff = pc.write_web_handoff(tmp_path, report)
+    payload = json.loads(handoff.read_text(encoding="utf-8"))
+
+    assert handoff.parent.name == "performance-compare"
+    assert payload["schema_version"] == pc.WEB_HANDOFF_SCHEMA
+    assert payload["archive_v2"]["actual_sha256"] == pc._sha256_file(archive)
+    assert payload["matrix"]["sample_ids"] == ["predict.0", "predict.1"]
+    assert payload["predictor_fingerprint"] == report["predictor_fingerprint"]
+    assert payload["web_candidate"]["commit_sha"] == "ea842c2b910523e38c1d2761c49b20bdb8883c0d"
+    assert payload["release_eligible"] is False
+    assert (handoff.parent / "performance-report.v1.json").is_file()
+
+
+def test_historical_reports_remain_renderable_but_are_not_executable() -> None:
+    historical: dict[str, Any] = {
         "suites": {
-            "python_run": {
-                "label": "nirs4all.run() direct",
+            "studio_run": {
                 "engines": {
-                    "legacy": {"engine": "legacy", "error": "boom"},
-                    "dag-ml": {
-                        "engine": "dag-ml",
-                        "engine_recorded": "dag-ml",
-                        "run_s_median": 1.0,
-                        "total_s_median": 1.1,
-                        "import_s_median": 0.01,
-                        "best_score": 0.9,
-                    },
-                },
-                "ratios": {},
-                "scores": {},
+                    "legacy": {"run_s_median": 2.0},
+                    "dag-ml": {"run_s_median": 1.0},
+                }
             }
         }
     }
 
-    markdown = pc.render_markdown(report)
+    markdown = pc.render_markdown(historical)
 
-    assert "ERROR" in markdown
-    assert "boom" in markdown
-    # A failed engine leaves ratios and scores unavailable -> rendered as n/a.
-    assert "n/a" in markdown
-
-
-def test_parse_ratio_overrides_valid_and_errors():
-    assert pc.parse_ratio_overrides(["python_run=1.25", "studio_run=1.3"]) == {
-        "python_run": 1.25,
-        "studio_run": 1.3,
-    }
-    with pytest.raises(ValueError, match="expected SUITE=FLOAT"):
-        pc.parse_ratio_overrides(["python_run"])
-    with pytest.raises(ValueError, match="unknown suite"):
-        pc.parse_ratio_overrides(["bogus=1.0"])
+    assert "read-only compatibility" in markdown
+    assert "studio_run" in markdown
+    assert "legacy" in markdown
 
 
-def test_perf_compare_cli_forwards_score_delta_gate(monkeypatch: pytest.MonkeyPatch):
-    seen: dict[str, Any] = {}
+def test_parse_adapter_overrides_requires_explicit_absolute_paths(tmp_path: Path) -> None:
+    adapter = _fixture_adapter(tmp_path)
 
-    def run_comparison(**kwargs: Any) -> dict[str, Any]:
-        seen.update(kwargs)
-        return _sample_report()
+    assert pc.parse_adapter_overrides([f"web_wasm={adapter}"]) == {"web_wasm": adapter}
+    with pytest.raises(ValueError, match="absolute"):
+        pc.parse_adapter_overrides(["web_wasm=relative-adapter"])
+    with pytest.raises(ValueError, match="expected one of"):
+        pc.parse_adapter_overrides([f"studio_python={adapter}"])
 
-    monkeypatch.setattr(pc, "run_comparison", run_comparison)
 
-    result = CliRunner().invoke(
-        app,
-        [
-            "perf-compare",
-            "--suite",
-            "python_run",
-            "--assert-max-score-delta",
-            "python_run=0.02",
-        ],
-    )
+def test_module_smoke_writes_one_repeat_report_and_web_handoff(tmp_path: Path) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    adapter = _fixture_adapter(tmp_path)
+    report_path = tmp_path / "report.json"
+    args = [
+        "--plan", str(plan), "--workspace-root", str(tmp_path), "--archive", str(archive),
+        "--repeats", "1", "--evidence-kind", "contract_fixture", "--json-out", str(report_path),
+        "--handoff-dir", str(tmp_path),
+    ]
+    for surface in pc.SURFACES:
+        args += ["--adapter", f"{surface}={adapter}"]
 
-    assert result.exit_code == 0, result.output
-    assert seen["max_score_deltas"] == {"python_run": 0.02}
+    assert pc.main(args) == 0
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["overall_disposition"] == "passed"
+    assert all(len(value["timings_ms"]["steady_state"]) == 1 for value in report["surfaces"].values())
+    assert (tmp_path / "performance-compare" / "archive-v2-performance-compare.v1.json").is_file()

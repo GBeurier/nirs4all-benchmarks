@@ -1,727 +1,469 @@
-"""Deterministic cross-engine performance comparison for RC-v1 worktrees.
+"""Compare one Archive V2 across the delivered Python, Rust, Studio and Web surfaces.
 
-The harness is intentionally small and CI-friendly:
-
-* one seeded synthetic dataset and one supported PLS pipeline;
-* fresh subprocess per (suite, engine, repeat) measurement;
-* medians over a tiny repeat count;
-* explicit `legacy` vs `dag-ml` selection with fallback disabled.
-
-It compares two execution surfaces:
-
-* `python_run`: the public `nirs4all.run()` API;
-* `studio_run`: Studio's real pipeline job worker path
-  (`api.pipelines._run_pipeline_task`) with only the workspace-bound seams
-  stubbed so the scientific execution stays real.
+This package owns orchestration and evidence only. Product code is reached by
+explicit stdio adapters; no runtime checkout is imported and the retired Studio
+Python worker is never used.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
-import shutil
+import platform
 import statistics
 import subprocess
 import sys
-import tempfile
-import textwrap
 import time
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SUITES: tuple[str, ...] = ("python_run", "studio_run")
-DEFAULT_ENGINES: tuple[str, ...] = ("legacy", "dag-ml")
-THREAD_ENV_VARS: tuple[str, ...] = (
+DEFAULT_PLAN_PATH = REPO_ROOT / "docs" / "performance-compare.handoff.v1.json"
+REPORT_SCHEMA = "nirs4all.performance-compare.report.v1"
+ADAPTER_PROTOCOL = "nirs4all.performance-compare.adapter.v1"
+WEB_HANDOFF_SCHEMA = "nirs4all.performance-compare.web-handoff.v1"
+SURFACES = ("python_oracle", "rust_direct", "studio_rust", "web_wasm")
+MAX_ADAPTER_OUTPUT_BYTES = 2 * 1024 * 1024
+THREAD_ENV_VARS = (
     "OMP_NUM_THREADS",
     "OPENBLAS_NUM_THREADS",
     "MKL_NUM_THREADS",
     "NUMEXPR_NUM_THREADS",
     "VECLIB_MAXIMUM_THREADS",
 )
-REPORT_SENTINEL = "@@N4A_PERF@@"
 
 
-def _workspace_root() -> Path:
-    explicit = os.environ.get("N4A_BENCH_WORKSPACE_ROOT")
-    if explicit:
-        return Path(explicit).resolve()
-
-    if REPO_ROOT.parent.name == "_worktrees":
-        return REPO_ROOT.parent.parent.resolve()
-    return REPO_ROOT.parent.resolve()
+def _canonical_json(value: Any) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    ).encode()
 
 
-def _rc_paths() -> dict[str, Path]:
-    workspace = _workspace_root()
-    return {
-        "workspace_root": workspace,
-        "benchmarks_root": REPO_ROOT,
-        "studio_root": Path(
-            os.environ.get(
-                "N4A_BENCH_STUDIO_ROOT",
-                workspace / "_worktrees" / "RC-v1-studio",
-            )
-        ).resolve(),
-        "dagml_python_root": Path(
-            os.environ.get(
-                "N4A_BENCH_DAGML_PY_ROOT",
-                workspace / "_worktrees" / "RC-v1-dagml" / "crates" / "dag-ml-py" / "python",
-            )
-        ).resolve(),
-        "dagml_data_python_root": Path(
-            os.environ.get(
-                "N4A_BENCH_DAGML_DATA_PY_ROOT",
-                workspace / "_worktrees" / "RC-v1-dmd" / "crates" / "dag-ml-data-py" / "python",
-            )
-        ).resolve(),
-    }
+def _canonical_sha256(value: Any) -> str:
+    return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
-def _candidate_nirs4all_roots() -> list[Path]:
-    workspace = _workspace_root()
-    candidates = [
-        os.environ.get("N4A_BENCH_NIRS4ALL_ROOT"),
-        workspace / "_worktrees" / "RC-v1-nirs4all-python",
-        workspace / "nirs4all",
-    ]
-    roots: list[Path] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        if not candidate:
-            continue
-        path = Path(candidate).expanduser().absolute()
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        roots.append(path)
-    return roots
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def _interpreter_candidates() -> list[Path]:
-    workspace = _workspace_root()
-    candidates = [
-        os.environ.get("N4A_BENCH_CHILD_PYTHON"),
-        workspace / "nirs4all-studio" / ".venv" / "bin" / "python",
-        workspace / "nirs4all" / ".venv" / "bin" / "python",
-        workspace / "nirs4all-benchmarks" / ".venv" / "bin" / "python",
-        sys.executable,
-        shutil.which("python3"),
-    ]
-    paths: list[Path] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        if not candidate:
-            continue
-        path = Path(candidate).expanduser().absolute()
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        paths.append(path)
-    return paths
+def _object(value: Any, label: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{label} must be an object")
+    return value
 
 
-def _probe_source(require_studio: bool) -> str:
-    paths = _rc_paths()
-    bootstrap = "\n".join(
-        f"sys.path.insert(0, {str(path)!r})"
-        for path in (
-            paths["studio_root"],
-            paths["dagml_data_python_root"],
-            paths["dagml_python_root"],
-        )
-    )
-    body = "import api.pipelines\n" if require_studio else "import numpy\n"
-    template = """
-    import sys
-    __BOOTSTRAP__
-    __BODY__
-    """
-    return (
-        textwrap.dedent(template)
-        .replace("__BOOTSTRAP__", bootstrap.rstrip())
-        .replace("__BODY__", body.rstrip())
-    )
+def _digest(value: Any, label: str, length: int = 64) -> str:
+    if not isinstance(value, str) or len(value) != length or any(c not in "0123456789abcdef" for c in value):
+        raise ValueError(f"{label} must be a lowercase {length}-character hexadecimal digest")
+    return value
 
 
-def choose_child_python(
-    explicit: str | Path | None = None,
-    *,
-    require_studio: bool = True,
+def _matrix(value: Any, label: str) -> list[list[float]]:
+    if not isinstance(value, list) or not value or not all(isinstance(row, list) and row for row in value):
+        raise ValueError(f"{label} must be a non-empty matrix")
+    width = len(value[0])
+    if any(len(row) != width for row in value):
+        raise ValueError(f"{label} must not be ragged")
+    result = [[float(item) for item in row] for row in value]
+    if any(not math.isfinite(item) for row in result for item in row):
+        raise ValueError(f"{label} must contain only finite values")
+    return result
+
+
+def load_plan(path: str | Path = DEFAULT_PLAN_PATH) -> dict[str, Any]:
+    """Load the frozen PERF-001 workload and exact candidate identities."""
+    plan = json.loads(Path(path).read_text(encoding="utf-8"))
+    root = _object(plan, "performance plan")
+    if root.get("schema_version") != "nirs4all.performance-compare.plan.v1":
+        raise ValueError("unsupported performance plan schema")
+    candidates = _object(root.get("candidates"), "candidates")
+    required = {"methods", "dag_ml", "core", "python", "studio", "web"}
+    if set(candidates) != required:
+        raise ValueError("performance plan must pin every delivered candidate exactly once")
+    for name, candidate in candidates.items():
+        item = _object(candidate, f"candidate {name}")
+        _digest(item.get("commit_sha"), f"candidate {name} commit", 40)
+        _digest(item.get("tree_sha"), f"candidate {name} tree", 40)
+    workload = _object(root.get("workload"), "workload")
+    archive = _object(workload.get("archive_v2"), "workload.archive_v2")
+    _digest(archive.get("sha256"), "Archive V2 SHA-256")
+    x = _matrix(workload.get("x"), "workload.x")
+    sample_ids, targets = workload.get("sample_ids"), workload.get("target_names")
+    if not isinstance(sample_ids, list) or len(sample_ids) != len(x) or len(set(sample_ids)) != len(sample_ids):
+        raise ValueError("sample_ids must be unique and align with workload.x")
+    if not isinstance(targets, list) or not targets or len(set(targets)) != len(targets):
+        raise ValueError("target_names must be a non-empty unique list")
+    expected = _matrix(workload.get("expected_native_predictions"), "expected predictions")
+    if len(expected) != len(x) or any(len(row) != len(targets) for row in expected):
+        raise ValueError("expected predictions must align with samples and targets")
+    descriptor = _object(root.get("predictor_descriptor"), "predictor_descriptor")
+    fingerprint = _digest(descriptor.get("descriptor_fingerprint"), "descriptor fingerprint")
+    if fingerprint != root.get("predictor_fingerprint"):
+        raise ValueError("predictor_fingerprint must repeat the authoritative descriptor fingerprint")
+    if set(_object(root.get("surfaces"), "surfaces")) != set(SURFACES):
+        raise ValueError("plan must bind every performance surface")
+    return dict(plan)
+
+
+def resolve_archive(
+    plan: Mapping[str, Any], *, workspace_root: str | Path, archive: str | Path | None = None
 ) -> Path:
-    candidates = [Path(explicit).expanduser().absolute()] if explicit else _interpreter_candidates()
-    probe = _probe_source(require_studio=require_studio)
-
-    for candidate in candidates:
-        if not candidate.exists():
-            continue
-        proc = subprocess.run(
-            [str(candidate), "-c", probe],
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-        )
-        if proc.returncode == 0:
-            return candidate
-
-    rendered = "\n".join(f"- {candidate}" for candidate in candidates)
-    missing = "nirs4all + Studio" if require_studio else "nirs4all"
-    raise RuntimeError(
-        "could not find a Python interpreter that can import "
-        f"{missing} from the RC worktrees.\nTried:\n{rendered}"
-    )
+    """Resolve the one byte-identical Archive V2 without discovery or conversion."""
+    if archive is not None:
+        return Path(archive).expanduser().resolve()
+    source = _object(plan["workload"]["archive_v2"].get("source"), "Archive V2 source")
+    return (Path(workspace_root) / str(source["worktree"]) / str(source["relative_path"])).resolve()
 
 
-def _nirs4all_probe_source(nirs4all_root: Path) -> str:
-    paths = _rc_paths()
-    bootstrap = "\n".join(
-        f"sys.path.insert(0, {str(path)!r})"
-        for path in (
-            paths["studio_root"],
-            paths["dagml_data_python_root"],
-            paths["dagml_python_root"],
-            nirs4all_root,
-        )
-    )
-    template = """
-    import sys
-    __BOOTSTRAP__
-    import numpy as np
-    import nirs4all
-    from sklearn.cross_decomposition import PLSRegression
-    from sklearn.model_selection import ShuffleSplit
-    from sklearn.preprocessing import MinMaxScaler
-
-    rng = np.random.default_rng(2026)
-    X = rng.normal(0.5, 0.1, size=(20, 10)).astype(float)
-    y = X[:, :3].sum(axis=1) + rng.normal(0, 0.05, size=20)
-    pipeline = [
-        MinMaxScaler(),
-        ShuffleSplit(n_splits=2, test_size=0.25, random_state=0),
-        {"model": PLSRegression(n_components=2)},
-    ]
-    result = nirs4all.run(
-        pipeline=pipeline,
-        dataset=(X, y),
-        verbose=0,
-        save_artifacts=False,
-        save_charts=False,
-        plots_visible=False,
-        engine="dag-ml",
-    )
-    close = getattr(result, "close", None)
-    if callable(close):
-        close()
-    """
-    return textwrap.dedent(template).replace("__BOOTSTRAP__", bootstrap.rstrip())
+def parse_adapter_overrides(values: Iterable[str]) -> dict[str, Path]:
+    """Parse repeated ``SURFACE=/absolute/executable`` declarations."""
+    adapters: dict[str, Path] = {}
+    for raw in values:
+        surface, separator, executable = raw.partition("=")
+        if not separator or surface not in SURFACES or not executable:
+            raise ValueError(f"expected one of {SURFACES} as SURFACE=/absolute/executable, got {raw!r}")
+        path = Path(executable).expanduser()
+        if not path.is_absolute():
+            raise ValueError(f"adapter path for {surface} must be absolute")
+        adapters[surface] = path
+    return adapters
 
 
-def choose_nirs4all_root(python: Path) -> Path:
-    candidates = _candidate_nirs4all_roots()
-    for candidate in candidates:
-        if not candidate.exists():
-            continue
-        with tempfile.TemporaryDirectory(prefix="n4a-perf-probe-") as tmpdir:
-            proc = subprocess.run(
-                [str(python), "-c", _nirs4all_probe_source(candidate)],
-                capture_output=True,
-                text=True,
-                cwd=tmpdir,
-            )
-        if proc.returncode == 0:
-            return candidate
-
-    rendered = "\n".join(f"- {candidate}" for candidate in candidates)
-    raise RuntimeError(
-        "could not find a usable nirs4all source root for the dag-ml comparison.\n"
-        f"Tried:\n{rendered}"
-    )
+def _adapter_environment() -> dict[str, str]:
+    allowed = ("LANG", "LC_ALL", "LC_CTYPE", "TZ", "SYSTEMROOT", "WINDIR")
+    environment = {name: os.environ[name] for name in allowed if name in os.environ}
+    environment.update(dict.fromkeys(THREAD_ENV_VARS, "1"))
+    environment["N4A_PERFORMANCE_PROTOCOL"] = ADAPTER_PROTOCOL
+    return environment
 
 
-def _thread_env() -> dict[str, str]:
-    return dict.fromkeys(THREAD_ENV_VARS, "1")
+def _base_surface(plan: Mapping[str, Any], surface: str, executable: Path | None) -> dict[str, Any]:
+    candidate_name = plan["surfaces"][surface]["candidate"]
+    candidate = plan["candidates"][candidate_name]
+    return {
+        "surface": surface,
+        "candidate": candidate_name,
+        "commit_sha": candidate["commit_sha"],
+        "tree_sha": candidate["tree_sha"],
+        "adapter_path": str(executable) if executable else None,
+        "disposition": "refused",
+        "reason": None,
+        "executed": False,
+        "fallback_used": None,
+        "predictor_fingerprint": None,
+        "predictions": None,
+        "observation_sha256": None,
+        "timings_ms": {"startup": None, "steady_state": [], "process_wall": None},
+        "numeric_consistency": None,
+    }
 
 
-def _child_source(nirs4all_root: Path) -> str:
-    paths = _rc_paths()
-    bootstrap = "\n".join(
-        f"sys.path.insert(0, {str(path)!r})"
-        for path in (
-            paths["studio_root"],
-            paths["dagml_data_python_root"],
-            paths["dagml_python_root"],
-            nirs4all_root,
-        )
-    )
-    template = f"""
-    import json
-    import math
-    import sys
-    import time
-    from types import SimpleNamespace
-
-    SUITE = sys.argv[1]
-    ENGINE = sys.argv[2]
-    WARMUPS = int(sys.argv[3])
-
-    __BOOTSTRAP__
-
-    def _build_case():
-        import numpy as np
-        from sklearn.cross_decomposition import PLSRegression
-        from sklearn.model_selection import ShuffleSplit
-        from sklearn.preprocessing import MinMaxScaler
-
-        rng = np.random.default_rng(2026)
-        X = rng.normal(0.5, 0.1, size=(80, 50)).astype(float)
-        y = X[:, :5].sum(axis=1) + rng.normal(0, 0.05, size=80)
-        pipeline = [
-            MinMaxScaler(),
-            ShuffleSplit(n_splits=2, test_size=0.25, random_state=0),
-            {{"model": PLSRegression(n_components=3)}},
-        ]
-        return pipeline, (X, y)
-
-    def _manifest_engine(result):
-        to_rt = getattr(result, "to_rt_result", None)
-        if not callable(to_rt):
-            return None
-        try:
-            rt_result = to_rt()
-        except Exception:
-            return None
-        if isinstance(rt_result, dict):
-            manifest = rt_result.get("manifest")
-            return manifest.get("engine") if isinstance(manifest, dict) else None
-        manifest = getattr(rt_result, "manifest", None)
-        if isinstance(manifest, dict):
-            return manifest.get("engine")
-        return getattr(manifest, "engine", None)
-
-    def _finite_or_none(value):
-        if value is None:
-            return None
-        value = float(value)
-        return value if math.isfinite(value) else None
-
-    def _python_once(engine):
-        import nirs4all
-
-        pipeline, dataset = _build_case()
-        result = nirs4all.run(
-            pipeline=pipeline,
-            dataset=dataset,
-            verbose=0,
-            random_state=0,
-            save_artifacts=False,
-            save_charts=False,
-            plots_visible=False,
-            engine=engine,
-            allow_fallback=False,
-        )
-        try:
-            recorded = _manifest_engine(result) or engine
-            if recorded != engine:
-                raise RuntimeError(f"requested {{engine}} but recorded {{recorded}}")
-            best_score = getattr(result, "best_score", None)
-            return {{
-                "engine_recorded": recorded,
-                "best_score": _finite_or_none(best_score),
-                "num_predictions": int(getattr(result, "num_predictions", 0)),
-            }}
-        finally:
-            close = getattr(result, "close", None)
-            if callable(close):
-                close()
-
-    def _studio_once(engine):
-        import api.pipelines as pipelines_api
-        import api.spectra as spectra_api
-
-        runtime_pipeline, dataset = _build_case()
-        spectra_api._load_dataset = lambda _dataset_id: SimpleNamespace(name=_dataset_id)
-        pipelines_api.prepare_pipeline_steps_with_runtime_grouping = (
-            lambda steps, _dataset, _group_by: SimpleNamespace(warnings=[], steps=steps)
-        )
-        pipelines_api.editor_steps_to_runtime_canonical = lambda _steps: runtime_pipeline
-        pipelines_api.count_runtime_variants = lambda _steps: 1
-
-        job = SimpleNamespace(
-            config={{
-                "pipeline_id": "bench-pipeline",
-                "pipeline_name": "bench-pipeline",
-                "pipeline_steps": [{{"id": "model"}}],
-                "dataset_id": "bench-dataset",
-                "dataset_path": dataset,
-                "workspace_path": None,
-                "verbose": 0,
-                "export_model": False,
-                "engine": engine,
-                "allow_fallback": False,
-            }}
-        )
-        payload = pipelines_api._run_pipeline_task(job, lambda *_args, **_kwargs: True)
-        recorded = payload.get("engine")
-        if recorded != engine:
-            raise RuntimeError(f"requested {{engine}} but recorded {{recorded}}")
-        metrics = payload.get("metrics") or {{}}
-        score = metrics.get("score")
-        return {{
-            "engine_recorded": recorded,
-            "best_score": _finite_or_none(score),
-            "num_predictions": None,
-            "variants_tested": int(payload.get("variants_tested", 0)),
-            "runtime_source": payload.get("runtime_source"),
-        }}
-
-    t0 = time.perf_counter()
-    if SUITE == "python_run":
-        runner = _python_once
-    elif SUITE == "studio_run":
-        runner = _studio_once
-    else:
-        raise SystemExit(f"unknown suite: {{SUITE}}")
-    import_s = time.perf_counter() - t0
-
-    for _ in range(WARMUPS):
-        runner(ENGINE)
-
-    t1 = time.perf_counter()
-    payload = runner(ENGINE)
-    run_s = time.perf_counter() - t1
-    payload["import_s"] = import_s
-    payload["run_s"] = run_s
-    print({REPORT_SENTINEL!r} + json.dumps(payload, sort_keys=True))
-    """
-    return (
-        textwrap.dedent(template)
-        .replace("__BOOTSTRAP__", bootstrap.rstrip())
-    )
+def _request(plan: Mapping[str, Any], surface: str, archive: Path, repeats: int) -> dict[str, Any]:
+    workload = plan["workload"]
+    candidate = plan["candidates"][plan["surfaces"][surface]["candidate"]]
+    matrix = {
+        "sample_ids": workload["sample_ids"],
+        "x": workload["x"],
+        "target_names": workload["target_names"],
+    }
+    return {
+        "protocol": ADAPTER_PROTOCOL,
+        "surface": surface,
+        "candidate": candidate,
+        "archive_v2": {"path": str(archive), "sha256": workload["archive_v2"]["sha256"]},
+        "matrix": matrix,
+        "matrix_sha256": _canonical_sha256(matrix),
+        "predictor_descriptor": plan["predictor_descriptor"],
+        "predictor_fingerprint": plan["predictor_fingerprint"],
+        "repeats": repeats,
+    }
 
 
-def _run_child(
-    *,
-    suite: str,
-    engine: str,
-    python: Path,
-    nirs4all_root: Path,
-    warmups: int,
+def _validated_output(output: Any, request: Mapping[str, Any]) -> dict[str, Any]:
+    value = _object(output, "adapter output")
+    exact = {
+        "protocol": ADAPTER_PROTOCOL,
+        "surface": request["surface"],
+        "commit_sha": request["candidate"]["commit_sha"],
+        "archive_sha256": request["archive_v2"]["sha256"],
+        "matrix_sha256": request["matrix_sha256"],
+        "sample_ids": request["matrix"]["sample_ids"],
+        "target_names": request["matrix"]["target_names"],
+        "predictor_descriptor": request["predictor_descriptor"],
+        "predictor_fingerprint": request["predictor_fingerprint"],
+        "fallback_used": False,
+    }
+    for key, expected in exact.items():
+        if value.get(key) != expected:
+            raise ValueError(f"adapter {key} mismatch")
+    predictions = _matrix(value.get("predictions"), "adapter predictions")
+    if len(predictions) != len(request["matrix"]["sample_ids"]) or any(
+        len(row) != len(request["matrix"]["target_names"]) for row in predictions
+    ):
+        raise ValueError("adapter predictions do not align with the shared matrix")
+    startup = float(value.get("startup_ms"))
+    steady = value.get("steady_state_ms")
+    if not math.isfinite(startup) or startup < 0:
+        raise ValueError("adapter startup_ms must be finite and non-negative")
+    if not isinstance(steady, list) or len(steady) != request["repeats"]:
+        raise ValueError("adapter must report one steady-state timing per repeat")
+    steady_values = [float(item) for item in steady]
+    if any(not math.isfinite(item) or item < 0 for item in steady_values):
+        raise ValueError("adapter steady-state timings must be finite and non-negative")
+    return {"predictions": predictions, "startup": startup, "steady": steady_values, "evidence": value.get("evidence", {})}
+
+
+def _run_adapter(
+    plan: Mapping[str, Any], surface: str, executable: Path | None, archive: Path, repeats: int, timeout: float
 ) -> dict[str, Any]:
-    env = dict(os.environ)
-    env.update(_thread_env())
-    t0 = time.perf_counter()
-    with tempfile.TemporaryDirectory(prefix="n4a-perf-run-") as tmpdir:
-        proc = subprocess.run(
-            [str(python), "-c", _child_source(nirs4all_root), suite, engine, str(warmups)],
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=tmpdir,
+    report = _base_surface(plan, surface, executable)
+    if executable is None:
+        report["reason"] = "required surface adapter was not supplied"
+        return report
+    if not executable.is_file() or not os.access(executable, os.X_OK):
+        report["reason"] = "surface adapter is missing or not executable"
+        return report
+    request = _request(plan, surface, archive, repeats)
+    started = time.perf_counter()
+    try:
+        process = subprocess.run(
+            [str(executable)], input=json.dumps(request), capture_output=True, text=True,
+            env=_adapter_environment(), timeout=timeout, check=False,
         )
-    total_s = time.perf_counter() - t0
-
-    if proc.returncode != 0:
-        stderr = proc.stderr.strip() or proc.stdout.strip() or "child failed without output"
-        return {"error": stderr, "total_s": total_s}
-
-    for line in proc.stdout.splitlines():
-        if line.startswith(REPORT_SENTINEL):
-            payload = json.loads(line[len(REPORT_SENTINEL):])
-            payload["total_s"] = total_s
-            return payload
-    return {"error": "child produced no report sentinel", "total_s": total_s}
-
-
-def _median(values: Iterable[float]) -> float:
-    return float(statistics.median(values))
-
-
-def _summarize_runs(engine: str, runs: list[dict[str, Any]]) -> dict[str, Any]:
-    errors = [run["error"] for run in runs if "error" in run]
-    if errors:
-        return {"engine": engine, "error": errors[0], "runs": runs}
-
-    summary = {
-        "engine": engine,
-        "engine_recorded": runs[0].get("engine_recorded"),
-        "run_s_median": _median(float(run["run_s"]) for run in runs),
-        "import_s_median": _median(float(run["import_s"]) for run in runs),
-        "total_s_median": _median(float(run["total_s"]) for run in runs),
-        "best_score": runs[0].get("best_score"),
-        "num_predictions": runs[0].get("num_predictions"),
-        "variants_tested": runs[0].get("variants_tested"),
-        "runtime_source": runs[0].get("runtime_source"),
-        "runs": runs,
-    }
-    return summary
-
-
-def _ratio(numerator: float, denominator: float) -> float | None:
-    if denominator <= 0:
-        return None
-    return numerator / denominator
-
-
-def _score_agreement(legacy: Mapping[str, Any], dagml: Mapping[str, Any]) -> dict[str, Any]:
-    """Compare the two engines' best score on the same seeded case.
-
-    Both engines in a suite run the *same* runner (only ``engine`` differs), so
-    their ``best_score`` values are the same metric on the same data and are
-    directly comparable. Returns ``abs_delta=None`` when either score is
-    missing (a non-finite or absent score) so callers can treat it as
-    "unavailable" rather than "agrees".
-    """
-    legacy_score = legacy.get("best_score")
-    dagml_score = dagml.get("best_score")
-    if legacy_score is None or dagml_score is None:
-        return {"legacy": legacy_score, "dag_ml": dagml_score, "abs_delta": None}
-    delta = abs(float(dagml_score) - float(legacy_score))
-    return {"legacy": float(legacy_score), "dag_ml": float(dagml_score), "abs_delta": delta}
-
-
-def _suite_label(name: str) -> str:
-    labels = {
-        "python_run": "nirs4all.run() direct",
-        "studio_run": "Studio pipeline job worker",
-    }
-    return labels.get(name, name)
-
-
-def run_comparison(
-    *,
-    suites: Iterable[str] = DEFAULT_SUITES,
-    repeats: int = 3,
-    warmups: int = 0,
-    child_python: str | Path | None = None,
-    max_ratios: Mapping[str, float] | None = None,
-    max_score_deltas: Mapping[str, float] | None = None,
-) -> dict[str, Any]:
-    suite_list = tuple(suites)
-    invalid = sorted(set(suite_list) - set(DEFAULT_SUITES))
-    if invalid:
-        raise ValueError(f"unknown suites: {invalid}")
-    if repeats < 1:
-        raise ValueError("repeats must be >= 1")
-    if warmups < 0:
-        raise ValueError("warmups must be >= 0")
-
-    python = choose_child_python(child_python, require_studio="studio_run" in suite_list)
-    nirs4all_root = choose_nirs4all_root(python)
-    report: dict[str, Any] = {
-        "case": {
-            "name": "seeded_small_pls_cv",
-            "seed": 2026,
-            "samples": 80,
-            "features": 50,
-            "cv_splits": 2,
-            "pipeline": "MinMaxScaler -> ShuffleSplit(2) -> PLSRegression(n_components=3)",
-        },
-        "environment": {
-            "child_python": str(python),
-            "nirs4all_root": str(nirs4all_root),
-            "workspace_root": str(_workspace_root()),
-            "thread_env": _thread_env(),
-            "repeats": repeats,
-            "warmups": warmups,
-        },
-        "suites": {},
-    }
-
-    for suite in suite_list:
-        engines: dict[str, Any] = {}
-        for engine in DEFAULT_ENGINES:
-            runs = [
-                _run_child(
-                    suite=suite,
-                    engine=engine,
-                    python=python,
-                    nirs4all_root=nirs4all_root,
-                    warmups=warmups,
-                )
-                for _ in range(repeats)
-            ]
-            engines[engine] = _summarize_runs(engine, runs)
-
-        ratios: dict[str, Any] = {}
-        scores: dict[str, Any] = {}
-        legacy = engines["legacy"]
-        dagml = engines["dag-ml"]
-        if "error" not in legacy and "error" not in dagml:
-            ratios["run_s_dag_ml_over_legacy"] = _ratio(
-                float(dagml["run_s_median"]),
-                float(legacy["run_s_median"]),
-            )
-            ratios["total_s_dag_ml_over_legacy"] = _ratio(
-                float(dagml["total_s_median"]),
-                float(legacy["total_s_median"]),
-            )
-            scores = _score_agreement(legacy, dagml)
-        report["suites"][suite] = {
-            "label": _suite_label(suite),
-            "engines": engines,
-            "ratios": ratios,
-            "scores": scores,
-        }
-
-    if max_ratios:
-        failures: list[str] = []
-        for suite, limit in max_ratios.items():
-            actual = (
-                report["suites"]
-                .get(suite, {})
-                .get("ratios", {})
-                .get("run_s_dag_ml_over_legacy")
-            )
-            if actual is None:
-                failures.append(f"{suite}: ratio unavailable")
-            elif float(actual) > float(limit):
-                failures.append(f"{suite}: {actual:.3f} > {limit:.3f}")
-        if failures:
-            raise RuntimeError("performance ratio gate failed: " + "; ".join(failures))
-
-    if max_score_deltas:
-        failures = []
-        for suite, limit in max_score_deltas.items():
-            actual = (
-                report["suites"]
-                .get(suite, {})
-                .get("scores", {})
-                .get("abs_delta")
-            )
-            if actual is None:
-                failures.append(f"{suite}: score delta unavailable")
-            elif float(actual) > float(limit):
-                failures.append(f"{suite}: {actual:.6f} > {limit:.6f}")
-        if failures:
-            raise RuntimeError("score agreement gate failed: " + "; ".join(failures))
-
+    except (OSError, subprocess.TimeoutExpired) as error:
+        report.update(disposition="failed", reason=f"adapter could not complete: {error}")
+        return report
+    report["executed"] = True
+    report["timings_ms"]["process_wall"] = (time.perf_counter() - started) * 1000
+    if len(process.stdout.encode()) > MAX_ADAPTER_OUTPUT_BYTES:
+        report.update(disposition="failed", reason="adapter output exceeded 2 MiB")
+        return report
+    if process.returncode != 0:
+        report.update(disposition="failed", reason=f"adapter exited {process.returncode}: {process.stderr.strip()[:500]}")
+        return report
+    try:
+        output = _validated_output(json.loads(process.stdout), request)
+    except (ValueError, TypeError, json.JSONDecodeError) as error:
+        report.update(disposition="failed", reason=f"invalid adapter evidence: {error}")
+        return report
+    predictions = output["predictions"]
+    report.update(
+        disposition="passed", executed=True, fallback_used=False, reason=None,
+        predictor_fingerprint=plan["predictor_fingerprint"], predictions=predictions,
+        observation_sha256=_canonical_sha256(predictions), adapter_evidence=output["evidence"],
+    )
+    report["timings_ms"].update(
+        startup=output["startup"], steady_state=output["steady"],
+        steady_state_median=float(statistics.median(output["steady"])),
+    )
     return report
 
 
-def render_markdown(report: Mapping[str, Any]) -> str:
-    lines = [
-        "| suite | engine | run median (s) | total median (s) | import median (s) | recorded engine | score |",
-        "|---|---|---|---|---|---|---|",
-    ]
-    for suite_name, suite in report["suites"].items():
-        label = suite.get("label", suite_name)
-        engines = suite.get("engines", {})
-        for engine in DEFAULT_ENGINES:
-            summary = engines.get(engine, {})
-            if "error" in summary:
-                lines.append(f"| {label} | {engine} | ERROR | | | | {summary['error']} |")
+def _compare(expected: list[list[float]], actual: list[list[float]], absolute: float, relative: float) -> dict[str, Any]:
+    max_absolute = max_relative = 0.0
+    outside = values = 0
+    for expected_row, actual_row in zip(expected, actual, strict=True):
+        for reference, candidate in zip(expected_row, actual_row, strict=True):
+            error = abs(candidate - reference)
+            max_absolute = max(max_absolute, error)
+            max_relative = max(max_relative, error / max(abs(reference), 1e-300))
+            outside += not math.isclose(candidate, reference, abs_tol=absolute, rel_tol=relative)
+            values += 1
+    return {
+        "reference": "python_oracle", "values": values,
+        "max_absolute_error": max_absolute, "max_relative_error": max_relative,
+        "outside_tolerance": int(outside), "passed": outside == 0,
+    }
+
+
+def _is_wsl() -> bool:
+    release = platform.release().lower()
+    return "microsoft" in release or "wsl" in release or "WSL_INTEROP" in os.environ
+
+
+def run_comparison(
+    *, plan_path: str | Path = DEFAULT_PLAN_PATH, workspace_root: str | Path,
+    adapters: Mapping[str, Path] | None = None, archive: str | Path | None = None,
+    repeats: int = 3, timeout_seconds: float = 120.0, evidence_kind: str = "local_candidate",
+) -> dict[str, Any]:
+    """Execute available adapters and compare every result to the Python oracle."""
+    if repeats < 1:
+        raise ValueError("repeats must be >= 1")
+    if evidence_kind not in {"local_candidate", "contract_fixture"}:
+        raise ValueError("evidence_kind must be local_candidate or contract_fixture")
+    plan = load_plan(plan_path)
+    archive_path = resolve_archive(plan, workspace_root=workspace_root, archive=archive)
+    expected_sha = plan["workload"]["archive_v2"]["sha256"]
+    actual_sha = _sha256_file(archive_path) if archive_path.is_file() else None
+    archive_error = None if actual_sha == expected_sha else (
+        "Archive V2 witness is missing" if actual_sha is None else "Archive V2 witness SHA-256 mismatch"
+    )
+    paths = adapters or {}
+    reports: dict[str, dict[str, Any]] = {}
+    for surface in SURFACES:
+        if archive_error:
+            report = _base_surface(plan, surface, paths.get(surface))
+            report["reason"] = archive_error
+        else:
+            report = _run_adapter(plan, surface, paths.get(surface), archive_path, repeats, timeout_seconds)
+        reports[surface] = report
+    tolerance = plan["numeric_tolerance"]
+    oracle = reports["python_oracle"]
+    if oracle["disposition"] == "passed":
+        oracle_consistency = _compare(
+            plan["workload"]["expected_native_predictions"],
+            oracle["predictions"],
+            float(tolerance["absolute"]),
+            float(tolerance["relative"]),
+        )
+        oracle_consistency["reference"] = "frozen_archive_v2_witness"
+        oracle["numeric_consistency"] = oracle_consistency
+        if not oracle_consistency["passed"]:
+            oracle.update(disposition="failed", reason="Python oracle differs from the frozen Archive V2 witness")
+        for surface in SURFACES[1:]:
+            report = reports[surface]
+            if report["disposition"] != "passed":
                 continue
-            score = summary.get("best_score")
-            score_text = "" if score is None else f"{float(score):.6f}"
-            lines.append(
-                "| "
-                f"{label} | {engine} | {summary['run_s_median']:.4f} | "
-                f"{summary['total_s_median']:.4f} | {summary['import_s_median']:.4f} | "
-                f"{summary.get('engine_recorded') or ''} | {score_text} |"
+            if oracle["disposition"] != "passed":
+                report.update(disposition="refused", reason="Python oracle did not produce a comparison baseline")
+                continue
+            comparison = _compare(
+                oracle["predictions"], report["predictions"],
+                float(tolerance["absolute"]), float(tolerance["relative"]),
             )
+            report["numeric_consistency"] = comparison
+            if not comparison["passed"]:
+                report.update(disposition="failed", reason="prediction values differ from the Python oracle")
+    else:
+        for surface in SURFACES[1:]:
+            if reports[surface]["disposition"] == "passed":
+                reports[surface].update(disposition="refused", reason="Python oracle did not produce a comparison baseline")
+    dispositions = {item["disposition"] for item in reports.values()}
+    overall = "failed" if "failed" in dispositions else "refused" if "refused" in dispositions else "passed"
+    wsl = _is_wsl()
+    workload = plan["workload"]
+    matrix = {"sample_ids": workload["sample_ids"], "x": workload["x"], "target_names": workload["target_names"]}
+    return {
+        "schema_version": REPORT_SCHEMA, "scenario_id": plan["scenario_id"],
+        "evidence_kind": evidence_kind,
+        "release_eligible": evidence_kind == "local_candidate" and overall == "passed" and not wsl,
+        "overall_disposition": overall,
+        "archive_v2": {"path": str(archive_path), "expected_sha256": expected_sha, "actual_sha256": actual_sha},
+        "matrix": {**matrix, "sha256": _canonical_sha256(matrix)},
+        "predictor_descriptor": plan["predictor_descriptor"],
+        "predictor_fingerprint": plan["predictor_fingerprint"],
+        "candidates": plan["candidates"], "numeric_tolerance": tolerance,
+        "performance_policy": {
+            "platform": platform.platform(), "wsl": wsl,
+            "startup_and_steady_state_separate": True, "thresholds": None,
+            "verdict": "record_only_under_wsl" if wsl else "budgets_not_frozen",
+        },
+        "historical_compatibility": {
+            "legacy_vs_dag_ml_execution": "excluded_from_v1",
+            "studio_python_worker": "excluded_from_v1",
+            "historical_report_rendering": "supported",
+        },
+        "surfaces": reports,
+    }
 
-    lines.extend(
-        [
-            "",
-            "| suite | dag-ml/legacy run ratio | dag-ml/legacy total ratio |",
-            "|---|---|---|",
-        ]
-    )
-    for suite_name, suite in report["suites"].items():
-        label = suite.get("label", suite_name)
-        ratios = suite.get("ratios", {})
-        run_ratio = ratios.get("run_s_dag_ml_over_legacy")
-        total_ratio = ratios.get("total_s_dag_ml_over_legacy")
-        run_text = "n/a" if run_ratio is None else f"{float(run_ratio):.3f}x"
-        total_text = "n/a" if total_ratio is None else f"{float(total_ratio):.3f}x"
-        lines.append(f"| {label} | {run_text} | {total_text} |")
 
-    lines.extend(
-        [
-            "",
-            "| suite | legacy score | dag-ml score | abs score delta |",
-            "|---|---|---|---|",
-        ]
-    )
-    for suite_name, suite in report["suites"].items():
-        label = suite.get("label", suite_name)
-        scores = suite.get("scores", {})
-        legacy_score = scores.get("legacy")
-        dagml_score = scores.get("dag_ml")
-        abs_delta = scores.get("abs_delta")
-        legacy_text = "n/a" if legacy_score is None else f"{float(legacy_score):.6f}"
-        dagml_text = "n/a" if dagml_score is None else f"{float(dagml_score):.6f}"
-        delta_text = "n/a" if abs_delta is None else f"{float(abs_delta):.6f}"
-        lines.append(f"| {label} | {legacy_text} | {dagml_text} | {delta_text} |")
-
+def render_markdown(report: Mapping[str, Any]) -> str:
+    """Render current evidence and retain read-only rendering of old reports."""
+    if report.get("schema_version") != REPORT_SCHEMA and "suites" in report:
+        lines = ["Historical legacy/dag-ml report (read-only compatibility)", "", "| suite | engine | run (s) |", "|---|---|---:|"]
+        for suite, value in report["suites"].items():
+            for engine, summary in value.get("engines", {}).items():
+                run = "ERROR" if "error" in summary else f"{float(summary['run_s_median']):.4f}"
+                lines.append(f"| {suite} | {engine} | {run} |")
+        return "\n".join(lines)
+    lines = [
+        f"PERF-001 `{report['overall_disposition']}` — {report['performance_policy']['verdict']}", "",
+        "| surface | disposition | startup (ms) | steady median (ms) | max abs delta | predictor |",
+        "|---|---|---:|---:|---:|---|",
+    ]
+    for surface in SURFACES:
+        item, timings = report["surfaces"][surface], report["surfaces"][surface]["timings_ms"]
+        startup = "n/a" if timings["startup"] is None else f"{float(timings['startup']):.3f}"
+        steady = "n/a" if timings.get("steady_state_median") is None else f"{float(timings['steady_state_median']):.3f}"
+        delta = (item.get("numeric_consistency") or {}).get("max_absolute_error")
+        lines.append(
+            f"| {surface} | {item['disposition']} | {startup} | {steady} | "
+            f"{'n/a' if delta is None else f'{float(delta):.3g}'} | {(item.get('predictor_fingerprint') or '')[:12]} |"
+        )
+    lines += ["", "Startup and steady-state are separate. No definitive performance threshold is applied."]
     return "\n".join(lines)
 
 
-def parse_ratio_overrides(values: Iterable[str]) -> dict[str, float]:
-    parsed: dict[str, float] = {}
-    for raw in values:
-        suite, sep, limit = raw.partition("=")
-        if not sep:
-            raise ValueError(f"expected SUITE=FLOAT, got {raw!r}")
-        suite = suite.strip()
-        if suite not in DEFAULT_SUITES:
-            raise ValueError(f"unknown suite in ratio override: {suite!r}")
-        parsed[suite] = float(limit)
-    return parsed
+def write_web_handoff(directory: str | Path, report: Mapping[str, Any]) -> Path:
+    """Write the deterministic ``performance-compare`` Web handoff."""
+    root = Path(directory)
+    if root.name != "performance-compare":
+        root /= "performance-compare"
+    root.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": WEB_HANDOFF_SCHEMA, "scenario_id": report["scenario_id"],
+        "archive_v2": report["archive_v2"], "matrix": report["matrix"],
+        "predictor_descriptor": report["predictor_descriptor"],
+        "predictor_fingerprint": report["predictor_fingerprint"],
+        "python_oracle_predictions": report["surfaces"]["python_oracle"].get("predictions"),
+        "numeric_tolerance": report["numeric_tolerance"], "web_candidate": report["candidates"]["web"],
+        "web_surface": report["surfaces"]["web_wasm"],
+        "performance_policy": report["performance_policy"], "release_eligible": report["release_eligible"],
+    }
+    handoff = root / "archive-v2-performance-compare.v1.json"
+    handoff.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (root / "performance-report.v1.json").write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return handoff
 
 
-def _json_dump(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def _default_workspace_root() -> Path:
+    return REPO_ROOT.parent.parent if REPO_ROOT.parent.name == "_worktrees" else REPO_ROOT.parent
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument(
-        "--suite",
-        action="append",
-        dest="suites",
-        choices=list(DEFAULT_SUITES),
-        help="suite to run; repeat to select multiple",
-    )
-    parser.add_argument("--repeats", type=int, default=3, help="measured repeats per suite/engine")
-    parser.add_argument("--warmups", type=int, default=0, help="discarded warmup runs per measurement child")
-    parser.add_argument("--python", dest="child_python", help="override child interpreter")
-    parser.add_argument("--json-out", type=Path, help="write the full report as JSON")
-    parser.add_argument("--markdown-out", type=Path, help="write the rendered markdown summary")
-    parser.add_argument(
-        "--assert-max-ratio",
-        action="append",
-        default=[],
-        metavar="SUITE=FLOAT",
-        help="fail when dag-ml/legacy run ratio for SUITE exceeds FLOAT",
-    )
+    parser.add_argument("--plan", type=Path, default=DEFAULT_PLAN_PATH)
+    parser.add_argument("--workspace-root", type=Path, default=_default_workspace_root())
+    parser.add_argument("--archive", type=Path)
+    parser.add_argument("--adapter", action="append", default=[], metavar="SURFACE=/ABSOLUTE/EXECUTABLE")
+    parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--timeout", type=float, default=120.0)
+    parser.add_argument("--evidence-kind", choices=("local_candidate", "contract_fixture"), default="local_candidate")
+    parser.add_argument("--json-out", type=Path)
+    parser.add_argument("--markdown-out", type=Path)
+    parser.add_argument("--handoff-dir", type=Path)
     args = parser.parse_args(argv)
-
     try:
         report = run_comparison(
-            suites=args.suites or DEFAULT_SUITES,
-            repeats=args.repeats,
-            warmups=args.warmups,
-            child_python=args.child_python,
-            max_ratios=parse_ratio_overrides(args.assert_max_ratio),
+            plan_path=args.plan, workspace_root=args.workspace_root,
+            adapters=parse_adapter_overrides(args.adapter), archive=args.archive,
+            repeats=args.repeats, timeout_seconds=args.timeout, evidence_kind=args.evidence_kind,
         )
-    except Exception as exc:
-        print(f"error: {exc}", file=sys.stderr)
+    except Exception as error:
+        print(f"error: {error}", file=sys.stderr)
         return 1
-
     markdown = render_markdown(report)
     print(markdown)
     if args.json_out:
-        _json_dump(args.json_out, report)
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if args.markdown_out:
         args.markdown_out.parent.mkdir(parents=True, exist_ok=True)
         args.markdown_out.write_text(markdown + "\n", encoding="utf-8")
-    return 0
+    if args.handoff_dir:
+        write_web_handoff(args.handoff_dir, report)
+    return 0 if report["overall_disposition"] != "failed" else 1
 
 
 if __name__ == "__main__":

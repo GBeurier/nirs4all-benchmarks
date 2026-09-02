@@ -219,42 +219,39 @@ def build_site_cmd(
 
 @app.command("perf-compare")
 def perf_compare_cmd(
-    suite: list[str] | None = typer.Option(
+    plan: Path | None = typer.Option(None, "--plan", help="Frozen PERF-001 plan JSON."),
+    workspace_root: Path | None = typer.Option(None, "--workspace-root", help="Root containing the candidate worktrees."),
+    archive: Path | None = typer.Option(None, "--archive", help="Explicit byte-identical Archive V2 witness."),
+    adapter: list[str] | None = typer.Option(
         None,
-        "--suite",
-        help="Repeat to restrict to one or more suites: python_run, studio_run.",
+        "--adapter",
+        help="Repeat SURFACE=/absolute/executable for python_oracle, rust_direct, studio_rust and web_wasm.",
     ),
-    repeats: int = typer.Option(3, "--repeats", min=1, help="Measured repeats per suite/engine."),
-    warmups: int = typer.Option(0, "--warmups", min=0, help="Discarded warmup runs per measurement child."),
-    python: str | None = typer.Option(None, "--python", help="Override the child interpreter."),
+    repeats: int = typer.Option(3, "--repeats", min=1, help="Steady-state repetitions per surface."),
+    timeout: float = typer.Option(120.0, "--timeout", min=0.1, help="Adapter timeout in seconds."),
+    evidence_kind: str = typer.Option("local_candidate", "--evidence-kind", help="local_candidate or contract_fixture."),
     json_out: Path | None = typer.Option(None, "--json-out", help="Write the full report as JSON."),
     markdown_out: Path | None = typer.Option(None, "--markdown-out", help="Write the markdown summary to a file."),
-    assert_max_ratio: list[str] | None = typer.Option(
-        None,
-        "--assert-max-ratio",
-        help="Repeat SUITE=FLOAT to fail when dag-ml/legacy run ratio exceeds FLOAT.",
-    ),
-    assert_max_score_delta: list[str] | None = typer.Option(
-        None,
-        "--assert-max-score-delta",
-        help="Repeat SUITE=FLOAT to fail when the |legacy - dag-ml| score delta exceeds FLOAT.",
-    ),
+    handoff_dir: Path | None = typer.Option(None, "--handoff-dir", help="Write the Web performance-compare handoff."),
 ) -> None:
-    """Compare RC-v1 legacy vs dag-ml timings for the Python API and Studio worker path."""
+    """Compare one Archive V2 across the four delivered native product surfaces."""
     from nirs4all_benchmarks.performance_compare import (
-        DEFAULT_SUITES,
-        parse_ratio_overrides,
+        DEFAULT_PLAN_PATH,
+        _default_workspace_root,
+        parse_adapter_overrides,
         render_markdown,
         run_comparison,
+        write_web_handoff,
     )
 
     report = run_comparison(
-        suites=suite or DEFAULT_SUITES,
+        plan_path=plan or DEFAULT_PLAN_PATH,
+        workspace_root=workspace_root or _default_workspace_root(),
+        adapters=parse_adapter_overrides(adapter or []),
+        archive=archive,
         repeats=repeats,
-        warmups=warmups,
-        child_python=python,
-        max_ratios=parse_ratio_overrides(assert_max_ratio or []),
-        max_score_deltas=parse_ratio_overrides(assert_max_score_delta or []),
+        timeout_seconds=timeout,
+        evidence_kind=evidence_kind,
     )
     console.print(render_markdown(report))
     if json_out:
@@ -266,6 +263,11 @@ def perf_compare_cmd(
         markdown_out.parent.mkdir(parents=True, exist_ok=True)
         markdown_out.write_text(markdown + "\n", encoding="utf-8")
         console.print(f"[green]✓[/] wrote markdown report to [bold]{markdown_out}[/]")
+    if handoff_dir:
+        handoff = write_web_handoff(handoff_dir, report)
+        console.print(f"[green]✓[/] wrote Web handoff to [bold]{handoff}[/]")
+    if report["overall_disposition"] == "failed":
+        raise typer.Exit(code=1)
 
 
 @app.command()
