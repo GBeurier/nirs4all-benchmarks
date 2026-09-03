@@ -11,12 +11,12 @@
       "worktree": "_worktrees/CORE-formats-aggregate"
     },
     "dag_ml": {
-      "commit_sha": "ce0a1963077612b3ce2604746e77a6405d0c3002",
+      "commit_sha": "746faf8b639e29b1329717e644b361153c07b9a5",
       "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
       "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
       "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6",
-      "tree_sha": "2e5c5d3b8a6e987b7457f69daf501ad847794be4",
-      "worktree": "_worktrees/CONF001-dag"
+      "tree_sha": "c6fd58870fbe602ccfa6f471c2e1f160bdfa193a",
+      "worktree": "_worktrees/DAG001-persistence-final"
     },
     "formats": {
       "commit_sha": "2d46285843dc366da1d38f133131b5329c886b12",
