@@ -1,0 +1,169 @@
+{
+  "schema_version": "nirs4all.hardening-local-report.v1",
+  "observed_on": "2026-09-03",
+  "evidence_kind": "local_bounded_existing_harnesses",
+  "release_eligible": false,
+  "platform": {
+    "os": "Linux",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "architecture": "x86_64",
+    "wsl": true
+  },
+  "scope": {
+    "lots": [
+      "SEC-001",
+      "SOAK-001",
+      "PERF-002"
+    ],
+    "policy": "One bounded local campaign over existing repository harnesses; no synthetic long-soak claim and no external matrix claim.",
+    "performance_reference": "../performance-compare/performance-report.v1.json"
+  },
+  "candidates": {
+    "methods_runtime": {
+      "commit": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+      "tree": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9"
+    },
+    "formats": {
+      "commit": "2d46285843dc366da1d38f133131b5329c886b12",
+      "tree": "2ee12c035db8a78721315ee65cf684d811552aa9"
+    },
+    "core": {
+      "qualified_commit": "b6442dc4334c62a2b6c72526bea554a734134ac6",
+      "qualified_tree": "6241d8497aa34ad4d015664662d4d17148d547fb",
+      "runtime_parent": "e0f5d485eae4279f02d58fe82fad3946202e463f"
+    },
+    "dag_ml": {
+      "qualified_commit": "b7d643f450da3018c8208a84abcabfab09d5da7d",
+      "qualified_tree": "20876a6c04c550c2f662aa58583fb7305f42ee03",
+      "runtime_parent": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+      "local_n4m_patch": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b"
+    },
+    "python": {
+      "qualified_commit": "deeb5d579d01d081bbe612a5e4f86a12a09da174",
+      "qualified_tree": "558cad1021d0814e61883492afb7019b410d9f48",
+      "runtime_parent": "e227244464983ea2a94ebc01b6af30d474a025df"
+    },
+    "studio": {
+      "commit": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "tree": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9"
+    },
+    "tools": {
+      "commit": "6796a01a75b0b51301a693011f3e904a60598817",
+      "tree": "4e77fd5b1cb9724c21d8bff89456649ed550ddfe"
+    }
+  },
+  "campaign": [
+    {
+      "component": "methods_runtime",
+      "command": "cmake --build --preset dev-release --target n4m_tests --parallel 2 && ctest --preset dev-release -R ^n4m_tests$ --output-on-failure",
+      "disposition": "passed_unsanitized",
+      "coverage": {
+        "ctest_executables": 1,
+        "registered_hostile_c_abi_cases": 10,
+        "registered_threading_cases": 3
+      },
+      "reported_test_seconds": 0.54,
+      "observed_build_and_test_wall_seconds": 17.9
+    },
+    {
+      "component": "formats",
+      "command": "cargo test -p nirs4all-formats --test readers rejects_",
+      "disposition": "passed",
+      "coverage": {
+        "passed": 6,
+        "filtered_out": 141
+      },
+      "reported_test_seconds": 0.11,
+      "observed_build_and_test_wall_seconds": 20.64
+    },
+    {
+      "component": "core",
+      "command": "cargo test -p nirs4all archive_v",
+      "disposition": "passed_after_test_fixture_repair",
+      "coverage": {
+        "passed": 49,
+        "filtered_out": 32
+      },
+      "reported_test_seconds": 0.11,
+      "repair": "The future-version test now mutates the root manifest schema_version instead of the last nested DAG-ML schema_version. Product code was unchanged."
+    },
+    {
+      "component": "dag_ml",
+      "command": "cargo test with the exact local n4m 0.1.4 patch: capi releases_; core parallel scheduler; file prediction-cache tamper; release ignored perf probes",
+      "disposition": "passed_after_test_fixture_repair",
+      "coverage": {
+        "capi_handle_release_passed": 7,
+        "parallel_scheduler_passed": 1,
+        "tamper_detection_passed": 1,
+        "performance_probes_passed": 2
+      },
+      "reported_test_seconds_total": 0.09,
+      "release_build_wall_seconds": 145.66,
+      "repair": "Three C-ABI test ArtifactRef fixtures now initialize the additive native_predictor_descriptor field to null. Product code was unchanged."
+    },
+    {
+      "component": "python",
+      "command": "/usr/bin/python3.11 -m pytest -q tests/unit/api/test_core_archive_session.py tests/unit/pipeline/storage/test_sqlite_concurrency.py tests/unit/pipeline/storage/test_array_store_lock.py",
+      "disposition": "passed_after_test_expectation_alignment",
+      "coverage": {
+        "passed_before_alignment": 21,
+        "aligned_case_passed_on_rerun": 1,
+        "logical_cases_passed": 22
+      },
+      "reported_test_seconds_total": 9.58,
+      "repair": "The loaded Archive V2 Session test now expects the native-default prediction-only refusal; explicit legacy refusal tests remain unchanged. Product code was unchanged."
+    },
+    {
+      "component": "studio",
+      "command": "cargo test --manifest-path sidecar/Cargo.toml --test scientific_cpython_runtime && cargo test --manifest-path sidecar/Cargo.toml --test job_lifecycle_state mutex_wrapped_registry_preserves_unique_bounded_jobs_under_concurrency",
+      "disposition": "passed",
+      "coverage": {
+        "bounded_and_tamper_evident_cpython_host_passed": 7,
+        "concurrent_bounded_job_registry_passed": 1
+      },
+      "reported_test_seconds_total": 15.05
+    },
+    {
+      "component": "tools",
+      "command": "/usr/bin/python3.11 -m pytest -q tests/test_n4a_archive.py tests/test_policy.py tests/test_real_golden_fixtures.py",
+      "disposition": "passed",
+      "coverage": {
+        "archive_safety_cases": 22,
+        "source_and_path_policy_cases": 30,
+        "real_golden_cases": 18,
+        "total_passed": 70
+      }
+    }
+  ],
+  "findings": {
+    "product_crashes_or_corruption_observed": 0,
+    "product_security_findings_observed": 0,
+    "test_harness_contract_repairs": 3,
+    "critical_or_high_vulnerabilities_open": "not_established_by_this_bounded_campaign"
+  },
+  "lot_dispositions": {
+    "SEC-001": {
+      "status": "advanced_local_evidence_not_closed",
+      "reason": "Hostile archive, store, host and ABI cases pass, but the official Methods sanitizer matrix and an executable Formats fuzz campaign are missing locally."
+    },
+    "SOAK-001": {
+      "status": "advanced_local_evidence_not_closed",
+      "reason": "Committed real conversion goldens and bounded runtime cases pass; no representative user corpus campaign or sustained soak duration was executed."
+    },
+    "PERF-002": {
+      "status": "advanced_local_evidence_not_closed",
+      "reason": "Bounded concurrency, handle-release, cache-integrity and two Rust latency probes pass; there is no sustained native RSS, file-descriptor or handle-count soak and no approved global release budget."
+    }
+  },
+  "release_holds": [
+    "wsl_measurement_host",
+    "methods_clang16_sanitizer_toolchain_unavailable",
+    "methods_asan_ubsan_tsan_matrix_not_executed",
+    "formats_adversarial_directory_contains_only_a_placeholder_readme",
+    "formats_executable_fuzz_harness_and_corpus_missing",
+    "representative_user_corpus_not_executed",
+    "sustained_concurrency_memory_fd_and_handle_soak_not_executed",
+    "global_performance_budgets_not_approved",
+    "linux_macos_windows_release_matrices_incomplete"
+  ]
+}
