@@ -58,19 +58,56 @@ def _all_adapters(executable: Path) -> dict[str, Path]:
     return dict.fromkeys(pc.SURFACES, executable)
 
 
-def test_frozen_plan_pins_delivered_candidates_and_native_predictor() -> None:
+def test_frozen_plan_pins_selected_candidates_and_native_predictor() -> None:
     plan = pc.load_plan()
 
     assert {name: value["commit_sha"] for name, value in plan["candidates"].items()} == {
-        "methods": "9d4e2753836eb85d61b1e7712ec6a06e627d4a5f",
-        "dag_ml": "ce0a1963077612b3ce2604746e77a6405d0c3002",
+        "methods": "e0bee1ce160cd805d3060185fd151c09230c3381",
+        "dag_ml": "b08c62638829e0bcab741e66d44a3db66459e5a8",
         "formats": "2d46285843dc366da1d38f133131b5329c886b12",
         "io": "e41bf8f94a92356e98c215d4c41e907a7dfaf6ac",
-        "core": "e0f5d485eae4279f02d58fe82fad3946202e463f",
-        "python": "e227244464983ea2a94ebc01b6af30d474a025df",
-        "studio": "e254a1ebba578e5b1932d09079088d02eb51d411",
+        "core": "b6442dc4334c62a2b6c72526bea554a734134ac6",
+        "python": "3a38f589e5acbda58c5d071c95036f2572972ecd",
+        "studio": "bb66016cf4f7578543cdc294713011881b884969",
         "web": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
     }
+    assert plan["selection_snapshot"] == {
+        "governance_commit_sha": "8aa4540a6b97b9e6cb8facf2f3a189f0d62f1e1b",
+        "governance_tree_sha": "0ba7c9f6aef3095f16da7acc7137a1d842914ada",
+        "governance_source": "docs/contracts/release/migration-work-ledger.yaml",
+        "governance_benchmark_parent_sha": "9aab2e13513b4e0a5a699a11ebc70f2bd00f10fb",
+        "observed_at": "2026-09-03",
+        "selection_scope": (
+            "requested_four_head_refresh; other plan candidates retain their prior selection"
+        ),
+        "status": "selected_unmeasured_no_go",
+        "four_runtime_execution": "not_run_for_selected_heads",
+        "release_gate_status": "no_go",
+        "release_eligible": False,
+        "historical_report_policy": (
+            "Preserve measured runtime commits and trees; no selected head is claimed as measured."
+        ),
+        "holds": [
+            "four_runtime_rerun_on_selected_heads",
+            "external_release_matrices",
+            "frozen_performance_budgets",
+            "complete_governance_closure_not_staged",
+            "candidates_unpublished_untagged",
+            "signed_artifacts_missing",
+            "final_release_lock_not_regenerated",
+        ],
+    }
+    assert {
+        name: plan["candidates"][name]["runtime_commit_sha"]
+        for name in ("methods", "dag_ml", "python", "studio")
+    } == {
+        "methods": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+        "dag_ml": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+        "python": "e227244464983ea2a94ebc01b6af30d474a025df",
+        "studio": "e254a1ebba578e5b1932d09079088d02eb51d411",
+    }
+    assert plan["local_smoke_hold"]["status"] == "new_selected_closures_not_requalified"
+    assert plan["local_smoke_hold"]["release_hold"].startswith("NO-GO:")
     assert plan["workload"]["archive_v2"]["sha256"] == (
         "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa"
     )
@@ -215,6 +252,30 @@ def test_historical_reports_remain_renderable_but_are_not_executable() -> None:
     assert "read-only compatibility" in markdown
     assert "studio_run" in markdown
     assert "legacy" in markdown
+
+
+def test_checked_in_four_runtime_report_keeps_historical_candidate_provenance() -> None:
+    report_path = pc.REPO_ROOT / "docs/performance-compare/performance-report.v1.json"
+    report_text = report_path.read_text(encoding="utf-8")
+    report = json.loads(report_text)
+
+    for unmeasured_head in (
+        "e0bee1ce160cd805d3060185fd151c09230c3381",
+        "b08c62638829e0bcab741e66d44a3db66459e5a8",
+        "3a38f589e5acbda58c5d071c95036f2572972ecd",
+        "bb66016cf4f7578543cdc294713011881b884969",
+    ):
+        assert unmeasured_head not in report_text
+    assert {
+        name: report["candidates"][name]["runtime_commit_sha"]
+        for name in ("methods", "dag_ml", "python", "studio")
+    } == {
+        "methods": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+        "dag_ml": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+        "python": "e227244464983ea2a94ebc01b6af30d474a025df",
+        "studio": "e254a1ebba578e5b1932d09079088d02eb51d411",
+    }
+    assert report["release_eligible"] is False
 
 
 def test_parse_adapter_overrides_requires_explicit_absolute_paths(tmp_path: Path) -> None:

@@ -47,6 +47,21 @@ Invalid or numerically inconsistent evidence is `failed`. The old
 legacy-vs-dag-ml and Studio Python-worker execution paths are no longer
 reachable; historical JSON reports remain renderable read-only.
 
+## Current candidate staging
+
+The plan now stages the requested subset of candidate heads recorded by
+Governance snapshot `8aa4540a6b97b9e6cb8facf2f3a189f0d62f1e1b`: Methods
+`e0bee1ce`, DAG-ML `b08c6263`, Python R3 `3a38f589`, and Studio R3
+`bb66016c`. Other plan candidates retain their prior selection, so this is not
+a complete Governance-closure repin. These identities select the next campaign;
+they do not alter the provenance of the checked-in four-runtime report.
+
+No four-runtime comparison has been run on this exact staged plan. Release
+readiness therefore remains **NO-GO** until that campaign, the external release
+matrices, frozen performance budgets, complete closure staging, signed
+artifacts, publication, and final-lock reconstruction are available.
+Contract-fixture tests validate orchestration only and cannot close those holds.
+
 ## Web handoff
 
 `--handoff-dir /tmp` creates:
@@ -64,13 +79,15 @@ numeric tolerance and Web result.
 ## Current local evidence
 
 The checked-in [`performance-compare/performance-report.v1.json`](performance-compare/performance-report.v1.json)
-is a real local run with one startup observation and three steady-state
+is a historical real local run with one startup observation and three steady-state
 observations per surface. Python used the public `predict(engine="native")`
 API, Rust called Core directly, Studio used its packaged Rust sidecar, and Web
 used its shipped Core/Methods WASM pair. All four surfaces replayed the same
 Archive V2 and matrix, passed with zero maximum numeric delta, and reported
 `fallback_used=false`. The report records source trees, adapter hashes, the
-Methods library/sidecar hashes, and the predictor descriptor/fingerprint.
+Methods library/sidecar hashes, and the predictor descriptor/fingerprint. Its
+recorded candidate and runtime identities are intentionally unchanged by the
+new staging selection.
 
 The companion
 [`performance-compare/archive-v2-performance-compare.v1.json`](performance-compare/archive-v2-performance-compare.v1.json)

@@ -2,22 +2,46 @@
   "schema_version": "nirs4all.performance-compare.plan.v1",
   "scenario_id": "perf001-archive-v2-native-surfaces",
   "scope": "local evidence; no publication, release lock, or performance budget claim",
+  "selection_snapshot": {
+    "governance_commit_sha": "8aa4540a6b97b9e6cb8facf2f3a189f0d62f1e1b",
+    "governance_tree_sha": "0ba7c9f6aef3095f16da7acc7137a1d842914ada",
+    "governance_source": "docs/contracts/release/migration-work-ledger.yaml",
+    "governance_benchmark_parent_sha": "9aab2e13513b4e0a5a699a11ebc70f2bd00f10fb",
+    "observed_at": "2026-09-03",
+    "selection_scope": "requested_four_head_refresh; other plan candidates retain their prior selection",
+    "status": "selected_unmeasured_no_go",
+    "four_runtime_execution": "not_run_for_selected_heads",
+    "release_gate_status": "no_go",
+    "release_eligible": false,
+    "historical_report_policy": "Preserve measured runtime commits and trees; no selected head is claimed as measured.",
+    "holds": [
+      "four_runtime_rerun_on_selected_heads",
+      "external_release_matrices",
+      "frozen_performance_budgets",
+      "complete_governance_closure_not_staged",
+      "candidates_unpublished_untagged",
+      "signed_artifacts_missing",
+      "final_release_lock_not_regenerated"
+    ]
+  },
   "candidates": {
     "methods": {
-      "commit_sha": "699d33f4f113b8068176e367e130951b1cf186c0",
-      "tree_sha": "f97d7debe8a8a1f88614a060d30bea3e3a7c0e8b",
+      "commit_sha": "e0bee1ce160cd805d3060185fd151c09230c3381",
+      "tree_sha": "7e4658658e37f77be18ef6d3d6aff150886efb5b",
       "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
       "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
-      "worktree": "_worktrees/MTH-abi24-inspect",
-      "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5"
+      "worktree": "_worktrees/MTH-n4m-publish",
+      "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5",
+      "selection_note": "The selected release-guard descendant was not remeasured; PERF measurements remain attributed to the Methods runtime commit and tree."
     },
     "dag_ml": {
-      "commit_sha": "b7d643f450da3018c8208a84abcabfab09d5da7d",
-      "tree_sha": "20876a6c04c550c2f662aa58583fb7305f42ee03",
+      "commit_sha": "b08c62638829e0bcab741e66d44a3db66459e5a8",
+      "tree_sha": "5b5be85d2326fcb360e05ac65572faa18c3a322d",
       "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
       "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
       "worktree": "_worktrees/DAG001-persistence-final",
-      "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6"
+      "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6",
+      "selection_note": "The selected documented release descendant was not remeasured; PERF measurements remain attributed to the DAG runtime commit and tree."
     },
     "formats": {
       "commit_sha": "2d46285843dc366da1d38f133131b5329c886b12",
@@ -39,22 +63,22 @@
       "selection_note": "The selected descendant contains the post-campaign archive test repair; PERF measurements remain attributed to the runtime commit and tree."
     },
     "python": {
-      "commit_sha": "40421617c7f39cae6d11c4c3aecb51e9d0a582f4",
-      "tree_sha": "884b62893a298f7fe44e20fc20b5e6c989913674",
+      "commit_sha": "3a38f589e5acbda58c5d071c95036f2572972ecd",
+      "tree_sha": "eb57dd69c04db45d44765566f374d471259e0293",
       "runtime_commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
       "runtime_tree_sha": "f142b410194e3c99190fb97685724140a5599159",
-      "worktree": "/tmp/nirs4all-api004005-completion",
+      "worktree": "_worktrees/PY-r3-native-100rc2",
       "runtime_worktree": "_worktrees/PERF001-python-e227",
-      "selection_note": "The measured public oracle used explicit engine='native' at the runtime commit and exact Core/Methods closure; no legacy runner or fallback was allowed. The selected descendant was not remeasured."
+      "selection_note": "The measured public oracle used explicit engine='native' at the runtime commit and exact Core/Methods closure; no legacy runner or fallback was allowed. The selected R3 native fail-closed descendant was not remeasured."
     },
     "studio": {
-      "commit_sha": "bb76f2c8833f430d26311422c9d7018592fcf6cb",
-      "tree_sha": "e0560c07d34e9c5e928f44076cffdba100f17ee5",
+      "commit_sha": "bb66016cf4f7578543cdc294713011881b884969",
+      "tree_sha": "7535c4e0f8d6cc91d62f41f11935817e6fb7eb21",
       "runtime_commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
       "runtime_tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
-      "worktree": "_worktrees/R3-studio-consolidated",
+      "worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
       "runtime_worktree": "_worktrees/R3-studio-consolidated",
-      "selection_note": "The selected descendant was not remeasured; PERF measurements remain attributed to the Rust-sidecar runtime commit and tree."
+      "selection_note": "The selected R3 Rust-only descendant was not remeasured; PERF measurements remain attributed to the Rust-sidecar runtime commit and tree."
     },
     "web": {
       "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
@@ -125,9 +149,17 @@
     ]
   },
   "local_smoke_hold": {
-    "status": "local_real_closures_available",
-    "missing": [],
+    "status": "new_selected_closures_not_requalified",
+    "missing": [
+      "four_runtime_rerun_on_selected_heads",
+      "external_release_matrices",
+      "frozen_performance_budgets",
+      "complete_governance_closure_not_staged",
+      "candidates_unpublished_untagged",
+      "signed_artifacts_missing",
+      "final_release_lock_not_regenerated"
+    ],
     "fixture_policy": "Contract fixtures exercise protocol failures only and never substitute for local product evidence.",
-    "release_hold": "WSL host plus unfrozen budgets and incomplete release matrices; local measurements never set or pass a release threshold."
+    "release_hold": "NO-GO: the four refreshed heads and retained plan candidates have not been executed together across all four runtimes; historical local measurements remain evidence only for their recorded runtime commits."
   }
 }

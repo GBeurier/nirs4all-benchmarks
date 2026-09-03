@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+### Changed
+
+- Refresh the next four-runtime campaign selection from the Governance staging
+  snapshot while keeping the prior measured report immutable and release readiness NO-GO.
+
 ## [0.1.5] — 2026-07-07
 
 Patch release for the V1 RC benchmark lane.
