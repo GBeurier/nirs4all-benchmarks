@@ -62,12 +62,14 @@ def test_frozen_plan_pins_delivered_candidates_and_native_predictor() -> None:
     plan = pc.load_plan()
 
     assert {name: value["commit_sha"] for name, value in plan["candidates"].items()} == {
-        "methods": "a71ee2927524d03482183de3d6e22661efc05d12",
-        "dag_ml": "189099119b69e74c69466f2308808cb423dc2e94",
-        "core": "3a3ce728cebf001ad25b20b3eeaed3bc76daf32f",
-        "python": "1ebe03ddbd99e691f1f0332655bee5ebf584f2e9",
-        "studio": "c0ea53c33c675cdc21e3586851e0d3ece9641406",
-        "web": "ea842c2b910523e38c1d2761c49b20bdb8883c0d",
+        "methods": "9d4e2753836eb85d61b1e7712ec6a06e627d4a5f",
+        "dag_ml": "ce0a1963077612b3ce2604746e77a6405d0c3002",
+        "formats": "2d46285843dc366da1d38f133131b5329c886b12",
+        "io": "e41bf8f94a92356e98c215d4c41e907a7dfaf6ac",
+        "core": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+        "python": "e227244464983ea2a94ebc01b6af30d474a025df",
+        "studio": "e254a1ebba578e5b1932d09079088d02eb51d411",
+        "web": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
     }
     assert plan["workload"]["archive_v2"]["sha256"] == (
         "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa"
@@ -83,7 +85,7 @@ def test_frozen_plan_pins_delivered_candidates_and_native_predictor() -> None:
     assert plan["predictor_fingerprint"] == (
         "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b"
     )
-    assert "e99a7ab30086ef494e9f48a4863776480c964564" in plan["candidates"]["python"]["selection_note"]
+    assert "engine='native'" in plan["candidates"]["python"]["selection_note"]
 
 
 def test_comparison_uses_same_archive_matrix_and_descriptor_for_all_surfaces(tmp_path: Path) -> None:
@@ -189,8 +191,10 @@ def test_web_handoff_contains_archive_matrix_predictor_and_web_candidate(tmp_pat
     assert payload["archive_v2"]["actual_sha256"] == pc._sha256_file(archive)
     assert payload["matrix"]["sample_ids"] == ["predict.0", "predict.1"]
     assert payload["predictor_fingerprint"] == report["predictor_fingerprint"]
-    assert payload["web_candidate"]["commit_sha"] == "ea842c2b910523e38c1d2761c49b20bdb8883c0d"
+    assert payload["web_candidate"]["commit_sha"] == "59cfffbd7444a9afa9527fbaa12d078811abaf33"
     assert payload["release_eligible"] is False
+    assert "performance_budgets_not_frozen" in payload["release_eligibility_holds"]
+    assert "release_matrices_incomplete" in payload["release_eligibility_holds"]
     assert (handoff.parent / "performance-report.v1.json").is_file()
 
 

@@ -86,7 +86,7 @@ def load_plan(path: str | Path = DEFAULT_PLAN_PATH) -> dict[str, Any]:
     if root.get("schema_version") != "nirs4all.performance-compare.plan.v1":
         raise ValueError("unsupported performance plan schema")
     candidates = _object(root.get("candidates"), "candidates")
-    required = {"methods", "dag_ml", "core", "python", "studio", "web"}
+    required = {"methods", "dag_ml", "formats", "io", "core", "python", "studio", "web"}
     if set(candidates) != required:
         raise ValueError("performance plan must pin every delivered candidate exactly once")
     for name, candidate in candidates.items():
@@ -155,6 +155,7 @@ def _base_surface(plan: Mapping[str, Any], surface: str, executable: Path | None
         "commit_sha": candidate["commit_sha"],
         "tree_sha": candidate["tree_sha"],
         "adapter_path": str(executable) if executable else None,
+        "adapter_sha256": _sha256_file(executable) if executable and executable.is_file() else None,
         "disposition": "refused",
         "reason": None,
         "executed": False,
@@ -293,13 +294,13 @@ def _is_wsl() -> bool:
 def run_comparison(
     *, plan_path: str | Path = DEFAULT_PLAN_PATH, workspace_root: str | Path,
     adapters: Mapping[str, Path] | None = None, archive: str | Path | None = None,
-    repeats: int = 3, timeout_seconds: float = 120.0, evidence_kind: str = "local_candidate",
+    repeats: int = 3, timeout_seconds: float = 120.0, evidence_kind: str = "local_real",
 ) -> dict[str, Any]:
     """Execute available adapters and compare every result to the Python oracle."""
     if repeats < 1:
         raise ValueError("repeats must be >= 1")
-    if evidence_kind not in {"local_candidate", "contract_fixture"}:
-        raise ValueError("evidence_kind must be local_candidate or contract_fixture")
+    if evidence_kind not in {"local_real", "contract_fixture"}:
+        raise ValueError("evidence_kind must be local_real or contract_fixture")
     plan = load_plan(plan_path)
     archive_path = resolve_archive(plan, workspace_root=workspace_root, archive=archive)
     expected_sha = plan["workload"]["archive_v2"]["sha256"]
@@ -350,12 +351,21 @@ def run_comparison(
     dispositions = {item["disposition"] for item in reports.values()}
     overall = "failed" if "failed" in dispositions else "refused" if "refused" in dispositions else "passed"
     wsl = _is_wsl()
+    release_holds = []
+    if evidence_kind != "local_real":
+        release_holds.append("non_product_fixture_evidence")
+    if overall != "passed":
+        release_holds.append("comparison_not_passed")
+    if wsl:
+        release_holds.append("wsl_measurement_host")
+    release_holds.extend(("performance_budgets_not_frozen", "release_matrices_incomplete"))
     workload = plan["workload"]
     matrix = {"sample_ids": workload["sample_ids"], "x": workload["x"], "target_names": workload["target_names"]}
     return {
         "schema_version": REPORT_SCHEMA, "scenario_id": plan["scenario_id"],
         "evidence_kind": evidence_kind,
-        "release_eligible": evidence_kind == "local_candidate" and overall == "passed" and not wsl,
+        "release_eligible": not release_holds,
+        "release_eligibility_holds": release_holds,
         "overall_disposition": overall,
         "archive_v2": {"path": str(archive_path), "expected_sha256": expected_sha, "actual_sha256": actual_sha},
         "matrix": {**matrix, "sha256": _canonical_sha256(matrix)},
@@ -418,6 +428,7 @@ def write_web_handoff(directory: str | Path, report: Mapping[str, Any]) -> Path:
         "numeric_tolerance": report["numeric_tolerance"], "web_candidate": report["candidates"]["web"],
         "web_surface": report["surfaces"]["web_wasm"],
         "performance_policy": report["performance_policy"], "release_eligible": report["release_eligible"],
+        "release_eligibility_holds": report["release_eligibility_holds"],
     }
     handoff = root / "archive-v2-performance-compare.v1.json"
     handoff.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -439,7 +450,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter", action="append", default=[], metavar="SURFACE=/ABSOLUTE/EXECUTABLE")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=120.0)
-    parser.add_argument("--evidence-kind", choices=("local_candidate", "contract_fixture"), default="local_candidate")
+    parser.add_argument("--evidence-kind", choices=("local_real", "contract_fixture"), default="local_real")
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument("--handoff-dir", type=Path)

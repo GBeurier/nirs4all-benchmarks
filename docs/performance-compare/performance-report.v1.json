@@ -1,0 +1,329 @@
+{
+  "archive_v2": {
+    "actual_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+    "expected_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+    "path": "/home/delete/nirs4all/_worktrees/WEB-final-wasm/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+  },
+  "candidates": {
+    "core": {
+      "commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+      "tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
+      "worktree": "_worktrees/CORE-formats-aggregate"
+    },
+    "dag_ml": {
+      "commit_sha": "ce0a1963077612b3ce2604746e77a6405d0c3002",
+      "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+      "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
+      "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6",
+      "tree_sha": "2e5c5d3b8a6e987b7457f69daf501ad847794be4",
+      "worktree": "_worktrees/CONF001-dag"
+    },
+    "formats": {
+      "commit_sha": "2d46285843dc366da1d38f133131b5329c886b12",
+      "tree_sha": "2ee12c035db8a78721315ee65cf684d811552aa9",
+      "worktree": "_worktrees/CORE001-formats-2d462858"
+    },
+    "io": {
+      "commit_sha": "e41bf8f94a92356e98c215d4c41e907a7dfaf6ac",
+      "tree_sha": "ba5323cce8833610d974b7aa84ac65057355a687",
+      "worktree": "_worktrees/IO-formats-docs-consolidated"
+    },
+    "methods": {
+      "commit_sha": "9d4e2753836eb85d61b1e7712ec6a06e627d4a5f",
+      "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+      "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
+      "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5",
+      "tree_sha": "5efc7379d133885c78b168f23038d1816c9a3439",
+      "worktree": "_worktrees/MTH-abi24-inspect"
+    },
+    "python": {
+      "commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
+      "runtime_commit_sha": "f5e740e70e55d4603ee164f82cbd85fc8a9219ea",
+      "selection_note": "The public oracle uses explicit engine='native' and the exact Core/Methods closure; no legacy runner or fallback is allowed.",
+      "tree_sha": "f142b410194e3c99190fb97685724140a5599159",
+      "worktree": "_worktrees/PERF001-python-e227"
+    },
+    "studio": {
+      "commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
+      "worktree": "_worktrees/R3-studio-consolidated"
+    },
+    "web": {
+      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
+      "worktree": "_worktrees/WEB-final-wasm"
+    }
+  },
+  "evidence_kind": "local_real",
+  "historical_compatibility": {
+    "historical_report_rendering": "supported",
+    "legacy_vs_dag_ml_execution": "excluded_from_v1",
+    "studio_python_worker": "excluded_from_v1"
+  },
+  "matrix": {
+    "sample_ids": [
+      "predict.0",
+      "predict.1"
+    ],
+    "sha256": "4df4fd4c8ef7b0932ac3edcbbe37dc376f8786494ea6c18e3ed722212edb96d6",
+    "target_names": [
+      "protein",
+      "moisture"
+    ],
+    "x": [
+      [
+        1.5,
+        0.5
+      ],
+      [
+        3.5,
+        1.5
+      ]
+    ]
+  },
+  "numeric_tolerance": {
+    "absolute": 1e-09,
+    "relative": 1e-09
+  },
+  "overall_disposition": "passed",
+  "performance_policy": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "startup_and_steady_state_separate": true,
+    "thresholds": null,
+    "verdict": "record_only_under_wsl",
+    "wsl": true
+  },
+  "predictor_descriptor": {
+    "artifact_sha256": "4c4aead1e669235595970ee40530315d02c2dad80a72845c6930424d1580edc4",
+    "capabilities": 3,
+    "descriptor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+    "descriptor_type": "dagml.native_predictor_descriptor.v1",
+    "dimensions": {
+      "n_components": 1,
+      "n_features": 2,
+      "n_targets": 2,
+      "training_samples": 6
+    },
+    "format": "N4MM",
+    "format_version": 1,
+    "owner_controller": "controller:methods.pls",
+    "schema_version": 1,
+    "storage_algorithm": 0,
+    "writer_abi": {
+      "major": 2,
+      "minor": 3,
+      "patch": 0
+    }
+  },
+  "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+  "release_eligibility_holds": [
+    "wsl_measurement_host",
+    "performance_budgets_not_frozen",
+    "release_matrices_incomplete"
+  ],
+  "release_eligible": false,
+  "scenario_id": "perf001-archive-v2-native-surfaces",
+  "schema_version": "nirs4all.performance-compare.report.v1",
+  "surfaces": {
+    "python_oracle": {
+      "adapter_evidence": {
+        "core_commit": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+        "engine": "core-native",
+        "entrypoint": "nirs4all.predict(engine='native')",
+        "kind": "local_real",
+        "methods_commit": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+        "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e"
+      },
+      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/python-oracle-adapter.py",
+      "adapter_sha256": "804579c84153423617c8c1641083c58e847e9e4179733991d554cbe31fda2aca",
+      "candidate": "python",
+      "commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
+      "disposition": "passed",
+      "executed": true,
+      "fallback_used": false,
+      "numeric_consistency": {
+        "max_absolute_error": 0.0,
+        "max_relative_error": 0.0,
+        "outside_tolerance": 0,
+        "passed": true,
+        "reference": "frozen_archive_v2_witness",
+        "values": 4
+      },
+      "observation_sha256": "89dc974ef034fda821391eec58fa455eba40fc7e00b799656a5812ba1e9a1308",
+      "predictions": [
+        [
+          1.6363636363636365,
+          13.272727272727273
+        ],
+        [
+          2.4999999999999996,
+          15.0
+        ]
+      ],
+      "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+      "reason": null,
+      "surface": "python_oracle",
+      "timings_ms": {
+        "process_wall": 1380.9818330046255,
+        "startup": 1067.572644999018,
+        "steady_state": [
+          28.558446996612474,
+          28.026027997839265,
+          27.56384899839759
+        ],
+        "steady_state_median": 28.026027997839265
+      },
+      "tree_sha": "f142b410194e3c99190fb97685724140a5599159"
+    },
+    "rust_direct": {
+      "adapter_evidence": {
+        "core_commit": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+        "entrypoint": "nirs4all::predict_methods_archive_v2_matrix",
+        "kind": "local_real",
+        "methods_commit": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+        "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+        "python": false
+      },
+      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/.perf001/rust-target/release/perf001-rust-direct-adapter",
+      "adapter_sha256": "8d6d20da7dd16ede899bf21c5fe958e024832643fcb2fdce3c2502dd6a8051c7",
+      "candidate": "core",
+      "commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+      "disposition": "passed",
+      "executed": true,
+      "fallback_used": false,
+      "numeric_consistency": {
+        "max_absolute_error": 0.0,
+        "max_relative_error": 0.0,
+        "outside_tolerance": 0,
+        "passed": true,
+        "reference": "python_oracle",
+        "values": 4
+      },
+      "observation_sha256": "89dc974ef034fda821391eec58fa455eba40fc7e00b799656a5812ba1e9a1308",
+      "predictions": [
+        [
+          1.6363636363636365,
+          13.272727272727273
+        ],
+        [
+          2.4999999999999996,
+          15.0
+        ]
+      ],
+      "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+      "reason": null,
+      "surface": "rust_direct",
+      "timings_ms": {
+        "process_wall": 95.21104200393893,
+        "startup": 38.14832,
+        "steady_state": [
+          18.206311,
+          18.244041999999997,
+          19.342917
+        ],
+        "steady_state_median": 18.244041999999997
+      },
+      "tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f"
+    },
+    "studio_rust": {
+      "adapter_evidence": {
+        "entrypoint": "POST /api/predict/archive-v2",
+        "executor": "nirs4all-core@0.3.25+libn4m-abi-2.5:8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+        "kind": "local_real",
+        "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+        "product_backend": "rust-sidecar",
+        "python_worker": false,
+        "sidecar_sha256": "0fa9f3bdbf1aae3ffa047eca743a5994157afc256d75da77e94d35c8f8770b2e"
+      },
+      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/studio-rust-adapter.py",
+      "adapter_sha256": "0b97e4598dc7fa74879cd700180cbe63b0b06a0b81162e882f9e37dd8a89265d",
+      "candidate": "studio",
+      "commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "disposition": "passed",
+      "executed": true,
+      "fallback_used": false,
+      "numeric_consistency": {
+        "max_absolute_error": 0.0,
+        "max_relative_error": 0.0,
+        "outside_tolerance": 0,
+        "passed": true,
+        "reference": "python_oracle",
+        "values": 4
+      },
+      "observation_sha256": "89dc974ef034fda821391eec58fa455eba40fc7e00b799656a5812ba1e9a1308",
+      "predictions": [
+        [
+          1.6363636363636365,
+          13.272727272727273
+        ],
+        [
+          2.4999999999999996,
+          15.0
+        ]
+      ],
+      "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+      "reason": null,
+      "surface": "studio_rust",
+      "timings_ms": {
+        "process_wall": 187.0001679926645,
+        "startup": 75.62058699841145,
+        "steady_state": [
+          24.77059600641951,
+          24.02495700516738,
+          25.277638997067697
+        ],
+        "steady_state_median": 24.77059600641951
+      },
+      "tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9"
+    },
+    "web_wasm": {
+      "adapter_evidence": {
+        "core_wasm": true,
+        "engine": "nirs4all-methods-wasm",
+        "entrypoint": "replayMethodsArchiveV2",
+        "kind": "local_real",
+        "methods_wasm": true
+      },
+      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/web-wasm-adapter.mjs",
+      "adapter_sha256": "c1c5d64c5fbb4ad4f042afe7da35bd8af1bdea02aee6d970b894956542069a54",
+      "candidate": "web",
+      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+      "disposition": "passed",
+      "executed": true,
+      "fallback_used": false,
+      "numeric_consistency": {
+        "max_absolute_error": 0.0,
+        "max_relative_error": 0.0,
+        "outside_tolerance": 0,
+        "passed": true,
+        "reference": "python_oracle",
+        "values": 4
+      },
+      "observation_sha256": "89dc974ef034fda821391eec58fa455eba40fc7e00b799656a5812ba1e9a1308",
+      "predictions": [
+        [
+          1.6363636363636365,
+          13.272727272727273
+        ],
+        [
+          2.4999999999999996,
+          15.0
+        ]
+      ],
+      "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+      "reason": null,
+      "surface": "web_wasm",
+      "timings_ms": {
+        "process_wall": 161.30426499876194,
+        "startup": 97.809961,
+        "steady_state": [
+          5.238123000000002,
+          4.712762999999995,
+          4.28399499999999
+        ],
+        "steady_state_median": 4.712762999999995
+      },
+      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42"
+    }
+  }
+}

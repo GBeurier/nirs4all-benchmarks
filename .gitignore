@@ -25,6 +25,7 @@ arena-store/
 *.sqlite-shm
 /arrays/
 /exports/
+/.perf001/
 
 # os
 .DS_Store

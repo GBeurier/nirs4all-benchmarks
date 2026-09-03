@@ -11,8 +11,9 @@ four product surfaces:
 The frozen workload, predictor descriptor, descriptor fingerprint, candidate
 commits and candidate trees are in
 [`performance-compare.handoff.v1.json`](performance-compare.handoff.v1.json).
-The harness does not import sibling source trees, rebuild or convert the
-archive, publish artifacts, or update a release lock.
+The harness does not import sibling source trees, convert the archive, publish
+artifacts, or update a release lock. The committed adapters attest every source
+identity before invoking the locally built product closure.
 
 ## Adapter protocol
 
@@ -60,18 +61,24 @@ The first file is the Web handoff. It carries the same Archive V2 identity,
 matrix, predictor descriptor/fingerprint, Python oracle values, Web candidate,
 numeric tolerance and Web result.
 
-## Current local hold
+## Current local evidence
 
-The exact source candidates exist locally, and the canonical Archive V2 is
-present in the Web candidate. A single mutually attested runtime closure for
-all four exact candidates is not staged: the Python native environment, direct
-Rust runner, Studio packaged libn4m closure, and rebuilt Web closure listed in
-the plan remain required. Web already carries the exact staged Core/Methods
-WASM closure, but still needs the PERF stdio timing adapter around
-`replayMethodsArchiveV2`. Contract fixtures may exercise the runner and Web
-handoff, but are stamped `evidence_kind=contract_fixture` and
-`release_eligible=false`; they never stand in for candidate performance.
+The checked-in [`performance-compare/performance-report.v1.json`](performance-compare/performance-report.v1.json)
+is a real local run with one startup observation and three steady-state
+observations per surface. Python used the public `predict(engine="native")`
+API, Rust called Core directly, Studio used its packaged Rust sidecar, and Web
+used its shipped Core/Methods WASM pair. All four surfaces replayed the same
+Archive V2 and matrix, passed with zero maximum numeric delta, and reported
+`fallback_used=false`. The report records source trees, adapter hashes, the
+Methods library/sidecar hashes, and the predictor descriptor/fingerprint.
 
-WSL results are measurement-only. Startup and steady-state timings are kept
-separate, and the harness deliberately applies no definitive performance
-threshold until budgets are frozen on an approved reference host.
+The companion
+[`performance-compare/archive-v2-performance-compare.v1.json`](performance-compare/archive-v2-performance-compare.v1.json)
+is directly consumable by Web's existing `performance-compare` handoff.
+Contract fixtures remain available only for protocol failure tests and never
+substitute for these product closures.
+
+This WSL campaign is `local_real` but measurement-only. It is intentionally
+`release_eligible=false` because the host is WSL, performance budgets are not
+frozen, and release matrices are incomplete. Startup and steady-state timings
+remain separate, and no release threshold is set or claimed as passed.

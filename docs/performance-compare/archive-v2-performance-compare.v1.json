@@ -1,0 +1,134 @@
+{
+  "archive_v2": {
+    "actual_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+    "expected_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+    "path": "/home/delete/nirs4all/_worktrees/WEB-final-wasm/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+  },
+  "matrix": {
+    "sample_ids": [
+      "predict.0",
+      "predict.1"
+    ],
+    "sha256": "4df4fd4c8ef7b0932ac3edcbbe37dc376f8786494ea6c18e3ed722212edb96d6",
+    "target_names": [
+      "protein",
+      "moisture"
+    ],
+    "x": [
+      [
+        1.5,
+        0.5
+      ],
+      [
+        3.5,
+        1.5
+      ]
+    ]
+  },
+  "numeric_tolerance": {
+    "absolute": 1e-09,
+    "relative": 1e-09
+  },
+  "performance_policy": {
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+    "startup_and_steady_state_separate": true,
+    "thresholds": null,
+    "verdict": "record_only_under_wsl",
+    "wsl": true
+  },
+  "predictor_descriptor": {
+    "artifact_sha256": "4c4aead1e669235595970ee40530315d02c2dad80a72845c6930424d1580edc4",
+    "capabilities": 3,
+    "descriptor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+    "descriptor_type": "dagml.native_predictor_descriptor.v1",
+    "dimensions": {
+      "n_components": 1,
+      "n_features": 2,
+      "n_targets": 2,
+      "training_samples": 6
+    },
+    "format": "N4MM",
+    "format_version": 1,
+    "owner_controller": "controller:methods.pls",
+    "schema_version": 1,
+    "storage_algorithm": 0,
+    "writer_abi": {
+      "major": 2,
+      "minor": 3,
+      "patch": 0
+    }
+  },
+  "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+  "python_oracle_predictions": [
+    [
+      1.6363636363636365,
+      13.272727272727273
+    ],
+    [
+      2.4999999999999996,
+      15.0
+    ]
+  ],
+  "release_eligible": false,
+  "release_eligibility_holds": [
+    "wsl_measurement_host",
+    "performance_budgets_not_frozen",
+    "release_matrices_incomplete"
+  ],
+  "scenario_id": "perf001-archive-v2-native-surfaces",
+  "schema_version": "nirs4all.performance-compare.web-handoff.v1",
+  "web_candidate": {
+    "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+    "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
+    "worktree": "_worktrees/WEB-final-wasm"
+  },
+  "web_surface": {
+    "adapter_evidence": {
+      "core_wasm": true,
+      "engine": "nirs4all-methods-wasm",
+      "entrypoint": "replayMethodsArchiveV2",
+      "kind": "local_real",
+      "methods_wasm": true
+    },
+    "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/web-wasm-adapter.mjs",
+    "adapter_sha256": "c1c5d64c5fbb4ad4f042afe7da35bd8af1bdea02aee6d970b894956542069a54",
+    "candidate": "web",
+    "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+    "disposition": "passed",
+    "executed": true,
+    "fallback_used": false,
+    "numeric_consistency": {
+      "max_absolute_error": 0.0,
+      "max_relative_error": 0.0,
+      "outside_tolerance": 0,
+      "passed": true,
+      "reference": "python_oracle",
+      "values": 4
+    },
+    "observation_sha256": "89dc974ef034fda821391eec58fa455eba40fc7e00b799656a5812ba1e9a1308",
+    "predictions": [
+      [
+        1.6363636363636365,
+        13.272727272727273
+      ],
+      [
+        2.4999999999999996,
+        15.0
+      ]
+    ],
+    "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+    "reason": null,
+    "surface": "web_wasm",
+    "timings_ms": {
+      "process_wall": 161.30426499876194,
+      "startup": 97.809961,
+      "steady_state": [
+        5.238123000000002,
+        4.712762999999995,
+        4.28399499999999
+      ],
+      "steady_state_median": 4.712762999999995
+    },
+    "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42"
+  }
+}

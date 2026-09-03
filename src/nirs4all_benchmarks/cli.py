@@ -229,7 +229,7 @@ def perf_compare_cmd(
     ),
     repeats: int = typer.Option(3, "--repeats", min=1, help="Steady-state repetitions per surface."),
     timeout: float = typer.Option(120.0, "--timeout", min=0.1, help="Adapter timeout in seconds."),
-    evidence_kind: str = typer.Option("local_candidate", "--evidence-kind", help="local_candidate or contract_fixture."),
+    evidence_kind: str = typer.Option("local_real", "--evidence-kind", help="local_real or contract_fixture."),
     json_out: Path | None = typer.Option(None, "--json-out", help="Write the full report as JSON."),
     markdown_out: Path | None = typer.Option(None, "--markdown-out", help="Write the markdown summary to a file."),
     handoff_dir: Path | None = typer.Option(None, "--handoff-dir", help="Write the Web performance-compare handoff."),

@@ -4,35 +4,52 @@
   "scope": "local evidence; no publication, release lock, or performance budget claim",
   "candidates": {
     "methods": {
-      "commit_sha": "a71ee2927524d03482183de3d6e22661efc05d12",
-      "tree_sha": "f6749f4c4be7dca161f3c2677dd10a9ac4434b66",
-      "worktree": "_worktrees/MTH-abi24-inspect"
+      "commit_sha": "9d4e2753836eb85d61b1e7712ec6a06e627d4a5f",
+      "tree_sha": "5efc7379d133885c78b168f23038d1816c9a3439",
+      "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+      "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
+      "worktree": "_worktrees/MTH-abi24-inspect",
+      "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5"
     },
     "dag_ml": {
-      "commit_sha": "189099119b69e74c69466f2308808cb423dc2e94",
-      "tree_sha": "6ce31722bdb999482932e9d4a3884987426d1dd6",
-      "worktree": "_worktrees/DAG-native-predictor-descriptor"
+      "commit_sha": "ce0a1963077612b3ce2604746e77a6405d0c3002",
+      "tree_sha": "2e5c5d3b8a6e987b7457f69daf501ad847794be4",
+      "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+      "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
+      "worktree": "_worktrees/CONF001-dag",
+      "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6"
+    },
+    "formats": {
+      "commit_sha": "2d46285843dc366da1d38f133131b5329c886b12",
+      "tree_sha": "2ee12c035db8a78721315ee65cf684d811552aa9",
+      "worktree": "_worktrees/CORE001-formats-2d462858"
+    },
+    "io": {
+      "commit_sha": "e41bf8f94a92356e98c215d4c41e907a7dfaf6ac",
+      "tree_sha": "ba5323cce8833610d974b7aa84ac65057355a687",
+      "worktree": "_worktrees/IO-formats-docs-consolidated"
     },
     "core": {
-      "commit_sha": "3a3ce728cebf001ad25b20b3eeaed3bc76daf32f",
-      "tree_sha": "57e8203bf33a6c7b0b3f049f0dcbf3efa28991b1",
-      "worktree": "_worktrees/CORE-native-predictor-descriptor-v1"
+      "commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+      "tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
+      "worktree": "_worktrees/CORE-formats-aggregate"
     },
     "python": {
-      "commit_sha": "1ebe03ddbd99e691f1f0332655bee5ebf584f2e9",
-      "tree_sha": "e2f5d7f0df886fd29738e1b6fabb885537666540",
-      "worktree": "_worktrees/PY-descriptor-consumer",
-      "selection_note": "HPO is outside this Archive V2 prediction workload; descendant e99a7ab30086ef494e9f48a4863776480c964564 is not required."
+      "commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
+      "tree_sha": "f142b410194e3c99190fb97685724140a5599159",
+      "runtime_commit_sha": "f5e740e70e55d4603ee164f82cbd85fc8a9219ea",
+      "worktree": "_worktrees/PERF001-python-e227",
+      "selection_note": "The public oracle uses explicit engine='native' and the exact Core/Methods closure; no legacy runner or fallback is allowed."
     },
     "studio": {
-      "commit_sha": "c0ea53c33c675cdc21e3586851e0d3ece9641406",
-      "tree_sha": "200df7074072275f8f3141c29fc2fa04cf464d99",
-      "worktree": "_worktrees/RC-v1-studio-predictor-descriptor"
+      "commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
+      "worktree": "_worktrees/R3-studio-consolidated"
     },
     "web": {
-      "commit_sha": "ea842c2b910523e38c1d2761c49b20bdb8883c0d",
-      "tree_sha": "cda29a3616e0097f3c834ab6bc45dbae804f559b",
-      "worktree": "_worktrees/WEB-native-predictor-descriptor"
+      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
+      "worktree": "_worktrees/WEB-final-wasm"
     }
   },
   "surfaces": {
@@ -58,7 +75,7 @@
       "sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
       "source": {
         "candidate": "web",
-        "worktree": "_worktrees/WEB-native-predictor-descriptor",
+        "worktree": "_worktrees/WEB-final-wasm",
         "relative_path": "web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
       }
     },
@@ -98,13 +115,9 @@
     ]
   },
   "local_smoke_hold": {
-    "status": "external_candidate_artifacts_required",
-    "missing": [
-      "Python candidate environment containing its exact native Core wheel and exact Methods a71ee292 libn4m",
-      "direct Rust runner linked to Core 3a3ce728, DAG 189099 and Methods a71ee292",
-      "Studio c0ea53 packaged runtime closure containing the exact Methods a71ee292 libn4m",
-      "PERF stdio adapter around Web ea842c replayMethodsArchiveV2 (its staged Core 3a3ce728 and Methods a71ee292 WASM closure is already present)"
-    ],
-    "fixture_policy": "Contract fixtures may exercise the runner but remain release_eligible=false and never substitute for candidate evidence."
+    "status": "local_real_closures_available",
+    "missing": [],
+    "fixture_policy": "Contract fixtures exercise protocol failures only and never substitute for local product evidence.",
+    "release_hold": "WSL host plus unfrozen budgets and incomplete release matrices; local measurements never set or pass a release threshold."
   }
 }

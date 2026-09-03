@@ -271,7 +271,7 @@ legacy-vs-dag-ml comparison.
 | `--adapter` | none | Repeat `SURFACE=/absolute/executable`; absent surfaces are refused. |
 | `--repeats` | `3` | Steady-state repetitions inside each loaded adapter. |
 | `--timeout` | `120` | Per-adapter timeout in seconds. |
-| `--evidence-kind` | `local_candidate` | Use `contract_fixture` for non-release smoke evidence. |
+| `--evidence-kind` | `local_real` | Use `contract_fixture` only for protocol smoke evidence. |
 | `--json-out` | none | Write the full machine-readable report as JSON. |
 | `--markdown-out` | none | Write the rendered summary table as Markdown. |
 | `--handoff-dir` | none | Write the `performance-compare` Web handoff directory. |
