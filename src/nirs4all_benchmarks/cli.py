@@ -220,7 +220,9 @@ def build_site_cmd(
 @app.command("perf-compare")
 def perf_compare_cmd(
     plan: Path | None = typer.Option(None, "--plan", help="Frozen PERF-001 plan JSON."),
-    workspace_root: Path | None = typer.Option(None, "--workspace-root", help="Root containing the candidate worktrees."),
+    workspace_root: Path | None = typer.Option(
+        None, "--workspace-root", help="Root containing the candidate worktrees."
+    ),
     archive: Path | None = typer.Option(None, "--archive", help="Explicit byte-identical Archive V2 witness."),
     adapter: list[str] | None = typer.Option(
         None,
@@ -267,6 +269,28 @@ def perf_compare_cmd(
         handoff = write_web_handoff(handoff_dir, report)
         console.print(f"[green]✓[/] wrote Web handoff to [bold]{handoff}[/]")
     if report["overall_disposition"] == "failed":
+        raise typer.Exit(code=1)
+
+
+@app.command("soak-run")
+def soak_run_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False, help="Bounded SOAK/PERF probe plan JSON."),
+    workspace_root: Path = typer.Option(..., "--workspace-root", exists=True, file_okay=False),
+    json_out: Path = typer.Option(
+        ..., "--json-out", dir_okay=False, help="Destination for the deterministic report JSON."
+    ),
+) -> None:
+    """Run bounded local workload and integrity commands with process metrics."""
+    from nirs4all_benchmarks.soak_probe import run_plan, write_report
+
+    try:
+        report = run_plan(plan, workspace_root=workspace_root)
+    except ValueError as error:
+        console.print(f"[red]refused:[/] {error}", err=True)
+        raise typer.Exit(code=2) from error
+    write_report(json_out, report)
+    console.print(f"[green]✓[/] wrote bounded local probe to [bold]{json_out}[/]")
+    if report["overall_status"] != "passed":
         raise typer.Exit(code=1)
 
 

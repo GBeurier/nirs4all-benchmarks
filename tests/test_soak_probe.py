@@ -1,0 +1,133 @@
+"""Targeted tests for the bounded local SOAK/PERF probe."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+from nirs4all_benchmarks import soak_probe
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _plan(tmp_path: Path, *, integrity_exit: int = 0, add_late_command: bool = False) -> Path:
+    commands = [
+        {
+            "id": "workload",
+            "role": "workload",
+            "argv": [sys.executable, "-c", "import time; time.sleep(0.05); print('ok')"],
+            "cwd": "{workspace_root}",
+            "expected_exit_code": 0,
+            "timeout_seconds": 2,
+        },
+        {
+            "id": "integrity",
+            "role": "integrity",
+            "argv": [sys.executable, "-c", f"raise SystemExit({integrity_exit})"],
+            "cwd": "{workspace_root}",
+            "expected_exit_code": 0,
+            "timeout_seconds": 2,
+        },
+    ]
+    if add_late_command:
+        commands.append(
+            {
+                "id": "late-integrity",
+                "role": "integrity",
+                "argv": [sys.executable, "-c", "print('must not run')"],
+                "cwd": "{workspace_root}",
+                "expected_exit_code": 0,
+                "timeout_seconds": 2,
+            }
+        )
+    payload = {
+        "schema_version": soak_probe.PLAN_SCHEMA,
+        "scope": "unit fixture; never release evidence",
+        "sample_interval_ms": 5,
+        "max_output_bytes": 4096,
+        "release_holds": ["fixture_only"],
+        "scenarios": [{"id": "fixture", "repetitions": 2, "commands": commands}],
+    }
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_probe_records_bounded_metrics_and_integrity(tmp_path: Path) -> None:
+    report = soak_probe.run_plan(
+        _plan(tmp_path), workspace_root=tmp_path, generated_at="2000-01-01T00:00:00Z"
+    )
+
+    scenario = report["scenarios"][0]
+    assert report["overall_status"] == "passed"
+    assert report["release_eligible"] is False
+    assert report["generated_at"] == "2000-01-01T00:00:00Z"
+    assert scenario["status"] == "passed"
+    assert scenario["integrity_status"] == "passed"
+    assert scenario["completed_repetitions"] == 2
+    assert len(scenario["latency_ms"]["workload"]["values"]) == 2
+    assert scenario["peak_rss_bytes"] > 0
+    assert scenario["peak_fd_count"] > 0
+    result = scenario["repetitions"][0]["commands"][0]
+    assert result["stdout_sha256"] == soak_probe._sha256(b"ok\n")
+    assert result["failure"] is None
+
+
+def test_integrity_failure_stops_plan_before_later_commands(tmp_path: Path) -> None:
+    report = soak_probe.run_plan(
+        _plan(tmp_path, integrity_exit=7, add_late_command=True),
+        workspace_root=tmp_path,
+        generated_at="2000-01-01T00:00:00Z",
+    )
+
+    scenario = report["scenarios"][0]
+    commands = scenario["repetitions"][0]["commands"]
+    assert report["overall_status"] == "failed"
+    assert scenario["integrity_status"] == "failed"
+    assert [command["id"] for command in commands] == ["workload", "integrity"]
+    assert commands[-1]["failure"] == "expected exit 0, observed 7"
+
+
+def test_plan_refuses_missing_integrity_role(tmp_path: Path) -> None:
+    path = _plan(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["commands"] = payload["scenarios"][0]["commands"][:1]
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="workload and integrity"):
+        soak_probe.load_plan(path)
+
+
+def test_tracked_plan_is_bounded_and_keeps_release_holds() -> None:
+    plan = soak_probe.load_plan(REPO_ROOT / "docs" / "soak-local" / "soak-plan.v1.json")
+
+    assert plan["scenarios"][0]["repetitions"] == 3
+    assert [command["role"] for command in plan["scenarios"][0]["commands"]] == ["workload", "integrity"]
+    assert "representative_user_corpus_missing" in plan["release_holds"]
+    assert "release_matrices_incomplete" in plan["release_holds"]
+
+
+def test_report_writer_is_sorted_and_stable(tmp_path: Path) -> None:
+    path = tmp_path / "report.json"
+    soak_probe.write_report(path, {"z": 1, "a": {"d": 2, "b": 1}})
+
+    assert path.read_text(encoding="utf-8") == '{\n  "a": {\n    "b": 1,\n    "d": 2\n  },\n  "z": 1\n}\n'
+
+
+def test_module_cli_writes_the_report(tmp_path: Path) -> None:
+    report_path = tmp_path / "report.json"
+
+    assert soak_probe.main(
+        [
+            "--plan",
+            str(_plan(tmp_path)),
+            "--workspace-root",
+            str(tmp_path),
+            "--json-out",
+            str(report_path),
+        ]
+    ) == 0
+    assert json.loads(report_path.read_text(encoding="utf-8"))["overall_status"] == "passed"

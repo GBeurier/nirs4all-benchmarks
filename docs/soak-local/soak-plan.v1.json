@@ -1,0 +1,45 @@
+{
+  "schema_version": "nirs4all.soak-probe.plan.v1",
+  "scope": "bounded WSL-local Studio sidecar readiness probe; no representative corpus, sustained soak, release budget, or cross-platform qualification",
+  "sample_interval_ms": 10,
+  "max_output_bytes": 1048576,
+  "release_holds": [
+    "representative_user_corpus_missing",
+    "sustained_soak_not_run",
+    "performance_budgets_not_frozen",
+    "release_matrices_incomplete",
+    "direct_process_metrics_exclude_descendants"
+  ],
+  "scenarios": [
+    {
+      "id": "studio-sidecar-readiness",
+      "repetitions": 3,
+      "commands": [
+        {
+          "id": "readiness",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_worktrees/R3-studio-consolidated/backend-dist/native/studio-sidecar",
+            "--smoke-readiness"
+          ],
+          "cwd": "{workspace_root}/_worktrees/R3-studio-consolidated",
+          "expected_exit_code": 0,
+          "timeout_seconds": 15
+        },
+        {
+          "id": "runtime-sha256",
+          "role": "integrity",
+          "argv": [
+            "/usr/bin/sha256sum",
+            "--strict",
+            "--check",
+            "{plan_dir}/studio-runtime.sha256"
+          ],
+          "cwd": "{workspace_root}/_worktrees/R3-studio-consolidated",
+          "expected_exit_code": 0,
+          "timeout_seconds": 15
+        }
+      ]
+    }
+  ]
+}
