@@ -4,16 +4,16 @@
   "scope": "local evidence; no publication, release lock, or performance budget claim",
   "candidates": {
     "methods": {
-      "commit_sha": "9d4e2753836eb85d61b1e7712ec6a06e627d4a5f",
-      "tree_sha": "5efc7379d133885c78b168f23038d1816c9a3439",
+      "commit_sha": "699d33f4f113b8068176e367e130951b1cf186c0",
+      "tree_sha": "f97d7debe8a8a1f88614a060d30bea3e3a7c0e8b",
       "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
       "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
       "worktree": "_worktrees/MTH-abi24-inspect",
       "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5"
     },
     "dag_ml": {
-      "commit_sha": "746faf8b639e29b1329717e644b361153c07b9a5",
-      "tree_sha": "c6fd58870fbe602ccfa6f471c2e1f160bdfa193a",
+      "commit_sha": "b7d643f450da3018c8208a84abcabfab09d5da7d",
+      "tree_sha": "20876a6c04c550c2f662aa58583fb7305f42ee03",
       "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
       "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
       "worktree": "_worktrees/DAG001-persistence-final",
@@ -30,21 +30,31 @@
       "worktree": "_worktrees/IO-formats-docs-consolidated"
     },
     "core": {
-      "commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
-      "tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
-      "worktree": "_worktrees/CORE-formats-aggregate"
+      "commit_sha": "b6442dc4334c62a2b6c72526bea554a734134ac6",
+      "tree_sha": "6241d8497aa34ad4d015664662d4d17148d547fb",
+      "runtime_commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+      "runtime_tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
+      "worktree": "_worktrees/CORE-formats-aggregate",
+      "runtime_worktree": "_worktrees/CORE-formats-aggregate",
+      "selection_note": "The selected descendant contains the post-campaign archive test repair; PERF measurements remain attributed to the runtime commit and tree."
     },
     "python": {
-      "commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
-      "tree_sha": "f142b410194e3c99190fb97685724140a5599159",
-      "runtime_commit_sha": "f5e740e70e55d4603ee164f82cbd85fc8a9219ea",
-      "worktree": "_worktrees/PERF001-python-e227",
-      "selection_note": "The public oracle uses explicit engine='native' and the exact Core/Methods closure; no legacy runner or fallback is allowed."
+      "commit_sha": "40421617c7f39cae6d11c4c3aecb51e9d0a582f4",
+      "tree_sha": "884b62893a298f7fe44e20fc20b5e6c989913674",
+      "runtime_commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
+      "runtime_tree_sha": "f142b410194e3c99190fb97685724140a5599159",
+      "worktree": "/tmp/nirs4all-api004005-completion",
+      "runtime_worktree": "_worktrees/PERF001-python-e227",
+      "selection_note": "The measured public oracle used explicit engine='native' at the runtime commit and exact Core/Methods closure; no legacy runner or fallback was allowed. The selected descendant was not remeasured."
     },
     "studio": {
-      "commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
-      "tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
-      "worktree": "_worktrees/R3-studio-consolidated"
+      "commit_sha": "bb76f2c8833f430d26311422c9d7018592fcf6cb",
+      "tree_sha": "e0560c07d34e9c5e928f44076cffdba100f17ee5",
+      "runtime_commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "runtime_tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
+      "worktree": "_worktrees/R3-studio-consolidated",
+      "runtime_worktree": "_worktrees/R3-studio-consolidated",
+      "selection_note": "The selected descendant was not remeasured; PERF measurements remain attributed to the Rust-sidecar runtime commit and tree."
     },
     "web": {
       "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
