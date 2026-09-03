@@ -8,8 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ### Changed
 
-- Refresh the next four-runtime campaign selection from the Governance staging
-  snapshot while keeping the prior measured report immutable and release readiness NO-GO.
+- Repin the four-runtime campaign to the final selected product heads while
+  keeping release readiness NO-GO.
+- Qualify the final Python R3, Core 0.3.28, Studio R3, and Web 0.1.10 heads on
+  the deterministic Archive V2 workload and refresh the bounded Studio probe,
+  while keeping representative-corpus and sustained-soak gates explicitly open.
 
 ## [0.1.5] — 2026-07-07
 

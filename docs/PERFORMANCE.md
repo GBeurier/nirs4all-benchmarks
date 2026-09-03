@@ -49,18 +49,17 @@ reachable; historical JSON reports remain renderable read-only.
 
 ## Current candidate staging
 
-The plan now stages the requested subset of candidate heads recorded by
-Governance snapshot `8aa4540a6b97b9e6cb8facf2f3a189f0d62f1e1b`: Methods
-`e0bee1ce`, DAG-ML `b08c6263`, Python R3 `3a38f589`, and Studio R3
-`bb66016c`. Other plan candidates retain their prior selection, so this is not
-a complete Governance-closure repin. These identities select the next campaign;
-they do not alter the provenance of the checked-in four-runtime report.
+The plan pins the explicitly selected final product heads: Python R3
+`53a0acb9`, Core 0.3.28 `550cb8c8`, Studio R3 `86d5e503`, and Web 0.1.10
+`051bf636`. Supporting Methods and DAG-ML identities remain individually
+attested in the plan and runtime evidence. This local projection must still be
+incorporated into the Governance ledger before a final release lock is built.
 
-No four-runtime comparison has been run on this exact staged plan. Release
-readiness therefore remains **NO-GO** until that campaign, the external release
-matrices, frozen performance budgets, complete closure staging, signed
-artifacts, publication, and final-lock reconstruction are available.
-Contract-fixture tests validate orchestration only and cannot close those holds.
+The exact four heads have been run together on the deterministic Archive V2
+workload. This closes only the current-head synthetic comparison action. Release
+readiness remains **NO-GO** pending a provenance-qualified representative user
+corpus, sustained soak, external release matrices, frozen performance budgets,
+signatures, remaining product publication, and final-lock reconstruction.
 
 ## Web handoff
 
@@ -79,15 +78,14 @@ numeric tolerance and Web result.
 ## Current local evidence
 
 The checked-in [`performance-compare/performance-report.v1.json`](performance-compare/performance-report.v1.json)
-is a historical real local run with one startup observation and three steady-state
-observations per surface. Python used the public `predict(engine="native")`
-API, Rust called Core directly, Studio used its packaged Rust sidecar, and Web
-used its shipped Core/Methods WASM pair. All four surfaces replayed the same
+is a real-product, synthetic-workload local run with one startup observation and
+three steady-state observations per surface. Python used the public
+`predict(engine="native")` API at `53a0acb9`, Rust called Core 0.3.28 directly,
+Studio used the packaged Rust sidecar at `86d5e503`, and Web used the shipped
+Core/Methods WASM closure at `051bf636`. All four surfaces replayed the same
 Archive V2 and matrix, passed with zero maximum numeric delta, and reported
 `fallback_used=false`. The report records source trees, adapter hashes, the
-Methods library/sidecar hashes, and the predictor descriptor/fingerprint. Its
-recorded candidate and runtime identities are intentionally unchanged by the
-new staging selection.
+Methods library/sidecar hashes, and the predictor descriptor/fingerprint.
 
 The companion
 [`performance-compare/archive-v2-performance-compare.v1.json`](performance-compare/archive-v2-performance-compare.v1.json)
@@ -95,7 +93,9 @@ is directly consumable by Web's existing `performance-compare` handoff.
 Contract fixtures remain available only for protocol failure tests and never
 substitute for these product closures.
 
-This WSL campaign is `local_real` but measurement-only. It is intentionally
-`release_eligible=false` because the host is WSL, performance budgets are not
-frozen, and release matrices are incomplete. Startup and steady-state timings
-remain separate, and no release threshold is set or claimed as passed.
+This WSL campaign is `local_synthetic_current_head` and measurement-only. It is
+intentionally `release_eligible=false` because the deterministic fixture is not
+a representative user corpus, no sustained soak was run, the host is WSL,
+performance budgets are not frozen, and release matrices are incomplete.
+Startup and steady-state timings remain separate, and no release threshold is
+set or claimed as passed.

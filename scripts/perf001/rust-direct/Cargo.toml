@@ -5,19 +5,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-nirs4all = { path = "../../../../CORE-formats-aggregate/bindings/rust/nirs4all" }
+nirs4all = { path = "../../../../CORE-0.3.27-canonical-snapshot/bindings/rust/nirs4all" }
 serde_json = "1"
 sha2 = "0.10"
-
-[patch.crates-io]
-dag-ml = { path = "../../../../CORE001-dag-dafb8b6/crates/dag-ml" }
-dag-ml-core = { path = "../../../../CORE001-dag-dafb8b6/crates/dag-ml-core" }
-dag-ml-data = { path = "../../../../RC-v1-dagml-data-0.2.10/crates/dag-ml-data" }
-dag-ml-data-core = { path = "../../../../RC-v1-dagml-data-0.2.10/crates/dag-ml-data-core" }
-dag-ml-data-provider = { path = "../../../../RC-v1-dagml-data-0.2.10/crates/dag-ml-data-provider" }
-n4m = { path = "../../../../CORE001-methods-48ad1e5/bindings/rust/n4m" }
-nirs4all-formats = { path = "../../../../CORE001-formats-2d462858/crates/nirs4all-formats" }
-nirs4all-formats-core = { path = "../../../../CORE001-formats-2d462858/crates/nirs4all-formats-core" }
-nirs4all-io = { path = "../../../../IO-formats-docs-consolidated/crates/nirs4all-io" }
-nirs4all-io-core = { path = "../../../../IO-formats-docs-consolidated/crates/nirs4all-io-core" }
-nirs4all-io-dagml = { path = "../../../../IO-formats-docs-consolidated/crates/nirs4all-io-dagml" }

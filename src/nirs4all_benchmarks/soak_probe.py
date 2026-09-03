@@ -292,6 +292,8 @@ def run_plan(
         "scenarios": [],
         "overall_status": "passed",
     }
+    if "runtime_identity" in plan:
+        report["runtime_identity"] = dict(plan["runtime_identity"])
     plan_failed = False
     for scenario in plan["scenarios"]:
         scenario_started = time.perf_counter_ns()

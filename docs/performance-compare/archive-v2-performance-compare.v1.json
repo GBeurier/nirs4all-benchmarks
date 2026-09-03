@@ -2,7 +2,7 @@
   "archive_v2": {
     "actual_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
     "expected_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
-    "path": "/home/delete/nirs4all/_worktrees/WEB-final-wasm/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+    "path": "/home/delete/nirs4all/_worktrees/WEB-0.1.10-security/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
   },
   "matrix": {
     "sample_ids": [
@@ -69,31 +69,37 @@
       15.0
     ]
   ],
-  "release_eligible": false,
   "release_eligibility_holds": [
+    "representative_user_corpus_missing",
+    "sustained_soak_not_run",
     "wsl_measurement_host",
     "performance_budgets_not_frozen",
     "release_matrices_incomplete"
   ],
+  "release_eligible": false,
   "scenario_id": "perf001-archive-v2-native-surfaces",
   "schema_version": "nirs4all.performance-compare.web-handoff.v1",
   "web_candidate": {
-    "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
-    "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
-    "worktree": "_worktrees/WEB-final-wasm"
+    "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+    "runtime_commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+    "runtime_tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+    "runtime_worktree": "_worktrees/WEB-0.1.10-security",
+    "selection_note": "Published Web 0.1.10 head selected through its shipped Core/Methods WASM closure.",
+    "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+    "worktree": "_worktrees/WEB-0.1.10-security"
   },
   "web_surface": {
     "adapter_evidence": {
       "core_wasm": true,
       "engine": "nirs4all-methods-wasm",
       "entrypoint": "replayMethodsArchiveV2",
-      "kind": "local_real",
+      "kind": "local_synthetic_current_head",
       "methods_wasm": true
     },
-    "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/web-wasm-adapter.mjs",
-    "adapter_sha256": "c1c5d64c5fbb4ad4f042afe7da35bd8af1bdea02aee6d970b894956542069a54",
+    "adapter_path": "/home/delete/nirs4all/_worktrees/BENCH-017-bump/scripts/perf001/web-wasm-adapter.mjs",
+    "adapter_sha256": "ea81f0fc23f7c91abb117f60549eaf06252c6a4252a09963a7264b2bec5a5db0",
     "candidate": "web",
-    "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+    "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
     "disposition": "passed",
     "executed": true,
     "fallback_used": false,
@@ -120,15 +126,15 @@
     "reason": null,
     "surface": "web_wasm",
     "timings_ms": {
-      "process_wall": 161.30426499876194,
-      "startup": 97.809961,
+      "process_wall": 165.76971299946308,
+      "startup": 102.428191,
       "steady_state": [
-        5.238123000000002,
-        4.712762999999995,
-        4.28399499999999
+        4.765890999999996,
+        4.477346000000011,
+        4.219815000000011
       ],
-      "steady_state_median": 4.712762999999995
+      "steady_state_median": 4.477346000000011
     },
-    "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42"
+    "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff"
   }
 }

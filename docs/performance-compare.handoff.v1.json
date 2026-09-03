@@ -3,22 +3,22 @@
   "scenario_id": "perf001-archive-v2-native-surfaces",
   "scope": "local evidence; no publication, release lock, or performance budget claim",
   "selection_snapshot": {
-    "governance_commit_sha": "8aa4540a6b97b9e6cb8facf2f3a189f0d62f1e1b",
-    "governance_tree_sha": "0ba7c9f6aef3095f16da7acc7137a1d842914ada",
-    "governance_source": "docs/contracts/release/migration-work-ledger.yaml",
+    "selection_authority": "explicit final-head qualification request",
+    "governance_source": "docs/contracts/release/migration-work-ledger.yaml (pending projection of this local evidence)",
     "governance_benchmark_parent_sha": "9aab2e13513b4e0a5a699a11ebc70f2bd00f10fb",
     "observed_at": "2026-09-03",
-    "selection_scope": "requested_four_head_refresh; other plan candidates retain their prior selection",
-    "status": "selected_unmeasured_no_go",
-    "four_runtime_execution": "not_run_for_selected_heads",
+    "selection_scope": "current four product heads; other supporting candidates retain their prior selection",
+    "status": "locally_qualified_synthetic_no_go",
+    "four_runtime_execution": "passed_local_synthetic_current_heads",
     "release_gate_status": "no_go",
     "release_eligible": false,
-    "historical_report_policy": "Preserve measured runtime commits and trees; no selected head is claimed as measured.",
+    "historical_report_policy": "The checked-in report measures the current four product heads on the deterministic Archive V2 workload; older reports remain attributable through git history.",
     "holds": [
-      "four_runtime_rerun_on_selected_heads",
+      "representative_user_corpus_missing",
+      "sustained_soak_not_run",
       "external_release_matrices",
       "frozen_performance_budgets",
-      "complete_governance_closure_not_staged",
+      "complete_governance_projection_not_staged",
       "candidates_unpublished_untagged",
       "signed_artifacts_missing",
       "final_release_lock_not_regenerated"
@@ -54,36 +54,40 @@
       "worktree": "_worktrees/IO-formats-docs-consolidated"
     },
     "core": {
-      "commit_sha": "b6442dc4334c62a2b6c72526bea554a734134ac6",
-      "tree_sha": "6241d8497aa34ad4d015664662d4d17148d547fb",
-      "runtime_commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
-      "runtime_tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
-      "worktree": "_worktrees/CORE-formats-aggregate",
-      "runtime_worktree": "_worktrees/CORE-formats-aggregate",
-      "selection_note": "The selected descendant contains the post-campaign archive test repair; PERF measurements remain attributed to the runtime commit and tree."
+      "commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "runtime_commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "runtime_tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "worktree": "_worktrees/CORE-0.3.27-canonical-snapshot",
+      "runtime_worktree": "_worktrees/CORE-0.3.27-canonical-snapshot",
+      "selection_note": "Published Core 0.3.28 head selected for direct Rust and Python-native local synthetic qualification."
     },
     "python": {
-      "commit_sha": "3a38f589e5acbda58c5d071c95036f2572972ecd",
-      "tree_sha": "eb57dd69c04db45d44765566f374d471259e0293",
-      "runtime_commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
-      "runtime_tree_sha": "f142b410194e3c99190fb97685724140a5599159",
+      "commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
+      "runtime_commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "runtime_tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
       "worktree": "_worktrees/PY-r3-native-100rc2",
-      "runtime_worktree": "_worktrees/PERF001-python-e227",
-      "selection_note": "The measured public oracle used explicit engine='native' at the runtime commit and exact Core/Methods closure; no legacy runner or fallback was allowed. The selected R3 native fail-closed descendant was not remeasured."
+      "runtime_worktree": "_worktrees/PY-r3-native-100rc2",
+      "selection_note": "Python R3 current head selected through explicit engine='native' with the published Core 0.3.28 and exact Methods closure; legacy and fallback remain forbidden."
     },
     "studio": {
-      "commit_sha": "bb66016cf4f7578543cdc294713011881b884969",
-      "tree_sha": "7535c4e0f8d6cc91d62f41f11935817e6fb7eb21",
-      "runtime_commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
-      "runtime_tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
+      "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+      "runtime_commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "runtime_tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
       "worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
-      "runtime_worktree": "_worktrees/R3-studio-consolidated",
-      "selection_note": "The selected R3 Rust-only descendant was not remeasured; PERF measurements remain attributed to the Rust-sidecar runtime commit and tree."
+      "runtime_worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
+      "selection_note": "Studio R3 current head selected through the packaged Rust-sidecar route; the Python worker is excluded."
     },
     "web": {
-      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
-      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
-      "worktree": "_worktrees/WEB-final-wasm"
+      "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "runtime_commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "runtime_tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "worktree": "_worktrees/WEB-0.1.10-security",
+      "runtime_worktree": "_worktrees/WEB-0.1.10-security",
+      "selection_note": "Published Web 0.1.10 head selected through its shipped Core/Methods WASM closure."
     }
   },
   "surfaces": {
@@ -109,7 +113,7 @@
       "sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
       "source": {
         "candidate": "web",
-        "worktree": "_worktrees/WEB-final-wasm",
+        "worktree": "_worktrees/WEB-0.1.10-security",
         "relative_path": "web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
       }
     },
@@ -149,17 +153,18 @@
     ]
   },
   "local_smoke_hold": {
-    "status": "new_selected_closures_not_requalified",
+    "status": "passed_local_synthetic_current_head_no_go",
     "missing": [
-      "four_runtime_rerun_on_selected_heads",
+      "representative_user_corpus_missing",
+      "sustained_soak_not_run",
       "external_release_matrices",
       "frozen_performance_budgets",
-      "complete_governance_closure_not_staged",
+      "complete_governance_projection_not_staged",
       "candidates_unpublished_untagged",
       "signed_artifacts_missing",
       "final_release_lock_not_regenerated"
     ],
     "fixture_policy": "Contract fixtures exercise protocol failures only and never substitute for local product evidence.",
-    "release_hold": "NO-GO: the four refreshed heads and retained plan candidates have not been executed together across all four runtimes; historical local measurements remain evidence only for their recorded runtime commits."
+    "release_hold": "NO-GO: local Archive V2 evidence uses a deterministic synthetic workload and cannot substitute for a representative user corpus, sustained soak, frozen budgets, external matrices, signatures, publication, or the final release lock."
   }
 }

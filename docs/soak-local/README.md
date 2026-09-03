@@ -25,3 +25,8 @@ corpus, sustained-duration run, descendant-process accounting, frozen performanc
 budget, or Windows/macOS qualification. The prepared Studio `backend-dist/` must
 already exist and match the recorded runtime identity; missing artifacts fail
 closed.
+
+`soak-report.current-head.v1.json` records the 2026-09-03 probe against Studio
+`86d5e5033d62240815e532038b6e769b14b25c2b`: three readiness invocations and
+three content-integrity checks passed. It remains `release_eligible: false` for
+the holds above and is not evidence of a sustained or representative soak.

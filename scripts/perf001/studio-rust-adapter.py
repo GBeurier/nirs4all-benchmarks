@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 PROTOCOL = "nirs4all.performance-compare.adapter.v1"
-STUDIO_COMMIT = "e254a1ebba578e5b1932d09079088d02eb51d411"
-STUDIO_TREE = "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9"
+STUDIO_COMMIT = "86d5e5033d62240815e532038b6e769b14b25c2b"
+STUDIO_TREE = "dc61df097434c38a8d2bdd9939d3057683fc7661"
 
 
 def _sha256(path: Path) -> str:
@@ -47,7 +47,7 @@ def main() -> int:
 
     repository = Path(__file__).resolve().parents[2]
     workspace_root = repository.parents[1]
-    studio_root = workspace_root / "_worktrees" / "R3-studio-consolidated"
+    studio_root = workspace_root / "_worktrees" / "RC-v1-studio-r3-functional-0.11.0"
     backend = studio_root / "backend-dist"
     sidecar = backend / "native/studio-sidecar"
     methods = backend / "native/libn4m.so"
@@ -175,7 +175,7 @@ def main() -> int:
             "startup_ms": startup_ms,
             "steady_state_ms": steady,
             "evidence": {
-                "kind": "local_real",
+                "kind": "local_synthetic_current_head",
                 "entrypoint": "POST /api/predict/archive-v2",
                 "product_backend": "rust-sidecar",
                 "python_worker": False,

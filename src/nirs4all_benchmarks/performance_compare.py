@@ -220,7 +220,12 @@ def _validated_output(output: Any, request: Mapping[str, Any]) -> dict[str, Any]
     steady_values = [float(item) for item in steady]
     if any(not math.isfinite(item) or item < 0 for item in steady_values):
         raise ValueError("adapter steady-state timings must be finite and non-negative")
-    return {"predictions": predictions, "startup": startup, "steady": steady_values, "evidence": value.get("evidence", {})}
+    return {
+        "predictions": predictions,
+        "startup": startup,
+        "steady": steady_values,
+        "evidence": value.get("evidence", {}),
+    }
 
 
 def _run_adapter(
@@ -249,7 +254,10 @@ def _run_adapter(
         report.update(disposition="failed", reason="adapter output exceeded 2 MiB")
         return report
     if process.returncode != 0:
-        report.update(disposition="failed", reason=f"adapter exited {process.returncode}: {process.stderr.strip()[:500]}")
+        report.update(
+            disposition="failed",
+            reason=f"adapter exited {process.returncode}: {process.stderr.strip()[:500]}",
+        )
         return report
     try:
         output = _validated_output(json.loads(process.stdout), request)
@@ -269,7 +277,9 @@ def _run_adapter(
     return report
 
 
-def _compare(expected: list[list[float]], actual: list[list[float]], absolute: float, relative: float) -> dict[str, Any]:
+def _compare(
+    expected: list[list[float]], actual: list[list[float]], absolute: float, relative: float
+) -> dict[str, Any]:
     max_absolute = max_relative = 0.0
     outside = values = 0
     for expected_row, actual_row in zip(expected, actual, strict=True):
@@ -299,8 +309,9 @@ def run_comparison(
     """Execute available adapters and compare every result to the Python oracle."""
     if repeats < 1:
         raise ValueError("repeats must be >= 1")
-    if evidence_kind not in {"local_real", "contract_fixture"}:
-        raise ValueError("evidence_kind must be local_real or contract_fixture")
+    evidence_kinds = {"local_real", "local_synthetic_current_head", "contract_fixture"}
+    if evidence_kind not in evidence_kinds:
+        raise ValueError(f"evidence_kind must be one of {sorted(evidence_kinds)}")
     plan = load_plan(plan_path)
     archive_path = resolve_archive(plan, workspace_root=workspace_root, archive=archive)
     expected_sha = plan["workload"]["archive_v2"]["sha256"]
@@ -347,13 +358,18 @@ def run_comparison(
     else:
         for surface in SURFACES[1:]:
             if reports[surface]["disposition"] == "passed":
-                reports[surface].update(disposition="refused", reason="Python oracle did not produce a comparison baseline")
+                reports[surface].update(
+                    disposition="refused",
+                    reason="Python oracle did not produce a comparison baseline",
+                )
     dispositions = {item["disposition"] for item in reports.values()}
     overall = "failed" if "failed" in dispositions else "refused" if "refused" in dispositions else "passed"
     wsl = _is_wsl()
     release_holds = []
-    if evidence_kind != "local_real":
+    if evidence_kind == "contract_fixture":
         release_holds.append("non_product_fixture_evidence")
+    elif evidence_kind == "local_synthetic_current_head":
+        release_holds.extend(("representative_user_corpus_missing", "sustained_soak_not_run"))
     if overall != "passed":
         release_holds.append("comparison_not_passed")
     if wsl:
@@ -389,7 +405,12 @@ def run_comparison(
 def render_markdown(report: Mapping[str, Any]) -> str:
     """Render current evidence and retain read-only rendering of old reports."""
     if report.get("schema_version") != REPORT_SCHEMA and "suites" in report:
-        lines = ["Historical legacy/dag-ml report (read-only compatibility)", "", "| suite | engine | run (s) |", "|---|---|---:|"]
+        lines = [
+            "Historical legacy/dag-ml report (read-only compatibility)",
+            "",
+            "| suite | engine | run (s) |",
+            "|---|---|---:|",
+        ]
         for suite, value in report["suites"].items():
             for engine, summary in value.get("engines", {}).items():
                 run = "ERROR" if "error" in summary else f"{float(summary['run_s_median']):.4f}"
@@ -450,7 +471,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--adapter", action="append", default=[], metavar="SURFACE=/ABSOLUTE/EXECUTABLE")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=120.0)
-    parser.add_argument("--evidence-kind", choices=("local_real", "contract_fixture"), default="local_real")
+    parser.add_argument(
+        "--evidence-kind",
+        choices=("local_real", "local_synthetic_current_head", "contract_fixture"),
+        default="local_real",
+    )
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     parser.add_argument("--handoff-dir", type=Path)

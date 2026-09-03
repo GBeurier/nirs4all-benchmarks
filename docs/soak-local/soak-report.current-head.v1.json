@@ -1,0 +1,191 @@
+{
+  "evidence_kind": "bounded_local_process_probe",
+  "generated_at": "2026-09-03T17:54:23Z",
+  "measurement_scope": {
+    "direct_process_only": true,
+    "platform": "linux-procfs",
+    "sample_interval_ms": 10,
+    "wsl": true
+  },
+  "overall_status": "passed",
+  "plan_sha256": "1f50eda097118e4cba4d3d221face99df04e650143223c97e6fe781a64394e06",
+  "release_eligible": false,
+  "release_holds": [
+    "representative_user_corpus_missing",
+    "sustained_soak_not_run",
+    "performance_budgets_not_frozen",
+    "release_matrices_incomplete",
+    "direct_process_metrics_exclude_descendants"
+  ],
+  "runtime_identity": {
+    "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+    "component": "studio",
+    "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+    "runtime_contract_sha256": "e3a508511f8f5acb9a3a665d2e9dbf4b9e8b42cb3c0ce5662114cf72cabc6735",
+    "sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9",
+    "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661"
+  },
+  "scenarios": [
+    {
+      "completed_repetitions": 3,
+      "duration_ms": 308.733,
+      "id": "studio-sidecar-readiness",
+      "integrity_status": "passed",
+      "latency_ms": {
+        "readiness": {
+          "maximum": 20.908,
+          "median": 20.794,
+          "minimum": 20.658,
+          "values": [
+            20.908,
+            20.658,
+            20.794
+          ]
+        }
+      },
+      "peak_fd_count": 4,
+      "peak_rss_bytes": 10268672,
+      "repetitions": [
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "readiness",
+              "latency_ms": 20.908,
+              "peak_fd_count": 4,
+              "peak_rss_bytes": 10268672,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "runtime-sha256",
+              "latency_ms": 82.015,
+              "peak_fd_count": 5,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 1
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "readiness",
+              "latency_ms": 20.658,
+              "peak_fd_count": 4,
+              "peak_rss_bytes": 9699328,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "runtime-sha256",
+              "latency_ms": 81.666,
+              "peak_fd_count": 5,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 2
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "readiness",
+              "latency_ms": 20.794,
+              "peak_fd_count": 4,
+              "peak_rss_bytes": 10149888,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "runtime-sha256",
+              "latency_ms": 81.736,
+              "peak_fd_count": 5,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 3
+        }
+      ],
+      "requested_repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "schema_version": "nirs4all.soak-probe.report.v1",
+  "scope": "bounded WSL-local Studio sidecar readiness probe; no representative corpus, sustained soak, release budget, or cross-platform qualification"
+}

@@ -2,24 +2,25 @@
   "archive_v2": {
     "actual_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
     "expected_sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
-    "path": "/home/delete/nirs4all/_worktrees/WEB-final-wasm/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+    "path": "/home/delete/nirs4all/_worktrees/WEB-0.1.10-security/web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
   },
   "candidates": {
     "core": {
-      "commit_sha": "b6442dc4334c62a2b6c72526bea554a734134ac6",
-      "runtime_commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
-      "runtime_tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f",
-      "runtime_worktree": "_worktrees/CORE-formats-aggregate",
-      "selection_note": "The selected descendant contains the post-campaign archive test repair; PERF measurements remain attributed to the runtime commit and tree.",
-      "tree_sha": "6241d8497aa34ad4d015664662d4d17148d547fb",
-      "worktree": "_worktrees/CORE-formats-aggregate"
+      "commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "runtime_commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "runtime_tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "runtime_worktree": "_worktrees/CORE-0.3.27-canonical-snapshot",
+      "selection_note": "Published Core 0.3.28 head selected for direct Rust and Python-native local synthetic qualification.",
+      "tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "worktree": "_worktrees/CORE-0.3.27-canonical-snapshot"
     },
     "dag_ml": {
-      "commit_sha": "b7d643f450da3018c8208a84abcabfab09d5da7d",
+      "commit_sha": "b08c62638829e0bcab741e66d44a3db66459e5a8",
       "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
       "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
       "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6",
-      "tree_sha": "20876a6c04c550c2f662aa58583fb7305f42ee03",
+      "selection_note": "The selected documented release descendant was not remeasured; PERF measurements remain attributed to the DAG runtime commit and tree.",
+      "tree_sha": "5b5be85d2326fcb360e05ac65572faa18c3a322d",
       "worktree": "_worktrees/DAG001-persistence-final"
     },
     "formats": {
@@ -33,38 +34,43 @@
       "worktree": "_worktrees/IO-formats-docs-consolidated"
     },
     "methods": {
-      "commit_sha": "699d33f4f113b8068176e367e130951b1cf186c0",
+      "commit_sha": "e0bee1ce160cd805d3060185fd151c09230c3381",
       "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
       "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
       "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5",
-      "tree_sha": "f97d7debe8a8a1f88614a060d30bea3e3a7c0e8b",
-      "worktree": "_worktrees/MTH-abi24-inspect"
+      "selection_note": "The selected release-guard descendant was not remeasured; PERF measurements remain attributed to the Methods runtime commit and tree.",
+      "tree_sha": "7e4658658e37f77be18ef6d3d6aff150886efb5b",
+      "worktree": "_worktrees/MTH-n4m-publish"
     },
     "python": {
-      "commit_sha": "40421617c7f39cae6d11c4c3aecb51e9d0a582f4",
-      "runtime_commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
-      "runtime_tree_sha": "f142b410194e3c99190fb97685724140a5599159",
-      "runtime_worktree": "_worktrees/PERF001-python-e227",
-      "selection_note": "The measured public oracle used explicit engine='native' at the runtime commit and exact Core/Methods closure; no legacy runner or fallback was allowed. The selected descendant was not remeasured.",
-      "tree_sha": "884b62893a298f7fe44e20fc20b5e6c989913674",
-      "worktree": "/tmp/nirs4all-api004005-completion"
+      "commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "runtime_commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "runtime_tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
+      "runtime_worktree": "_worktrees/PY-r3-native-100rc2",
+      "selection_note": "Python R3 current head selected through explicit engine='native' with the published Core 0.3.28 and exact Methods closure; legacy and fallback remain forbidden.",
+      "tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
+      "worktree": "_worktrees/PY-r3-native-100rc2"
     },
     "studio": {
-      "commit_sha": "bb76f2c8833f430d26311422c9d7018592fcf6cb",
-      "runtime_commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
-      "runtime_tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9",
-      "runtime_worktree": "_worktrees/R3-studio-consolidated",
-      "selection_note": "The selected descendant was not remeasured; PERF measurements remain attributed to the Rust-sidecar runtime commit and tree.",
-      "tree_sha": "e0560c07d34e9c5e928f44076cffdba100f17ee5",
-      "worktree": "_worktrees/R3-studio-consolidated"
+      "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "runtime_commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "runtime_tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+      "runtime_worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
+      "selection_note": "Studio R3 current head selected through the packaged Rust-sidecar route; the Python worker is excluded.",
+      "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+      "worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0"
     },
     "web": {
-      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
-      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42",
-      "worktree": "_worktrees/WEB-final-wasm"
+      "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "runtime_commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "runtime_tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "runtime_worktree": "_worktrees/WEB-0.1.10-security",
+      "selection_note": "Published Web 0.1.10 head selected through its shipped Core/Methods WASM closure.",
+      "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "worktree": "_worktrees/WEB-0.1.10-security"
     }
   },
-  "evidence_kind": "local_real",
+  "evidence_kind": "local_synthetic_current_head",
   "historical_compatibility": {
     "historical_report_rendering": "supported",
     "legacy_vs_dag_ml_execution": "excluded_from_v1",
@@ -127,6 +133,8 @@
   },
   "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
   "release_eligibility_holds": [
+    "representative_user_corpus_missing",
+    "sustained_soak_not_run",
     "wsl_measurement_host",
     "performance_budgets_not_frozen",
     "release_matrices_incomplete"
@@ -137,17 +145,17 @@
   "surfaces": {
     "python_oracle": {
       "adapter_evidence": {
-        "core_commit": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+        "core_commit": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
         "engine": "core-native",
         "entrypoint": "nirs4all.predict(engine='native')",
-        "kind": "local_real",
+        "kind": "local_synthetic_current_head",
         "methods_commit": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
         "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e"
       },
-      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/python-oracle-adapter.py",
-      "adapter_sha256": "804579c84153423617c8c1641083c58e847e9e4179733991d554cbe31fda2aca",
+      "adapter_path": "/home/delete/nirs4all/_worktrees/BENCH-017-bump/scripts/perf001/python-oracle-adapter.py",
+      "adapter_sha256": "05ae892769b0d45e3a8d4821b5b73c73ebb06c6ac6c4b5e0beb6163211a61b6d",
       "candidate": "python",
-      "commit_sha": "e227244464983ea2a94ebc01b6af30d474a025df",
+      "commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
       "disposition": "passed",
       "executed": true,
       "fallback_used": false,
@@ -174,30 +182,30 @@
       "reason": null,
       "surface": "python_oracle",
       "timings_ms": {
-        "process_wall": 1380.9818330046255,
-        "startup": 1067.572644999018,
+        "process_wall": 1458.9281509979628,
+        "startup": 1088.9087559917243,
         "steady_state": [
-          28.558446996612474,
-          28.026027997839265,
-          27.56384899839759
+          31.907170996419154,
+          30.965127996751107,
+          31.118335988139734
         ],
-        "steady_state_median": 28.026027997839265
+        "steady_state_median": 31.118335988139734
       },
-      "tree_sha": "f142b410194e3c99190fb97685724140a5599159"
+      "tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa"
     },
     "rust_direct": {
       "adapter_evidence": {
-        "core_commit": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+        "core_commit": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
         "entrypoint": "nirs4all::predict_methods_archive_v2_matrix",
-        "kind": "local_real",
+        "kind": "local_synthetic_current_head",
         "methods_commit": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
         "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
         "python": false
       },
-      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/.perf001/rust-target/release/perf001-rust-direct-adapter",
-      "adapter_sha256": "8d6d20da7dd16ede899bf21c5fe958e024832643fcb2fdce3c2502dd6a8051c7",
+      "adapter_path": "/home/delete/nirs4all/_worktrees/BENCH-017-bump/scripts/perf001/rust-direct/target/release/perf001-rust-direct-adapter",
+      "adapter_sha256": "c9013e4a852eb8a84d50b077a3e2ed2d81cb1d93eb2d26dadc0f825048475590",
       "candidate": "core",
-      "commit_sha": "e0f5d485eae4279f02d58fe82fad3946202e463f",
+      "commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
       "disposition": "passed",
       "executed": true,
       "fallback_used": false,
@@ -224,31 +232,31 @@
       "reason": null,
       "surface": "rust_direct",
       "timings_ms": {
-        "process_wall": 95.21104200393893,
-        "startup": 38.14832,
+        "process_wall": 104.8868490033783,
+        "startup": 41.275156,
         "steady_state": [
-          18.206311,
-          18.244041999999997,
-          19.342917
+          20.197076000000003,
+          20.154544,
+          21.232702999999997
         ],
-        "steady_state_median": 18.244041999999997
+        "steady_state_median": 20.197076000000003
       },
-      "tree_sha": "3fd59b96fc5728088c6d1d207e783d826f87401f"
+      "tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e"
     },
     "studio_rust": {
       "adapter_evidence": {
         "entrypoint": "POST /api/predict/archive-v2",
-        "executor": "nirs4all-core@0.3.25+libn4m-abi-2.5:8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
-        "kind": "local_real",
+        "executor": "nirs4all-core@0.3.28+libn4m-abi-2.5:8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+        "kind": "local_synthetic_current_head",
         "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
         "product_backend": "rust-sidecar",
         "python_worker": false,
-        "sidecar_sha256": "0fa9f3bdbf1aae3ffa047eca743a5994157afc256d75da77e94d35c8f8770b2e"
+        "sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9"
       },
-      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/studio-rust-adapter.py",
-      "adapter_sha256": "0b97e4598dc7fa74879cd700180cbe63b0b06a0b81162e882f9e37dd8a89265d",
+      "adapter_path": "/home/delete/nirs4all/_worktrees/BENCH-017-bump/scripts/perf001/studio-rust-adapter.py",
+      "adapter_sha256": "e508b03038aab9ee18b938aee1370c7b333665d72f1b415c995201844c30bc1a",
       "candidate": "studio",
-      "commit_sha": "e254a1ebba578e5b1932d09079088d02eb51d411",
+      "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
       "disposition": "passed",
       "executed": true,
       "fallback_used": false,
@@ -275,29 +283,29 @@
       "reason": null,
       "surface": "studio_rust",
       "timings_ms": {
-        "process_wall": 187.0001679926645,
-        "startup": 75.62058699841145,
+        "process_wall": 200.28399900184013,
+        "startup": 79.25377100764308,
         "steady_state": [
-          24.77059600641951,
-          24.02495700516738,
-          25.277638997067697
+          26.22600599715952,
+          25.683702988317236,
+          25.410343005205505
         ],
-        "steady_state_median": 24.77059600641951
+        "steady_state_median": 25.683702988317236
       },
-      "tree_sha": "d97d2faf4e9643c2bf71cd9fb242f4a1d0db35d9"
+      "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661"
     },
     "web_wasm": {
       "adapter_evidence": {
         "core_wasm": true,
         "engine": "nirs4all-methods-wasm",
         "entrypoint": "replayMethodsArchiveV2",
-        "kind": "local_real",
+        "kind": "local_synthetic_current_head",
         "methods_wasm": true
       },
-      "adapter_path": "/home/delete/nirs4all/_worktrees/PERF001-benchmarks-v1/scripts/perf001/web-wasm-adapter.mjs",
-      "adapter_sha256": "c1c5d64c5fbb4ad4f042afe7da35bd8af1bdea02aee6d970b894956542069a54",
+      "adapter_path": "/home/delete/nirs4all/_worktrees/BENCH-017-bump/scripts/perf001/web-wasm-adapter.mjs",
+      "adapter_sha256": "ea81f0fc23f7c91abb117f60549eaf06252c6a4252a09963a7264b2bec5a5db0",
       "candidate": "web",
-      "commit_sha": "59cfffbd7444a9afa9527fbaa12d078811abaf33",
+      "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
       "disposition": "passed",
       "executed": true,
       "fallback_used": false,
@@ -324,16 +332,16 @@
       "reason": null,
       "surface": "web_wasm",
       "timings_ms": {
-        "process_wall": 161.30426499876194,
-        "startup": 97.809961,
+        "process_wall": 165.76971299946308,
+        "startup": 102.428191,
         "steady_state": [
-          5.238123000000002,
-          4.712762999999995,
-          4.28399499999999
+          4.765890999999996,
+          4.477346000000011,
+          4.219815000000011
         ],
-        "steady_state_median": 4.712762999999995
+        "steady_state_median": 4.477346000000011
       },
-      "tree_sha": "42926535b2f333cdec77951bcbdcef2fc2268f42"
+      "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff"
     }
   }
 }

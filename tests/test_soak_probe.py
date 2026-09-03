@@ -110,6 +110,27 @@ def test_tracked_plan_is_bounded_and_keeps_release_holds() -> None:
     assert "release_matrices_incomplete" in plan["release_holds"]
 
 
+def test_checked_in_current_head_probe_passes_without_closing_soak_gate() -> None:
+    report = json.loads(
+        (REPO_ROOT / "docs" / "soak-local" / "soak-report.current-head.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert report["overall_status"] == "passed"
+    assert report["release_eligible"] is False
+    assert report["scenarios"][0]["completed_repetitions"] == 3
+    assert report["scenarios"][0]["integrity_status"] == "passed"
+    assert report["runtime_identity"]["commit_sha"] == (
+        "86d5e5033d62240815e532038b6e769b14b25c2b"
+    )
+    assert report["runtime_identity"]["tree_sha"] == (
+        "dc61df097434c38a8d2bdd9939d3057683fc7661"
+    )
+    assert "representative_user_corpus_missing" in report["release_holds"]
+    assert "sustained_soak_not_run" in report["release_holds"]
+
+
 def test_report_writer_is_sorted_and_stable(tmp_path: Path) -> None:
     path = tmp_path / "report.json"
     soak_probe.write_report(path, {"z": 1, "a": {"d": 2, "b": 1}})

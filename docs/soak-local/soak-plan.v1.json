@@ -3,6 +3,14 @@
   "scope": "bounded WSL-local Studio sidecar readiness probe; no representative corpus, sustained soak, release budget, or cross-platform qualification",
   "sample_interval_ms": 10,
   "max_output_bytes": 1048576,
+  "runtime_identity": {
+    "component": "studio",
+    "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+    "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+    "sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9",
+    "methods_library_sha256": "8693e54012837eb364108e036eb2fd14e32a5e7f91ed3ab67442d173b269de8e",
+    "runtime_contract_sha256": "e3a508511f8f5acb9a3a665d2e9dbf4b9e8b42cb3c0ce5662114cf72cabc6735"
+  },
   "release_holds": [
     "representative_user_corpus_missing",
     "sustained_soak_not_run",
@@ -19,10 +27,10 @@
           "id": "readiness",
           "role": "workload",
           "argv": [
-            "{workspace_root}/_worktrees/R3-studio-consolidated/backend-dist/native/studio-sidecar",
+            "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
             "--smoke-readiness"
           ],
-          "cwd": "{workspace_root}/_worktrees/R3-studio-consolidated",
+          "cwd": "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0",
           "expected_exit_code": 0,
           "timeout_seconds": 15
         },
@@ -35,7 +43,7 @@
             "--check",
             "{plan_dir}/studio-runtime.sha256"
           ],
-          "cwd": "{workspace_root}/_worktrees/R3-studio-consolidated",
+          "cwd": "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0",
           "expected_exit_code": 0,
           "timeout_seconds": 15
         }

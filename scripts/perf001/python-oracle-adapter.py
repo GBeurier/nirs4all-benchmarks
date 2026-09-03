@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 
 PROTOCOL = "nirs4all.performance-compare.adapter.v1"
-PYTHON_COMMIT = "e227244464983ea2a94ebc01b6af30d474a025df"
-PYTHON_TREE = "f142b410194e3c99190fb97685724140a5599159"
-CORE_COMMIT = "e0f5d485eae4279f02d58fe82fad3946202e463f"
-CORE_TREE = "3fd59b96fc5728088c6d1d207e783d826f87401f"
+PYTHON_COMMIT = "53a0acb964bff86dc67002763d8e9b850336731f"
+PYTHON_TREE = "2404b76783e9fc6e10723e671d274975e14756aa"
+CORE_COMMIT = "550cb8c80708e88ac7ebbc880acb4b82d8531632"
+CORE_TREE = "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e"
 METHODS_COMMIT = "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b"
 METHODS_TREE = "f2eaa3c46629c26d11913a25bff723f9a9cefbc9"
 
@@ -49,8 +49,8 @@ def main() -> int:
 
     repository = Path(__file__).resolve().parents[2]
     workspace = repository.parents[1]
-    python_root = workspace / "_worktrees" / "PERF001-python-e227"
-    core_root = workspace / "_worktrees" / "CORE-formats-aggregate"
+    python_root = workspace / "_worktrees" / "PY-r3-native-100rc2"
+    core_root = workspace / "_worktrees" / "CORE-0.3.27-canonical-snapshot"
     methods_root = workspace / "_worktrees" / "CORE001-methods-48ad1e5"
     python_site = repository / ".perf001" / "python-site"
     methods_library = methods_root / "build/dev-release/cpp/src/libn4m.so.2.5.0"
@@ -61,7 +61,7 @@ def main() -> int:
         raise RuntimeError("prepared Core wheel or Methods ABI 2.5 closure is missing")
     sys.path[:0] = [str(python_root), str(python_site)]
 
-    import nirs4all  # noqa: PLC0415
+    import nirs4all
 
     matrix = request["matrix"]
 
@@ -105,7 +105,7 @@ def main() -> int:
             "startup_ms": startup_ms,
             "steady_state_ms": steady,
             "evidence": {
-                "kind": "local_real",
+                "kind": "local_synthetic_current_head",
                 "entrypoint": "nirs4all.predict(engine='native')",
                 "core_commit": CORE_COMMIT,
                 "methods_commit": METHODS_COMMIT,

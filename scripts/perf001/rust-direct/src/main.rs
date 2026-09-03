@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 const PROTOCOL: &str = "nirs4all.performance-compare.adapter.v1";
-const CORE_COMMIT: &str = "e0f5d485eae4279f02d58fe82fad3946202e463f";
+const CORE_COMMIT: &str = "550cb8c80708e88ac7ebbc880acb4b82d8531632";
 const METHODS_COMMIT: &str = "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b";
 const METHODS_LIBRARY: &str = env!("PERF001_METHODS_LIBRARY");
 
@@ -112,7 +112,7 @@ fn run() -> Result<Value, String> {
         "startup_ms": startup_ms,
         "steady_state_ms": steady_state_ms,
         "evidence": {
-            "kind": "local_real",
+            "kind": "local_synthetic_current_head",
             "entrypoint": "nirs4all::predict_methods_archive_v2_matrix",
             "core_commit": CORE_COMMIT,
             "methods_commit": METHODS_COMMIT,
