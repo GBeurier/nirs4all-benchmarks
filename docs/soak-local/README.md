@@ -64,9 +64,10 @@ wheel during direct native and store checks. Each example receives a distinct
 `NIRS4ALL_WORKSPACE` under `_receipts/soak-r3-functional/pass-N/`.
 
 Studio is pinned to candidate commit
-`89b5278a47ae4d38d6b508fabdd6e712f96942c0`; the runtime checksum remains tied
-to its byte-identical packaged sidecar. After the Python and Studio matrices are
-green and RC2 is published, run exactly:
+`89b5278a47ae4d38d6b508fabdd6e712f96942c0`. Its packaged runtime checksum must
+still be refreshed from the final matrix artifact because the sidecar embeds the
+new Python source identity. After that matrix is green and RC2 is published, run
+exactly:
 
 ```bash
 n4a-benchmarks soak-run \
