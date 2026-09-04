@@ -1,7 +1,7 @@
 """Bounded local process probe for SOAK-001 and PERF-002 evidence.
 
-The runner deliberately measures only the direct process on Linux ``/proc``.
-It is a reusable local diagnostic, not a release soak or a cross-platform gate.
+The runner measures the complete command process group on Linux ``/proc``.  It
+is a reusable local diagnostic, not a release decision or a cross-platform gate.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -74,6 +75,13 @@ def _validate_command(value: Any, label: str) -> dict[str, Any]:
     timeout = command.get("timeout_seconds")
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 86_400:
         raise ValueError(f"{label}.timeout_seconds must be in (0, 86400]")
+    declared_environment = command.get("env", {})
+    if not isinstance(declared_environment, Mapping) or not all(
+        isinstance(name, str) and name and isinstance(item, str)
+        for name, item in declared_environment.items()
+    ):
+        raise ValueError(f"{label}.env must be a string-to-string object")
+    command["env"] = dict(declared_environment)
     return command
 
 
@@ -133,8 +141,12 @@ def load_plan(path: str | Path) -> dict[str, Any]:
     return root
 
 
-def _expand(value: str, *, workspace_root: Path, plan_dir: Path) -> str:
-    expanded = value.replace("{workspace_root}", str(workspace_root)).replace("{plan_dir}", str(plan_dir))
+def _expand(value: str, *, workspace_root: Path, plan_dir: Path, repetition: int) -> str:
+    expanded = (
+        value.replace("{workspace_root}", str(workspace_root))
+        .replace("{plan_dir}", str(plan_dir))
+        .replace("{repetition}", str(repetition))
+    )
     if "{" in expanded or "}" in expanded:
         raise ValueError(f"unsupported placeholder in {value!r}")
     return expanded
@@ -151,6 +163,46 @@ def _sample_process(pid: int) -> tuple[int, int] | None:
         return None
 
 
+def _process_group_id(pid: int) -> int | None:
+    """Read one process group id without depending on an optional package."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        closing_parenthesis = stat.rfind(")")
+        if closing_parenthesis < 0:
+            return None
+        fields_after_name = stat[closing_parenthesis + 2 :].split()
+        return int(fields_after_name[2])
+    except (FileNotFoundError, PermissionError, IndexError, ValueError):
+        return None
+
+
+def _sample_process_group(process_group_id: int) -> tuple[int, int, int] | None:
+    """Aggregate RSS, descriptors and member count for a process group."""
+    rss_bytes = fd_count = process_count = 0
+    try:
+        entries = list(Path("/proc").iterdir())
+    except (FileNotFoundError, PermissionError):
+        return None
+    for entry in entries:
+        if not entry.name.isdigit() or _process_group_id(int(entry.name)) != process_group_id:
+            continue
+        sample = _sample_process(int(entry.name))
+        if sample is None:
+            continue
+        rss, fds = sample
+        rss_bytes += rss
+        fd_count += fds
+        process_count += 1
+    if process_count == 0:
+        return None
+    return rss_bytes, fd_count, process_count
+
+
+def _kill_process_group(process_group_id: int) -> None:
+    with suppress(ProcessLookupError):
+        os.killpg(process_group_id, signal.SIGKILL)
+
+
 def _read_output(handle: Any, maximum: int) -> tuple[int, str]:
     handle.seek(0)
     content = handle.read(maximum + 1)
@@ -158,11 +210,27 @@ def _read_output(handle: Any, maximum: int) -> tuple[int, str]:
 
 
 def _run_command(
-    command: Mapping[str, Any], *, workspace_root: Path, plan_dir: Path, sample_interval_ms: int, max_output_bytes: int
+    command: Mapping[str, Any],
+    *,
+    workspace_root: Path,
+    plan_dir: Path,
+    repetition: int,
+    sample_interval_ms: int,
+    max_output_bytes: int,
 ) -> dict[str, Any]:
     declared_argv = list(command["argv"])
-    argv = [_expand(item, workspace_root=workspace_root, plan_dir=plan_dir) for item in declared_argv]
-    cwd = Path(_expand(str(command["cwd"]), workspace_root=workspace_root, plan_dir=plan_dir))
+    argv = [
+        _expand(item, workspace_root=workspace_root, plan_dir=plan_dir, repetition=repetition)
+        for item in declared_argv
+    ]
+    cwd = Path(
+        _expand(
+            str(command["cwd"]),
+            workspace_root=workspace_root,
+            plan_dir=plan_dir,
+            repetition=repetition,
+        )
+    )
     base = {
         "id": command["id"],
         "role": command["role"],
@@ -173,6 +241,8 @@ def _run_command(
         "latency_ms": 0.0,
         "peak_rss_bytes": None,
         "peak_fd_count": None,
+        "peak_process_count": None,
+        "lingering_process_count": 0,
         "stdout_bytes": 0,
         "stdout_sha256": None,
         "stderr_bytes": 0,
@@ -189,8 +259,14 @@ def _run_command(
 
     inherited_names = ("HOME", "LANG", "LC_ALL", "LC_CTYPE", "TMPDIR", "TZ")
     environment = {name: os.environ[name] for name in inherited_names if name in os.environ}
+    environment.update(
+        {
+            name: _expand(value, workspace_root=workspace_root, plan_dir=plan_dir, repetition=repetition)
+            for name, value in command["env"].items()
+        }
+    )
     started = time.perf_counter_ns()
-    peak_rss = peak_fds = None
+    peak_rss = peak_fds = peak_processes = None
     timed_out = output_exceeded = False
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         try:
@@ -208,23 +284,28 @@ def _run_command(
             return base
         deadline = started + int(float(command["timeout_seconds"]) * 1_000_000_000)
         while process.poll() is None:
-            sample = _sample_process(process.pid)
+            sample = _sample_process_group(process.pid)
             if sample is not None:
-                rss, fds = sample
+                rss, fds, processes = sample
                 peak_rss = rss if peak_rss is None else max(peak_rss, rss)
                 peak_fds = fds if peak_fds is None else max(peak_fds, fds)
+                peak_processes = processes if peak_processes is None else max(peak_processes, processes)
             stdout_size = os.fstat(stdout.fileno()).st_size
             stderr_size = os.fstat(stderr.fileno()).st_size
             if stdout_size > max_output_bytes or stderr_size > max_output_bytes:
                 output_exceeded = True
-                os.killpg(process.pid, signal.SIGKILL)
+                _kill_process_group(process.pid)
                 break
             if time.perf_counter_ns() >= deadline:
                 timed_out = True
-                os.killpg(process.pid, signal.SIGKILL)
+                _kill_process_group(process.pid)
                 break
             time.sleep(sample_interval_ms / 1_000)
         process.wait()
+        lingering = _sample_process_group(process.pid)
+        lingering_processes = lingering[2] if lingering is not None else 0
+        if lingering_processes:
+            _kill_process_group(process.pid)
         latency_ms = (time.perf_counter_ns() - started) / 1_000_000
         stdout_bytes, stdout_sha = _read_output(stdout, max_output_bytes)
         stderr_bytes, stderr_sha = _read_output(stderr, max_output_bytes)
@@ -235,6 +316,8 @@ def _run_command(
         latency_ms=round(latency_ms, 3),
         peak_rss_bytes=peak_rss,
         peak_fd_count=peak_fds,
+        peak_process_count=peak_processes,
+        lingering_process_count=lingering_processes,
         stdout_bytes=stdout_bytes,
         stdout_sha256=stdout_sha,
         stderr_bytes=stderr_bytes,
@@ -244,10 +327,14 @@ def _run_command(
         base["failure"] = "command timed out"
     elif output_exceeded or stdout_bytes > max_output_bytes or stderr_bytes > max_output_bytes:
         base["failure"] = "command output exceeded the declared bound"
+    elif lingering_processes:
+        base["failure"] = f"command left {lingering_processes} process-group member(s) running"
     elif process.returncode != command["expected_exit_code"]:
         base["failure"] = f"expected exit {command['expected_exit_code']}, observed {process.returncode}"
-    elif command["role"] == "workload" and (peak_rss is None or peak_fds is None):
-        base["failure"] = "direct-process RSS/FD measurement was unavailable"
+    elif command["role"] == "workload" and (
+        peak_rss is None or peak_fds is None or peak_processes is None
+    ):
+        base["failure"] = "process-group RSS/FD measurement was unavailable"
     else:
         base["status"] = "passed"
     return base
@@ -285,7 +372,8 @@ def run_plan(
         "plan_sha256": _sha256(_canonical_json(plan)),
         "measurement_scope": {
             "platform": "linux-procfs",
-            "direct_process_only": True,
+            "process_group": True,
+            "direct_process_only": False,
             "wsl": "microsoft" in os.uname().release.lower() or "WSL_INTEROP" in os.environ,
             "sample_interval_ms": plan["sample_interval_ms"],
         },
@@ -307,6 +395,7 @@ def run_plan(
                     command,
                     workspace_root=workspace,
                     plan_dir=plan_file.parent,
+                    repetition=repetition_index,
                     sample_interval_ms=plan["sample_interval_ms"],
                     max_output_bytes=plan["max_output_bytes"],
                 )
@@ -322,10 +411,25 @@ def run_plan(
             if plan_failed:
                 break
         latencies: dict[str, list[float]] = {}
+        rss_by_command: dict[str, list[float]] = {}
+        fds_by_command: dict[str, list[float]] = {}
+        processes_by_command: dict[str, list[float]] = {}
         for result in workload_results:
-            latencies.setdefault(result["id"], []).append(result["latency_ms"])
+            command_id = result["id"]
+            latencies.setdefault(command_id, []).append(result["latency_ms"])
+            if result["peak_rss_bytes"] is not None:
+                rss_by_command.setdefault(command_id, []).append(result["peak_rss_bytes"])
+            if result["peak_fd_count"] is not None:
+                fds_by_command.setdefault(command_id, []).append(result["peak_fd_count"])
+            if result["peak_process_count"] is not None:
+                processes_by_command.setdefault(command_id, []).append(result["peak_process_count"])
         measured_rss = [result["peak_rss_bytes"] for result in workload_results if result["peak_rss_bytes"] is not None]
         measured_fds = [result["peak_fd_count"] for result in workload_results if result["peak_fd_count"] is not None]
+        measured_processes = [
+            result["peak_process_count"]
+            for result in workload_results
+            if result["peak_process_count"] is not None
+        ]
         scenario_report = {
             "id": scenario["id"],
             "status": "failed" if plan_failed else "passed",
@@ -334,8 +438,20 @@ def run_plan(
             "completed_repetitions": len(repetitions),
             "duration_ms": round((time.perf_counter_ns() - scenario_started) / 1_000_000, 3),
             "latency_ms": {command_id: _summary(values) for command_id, values in latencies.items()},
+            "resources_by_command": {
+                command_id: {
+                    "peak_rss_bytes": _summary(rss_by_command[command_id]),
+                    "peak_fd_count": _summary(fds_by_command[command_id]),
+                    "peak_process_count": _summary(processes_by_command[command_id]),
+                }
+                for command_id in latencies
+                if command_id in rss_by_command
+                and command_id in fds_by_command
+                and command_id in processes_by_command
+            },
             "peak_rss_bytes": max(measured_rss) if measured_rss else None,
             "peak_fd_count": max(measured_fds) if measured_fds else None,
+            "peak_process_count": max(measured_processes) if measured_processes else None,
             "repetitions": repetitions,
         }
         report["scenarios"].append(scenario_report)

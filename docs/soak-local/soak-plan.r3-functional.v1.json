@@ -1,0 +1,192 @@
+{
+  "schema_version": "nirs4all.soak-probe.plan.v1",
+  "scope": "candidate-only sustained functional/non-crash soak over canonical public user examples, native lifecycle workspaces, store integrity checks, and the Studio Rust sidecar; no release-eligibility claim",
+  "sample_interval_ms": 25,
+  "max_output_bytes": 4194304,
+  "runtime_identity": {
+    "python_commit_sha": "2af6cfd7f988fa400617c460a77450dbad4228c9",
+    "python_tree_sha": "5b0634005e8c574bdc8f1b7b4f6e452405af5ead",
+    "python_distribution": "nirs4all==1.0.0rc2",
+    "studio_candidate_commit_sha": "55f1ee774818098989d9f3f6bb7f30c63954541c",
+    "studio_candidate_tree_sha": "7d7cd3d83e87dda157fc865b4f07ba73e277af2c",
+    "studio_sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9"
+  },
+  "release_holds": [
+    "studio_final_identity_pending",
+    "published_artifacts_pending",
+    "release_matrices_incomplete",
+    "performance_budgets_not_frozen",
+    "cross_platform_process_metrics_not_collected"
+  ],
+  "scenarios": [
+    {
+      "id": "python-public-and-native-workspaces",
+      "repetitions": 3,
+      "commands": [
+        {
+          "id": "user-hello-world",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U01_hello_world.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300,
+          "env": {
+            "MPLBACKEND": "Agg",
+            "NIRS4ALL_EXAMPLE_FAST": "1",
+            "NIRS4ALL_WORKSPACE": "{workspace_root}/_receipts/soak-r3-functional/pass-{repetition}/user-hello-world"
+          }
+        },
+        {
+          "id": "user-basic-regression",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U02_basic_regression.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300,
+          "env": {
+            "MPLBACKEND": "Agg",
+            "NIRS4ALL_EXAMPLE_FAST": "1",
+            "NIRS4ALL_WORKSPACE": "{workspace_root}/_receipts/soak-r3-functional/pass-{repetition}/user-basic-regression"
+          }
+        },
+        {
+          "id": "user-basic-classification",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U03_basic_classification.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300,
+          "env": {
+            "MPLBACKEND": "Agg",
+            "NIRS4ALL_EXAMPLE_FAST": "1",
+            "NIRS4ALL_WORKSPACE": "{workspace_root}/_receipts/soak-r3-functional/pass-{repetition}/user-basic-classification"
+          }
+        },
+        {
+          "id": "user-preprocessing-basics",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+            "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/03_preprocessing/U01_preprocessing_basics.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300,
+          "env": {
+            "MPLBACKEND": "Agg",
+            "NIRS4ALL_EXAMPLE_FAST": "1",
+            "NIRS4ALL_WORKSPACE": "{workspace_root}/_receipts/soak-r3-functional/pass-{repetition}/user-preprocessing-basics"
+          }
+        },
+        {
+          "id": "native-lifecycle-workspaces",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "-P",
+            "-m",
+            "pytest",
+            "--import-mode=importlib",
+            "-q",
+            "tests/integration/examples/test_native_tuning_conformal_example.py",
+            "tests/integration/api/test_dagml_native_retrain_roundtrip.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300
+        },
+        {
+          "id": "python-candidate-tree",
+          "role": "integrity",
+          "argv": [
+            "/usr/bin/git",
+            "diff",
+            "--exit-code",
+            "2af6cfd7f988fa400617c460a77450dbad4228c9",
+            "--",
+            "."
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2",
+          "expected_exit_code": 0,
+          "timeout_seconds": 30
+        },
+        {
+          "id": "workspace-store-integrity",
+          "role": "integrity",
+          "argv": [
+            "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+            "-P",
+            "-m",
+            "pytest",
+            "--import-mode=importlib",
+            "-q",
+            "tests/unit/pipeline/storage/test_sqlite_concurrency.py",
+            "tests/unit/pipeline/storage/test_flush_transactionality.py",
+            "tests/unit/pipeline/storage/test_validated_compaction.py"
+          ],
+          "cwd": "{workspace_root}/_worktrees/PY-r3-native-100rc2",
+          "expected_exit_code": 0,
+          "timeout_seconds": 300
+        }
+      ]
+    },
+    {
+      "id": "studio-rust-runtime",
+      "repetitions": 30,
+      "commands": [
+        {
+          "id": "studio-readiness",
+          "role": "workload",
+          "argv": [
+            "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+            "--smoke-readiness"
+          ],
+          "cwd": "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0",
+          "expected_exit_code": 0,
+          "timeout_seconds": 30
+        },
+        {
+          "id": "studio-candidate-tree",
+          "role": "integrity",
+          "argv": [
+            "/usr/bin/git",
+            "diff",
+            "--exit-code",
+            "55f1ee774818098989d9f3f6bb7f30c63954541c",
+            "--",
+            "."
+          ],
+          "cwd": "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0",
+          "expected_exit_code": 0,
+          "timeout_seconds": 30
+        },
+        {
+          "id": "studio-runtime-sha256",
+          "role": "integrity",
+          "argv": [
+            "/usr/bin/sha256sum",
+            "--strict",
+            "--check",
+            "{plan_dir}/studio-runtime.sha256"
+          ],
+          "cwd": "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0",
+          "expected_exit_code": 0,
+          "timeout_seconds": 30
+        }
+      ]
+    }
+  ]
+}

@@ -13,12 +13,18 @@ from nirs4all_benchmarks import soak_probe
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _plan(tmp_path: Path, *, integrity_exit: int = 0, add_late_command: bool = False) -> Path:
+def _plan(
+    tmp_path: Path,
+    *,
+    integrity_exit: int = 0,
+    add_late_command: bool = False,
+    workload_code: str = "import time; time.sleep(0.05); print('ok')",
+) -> Path:
     commands = [
         {
             "id": "workload",
             "role": "workload",
-            "argv": [sys.executable, "-c", "import time; time.sleep(0.05); print('ok')"],
+            "argv": [sys.executable, "-c", workload_code],
             "cwd": "{workspace_root}",
             "expected_exit_code": 0,
             "timeout_seconds": 2,
@@ -71,9 +77,50 @@ def test_probe_records_bounded_metrics_and_integrity(tmp_path: Path) -> None:
     assert len(scenario["latency_ms"]["workload"]["values"]) == 2
     assert scenario["peak_rss_bytes"] > 0
     assert scenario["peak_fd_count"] > 0
+    assert scenario["peak_process_count"] == 1
+    assert scenario["resources_by_command"]["workload"]["peak_fd_count"]["values"]
+    assert report["measurement_scope"]["process_group"] is True
+    assert report["measurement_scope"]["direct_process_only"] is False
     result = scenario["repetitions"][0]["commands"][0]
     assert result["stdout_sha256"] == soak_probe._sha256(b"ok\n")
     assert result["failure"] is None
+
+
+def test_probe_measures_workload_descendants_in_the_process_group(tmp_path: Path) -> None:
+    child_code = "import time; time.sleep(0.15)"
+    workload_code = (
+        "import subprocess, sys, time; "
+        f"child = subprocess.Popen([sys.executable, '-c', {child_code!r}]); "
+        "time.sleep(0.10); child.wait()"
+    )
+
+    report = soak_probe.run_plan(
+        _plan(tmp_path, workload_code=workload_code),
+        workspace_root=tmp_path,
+        generated_at="2000-01-01T00:00:00Z",
+    )
+
+    result = report["scenarios"][0]["repetitions"][0]["commands"][0]
+    assert result["status"] == "passed"
+    assert result["peak_process_count"] >= 2
+    assert result["lingering_process_count"] == 0
+
+
+def test_probe_expands_repetition_in_declared_environment(tmp_path: Path) -> None:
+    path = _plan(tmp_path, workload_code="import os; print(os.environ['SOAK_PASS'])")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["commands"][0]["env"] = {"SOAK_PASS": "pass-{repetition}"}
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = soak_probe.run_plan(
+        path, workspace_root=tmp_path, generated_at="2000-01-01T00:00:00Z"
+    )
+
+    commands = [item["commands"][0] for item in report["scenarios"][0]["repetitions"]]
+    assert [item["stdout_sha256"] for item in commands] == [
+        soak_probe._sha256(b"pass-1\n"),
+        soak_probe._sha256(b"pass-2\n"),
+    ]
 
 
 def test_integrity_failure_stops_plan_before_later_commands(tmp_path: Path) -> None:
@@ -108,6 +155,19 @@ def test_tracked_plan_is_bounded_and_keeps_release_holds() -> None:
     assert [command["role"] for command in plan["scenarios"][0]["commands"]] == ["workload", "integrity"]
     assert "representative_user_corpus_missing" in plan["release_holds"]
     assert "release_matrices_incomplete" in plan["release_holds"]
+
+
+def test_r3_functional_plan_pins_python_and_retains_release_holds() -> None:
+    plan = soak_probe.load_plan(REPO_ROOT / "docs" / "soak-local" / "soak-plan.r3-functional.v1.json")
+
+    assert plan["runtime_identity"]["python_commit_sha"] == (
+        "2af6cfd7f988fa400617c460a77450dbad4228c9"
+    )
+    assert plan["scenarios"][0]["repetitions"] == 3
+    assert plan["scenarios"][1]["repetitions"] == 30
+    assert plan["runtime_identity"]["python_distribution"] == "nirs4all==1.0.0rc2"
+    assert "studio_final_identity_pending" in plan["release_holds"]
+    assert "published_artifacts_pending" in plan["release_holds"]
 
 
 def test_checked_in_current_head_probe_passes_without_closing_soak_gate() -> None:
