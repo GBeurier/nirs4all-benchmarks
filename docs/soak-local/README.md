@@ -44,7 +44,7 @@ SQLite concurrency/transaction/compaction checks, followed by 30 Studio
 Rust-sidecar readiness checks. This is strictly a functional/non-crash campaign.
 
 The current plan pins Python R3 commit
-`2af6cfd7f988fa400617c460a77450dbad4228c9`, while execution uses a dedicated
+`3567bd4abcaa64443a1946748a579f0803e91889`, while execution uses a dedicated
 environment populated from the published `nirs4all==1.0.0rc2` wheel—not an
 editable checkout. Prepare it once after RC2 publication:
 
@@ -63,9 +63,10 @@ plus pytest's importlib mode prevents the source checkout from shadowing the
 wheel during direct native and store checks. Each example receives a distinct
 `NIRS4ALL_WORKSPACE` under `_receipts/soak-r3-functional/pass-N/`.
 
-Studio is deliberately labelled as an in-progress candidate; update its two Git
-identities and the runtime checksum file once the final Studio head is frozen,
-then run exactly:
+Studio is pinned to candidate commit
+`89b5278a47ae4d38d6b508fabdd6e712f96942c0`; the runtime checksum remains tied
+to its byte-identical packaged sidecar. After the Python and Studio matrices are
+green and RC2 is published, run exactly:
 
 ```bash
 n4a-benchmarks soak-run \

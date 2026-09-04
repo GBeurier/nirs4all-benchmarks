@@ -161,7 +161,10 @@ def test_r3_functional_plan_pins_python_and_retains_release_holds() -> None:
     plan = soak_probe.load_plan(REPO_ROOT / "docs" / "soak-local" / "soak-plan.r3-functional.v1.json")
 
     assert plan["runtime_identity"]["python_commit_sha"] == (
-        "2af6cfd7f988fa400617c460a77450dbad4228c9"
+        "3567bd4abcaa64443a1946748a579f0803e91889"
+    )
+    assert plan["runtime_identity"]["studio_candidate_commit_sha"] == (
+        "89b5278a47ae4d38d6b508fabdd6e712f96942c0"
     )
     assert plan["scenarios"][0]["repetitions"] == 3
     assert plan["scenarios"][1]["repetitions"] == 30

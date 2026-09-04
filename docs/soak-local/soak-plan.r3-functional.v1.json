@@ -4,11 +4,11 @@
   "sample_interval_ms": 25,
   "max_output_bytes": 4194304,
   "runtime_identity": {
-    "python_commit_sha": "2af6cfd7f988fa400617c460a77450dbad4228c9",
-    "python_tree_sha": "5b0634005e8c574bdc8f1b7b4f6e452405af5ead",
+    "python_commit_sha": "3567bd4abcaa64443a1946748a579f0803e91889",
+    "python_tree_sha": "a06c4015a26124df1e529f82108ee7bd115236cb",
     "python_distribution": "nirs4all==1.0.0rc2",
-    "studio_candidate_commit_sha": "55f1ee774818098989d9f3f6bb7f30c63954541c",
-    "studio_candidate_tree_sha": "7d7cd3d83e87dda157fc865b4f07ba73e277af2c",
+    "studio_candidate_commit_sha": "89b5278a47ae4d38d6b508fabdd6e712f96942c0",
+    "studio_candidate_tree_sha": "931e2ae8c86c667c1da9507d8a2705fd20ff1ebb",
     "studio_sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9"
   },
   "release_holds": [
@@ -115,7 +115,7 @@
             "/usr/bin/git",
             "diff",
             "--exit-code",
-            "2af6cfd7f988fa400617c460a77450dbad4228c9",
+            "3567bd4abcaa64443a1946748a579f0803e91889",
             "--",
             "."
           ],
@@ -165,7 +165,7 @@
             "/usr/bin/git",
             "diff",
             "--exit-code",
-            "55f1ee774818098989d9f3f6bb7f30c63954541c",
+            "89b5278a47ae4d38d6b508fabdd6e712f96942c0",
             "--",
             "."
           ],
