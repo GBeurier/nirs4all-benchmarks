@@ -159,7 +159,7 @@ def _sample_process(pid: int) -> tuple[int, int] | None:
         rss_bytes = int(rss_line.split()[1]) * 1024
         fd_count = len(list(Path(f"/proc/{pid}/fd").iterdir()))
         return rss_bytes, fd_count
-    except (FileNotFoundError, PermissionError, StopIteration, ValueError):
+    except (OSError, StopIteration, ValueError):
         return None
 
 
@@ -172,7 +172,7 @@ def _process_group_id(pid: int) -> int | None:
             return None
         fields_after_name = stat[closing_parenthesis + 2 :].split()
         return int(fields_after_name[2])
-    except (FileNotFoundError, PermissionError, IndexError, ValueError):
+    except (OSError, IndexError, ValueError):
         return None
 
 
