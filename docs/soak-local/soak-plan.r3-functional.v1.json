@@ -7,8 +7,8 @@
     "python_commit_sha": "3567bd4abcaa64443a1946748a579f0803e91889",
     "python_tree_sha": "a06c4015a26124df1e529f82108ee7bd115236cb",
     "python_distribution": "nirs4all==1.0.0rc2",
-    "studio_candidate_commit_sha": "89b5278a47ae4d38d6b508fabdd6e712f96942c0",
-    "studio_candidate_tree_sha": "931e2ae8c86c667c1da9507d8a2705fd20ff1ebb",
+    "studio_candidate_commit_sha": "6cfc807d63b0f4b9a1bf00324c00dd83471f4ba2",
+    "studio_candidate_tree_sha": "ae7c286b83e68cc2ce09909d70a28fbd960f8272",
     "studio_sidecar_sha256": null
   },
   "release_holds": [
@@ -165,7 +165,7 @@
             "/usr/bin/git",
             "diff",
             "--exit-code",
-            "89b5278a47ae4d38d6b508fabdd6e712f96942c0",
+            "6cfc807d63b0f4b9a1bf00324c00dd83471f4ba2",
             "--",
             "."
           ],
