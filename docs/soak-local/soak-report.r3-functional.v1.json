@@ -1,0 +1,3166 @@
+{
+  "evidence_kind": "bounded_local_process_probe",
+  "generated_at": "2026-09-04T14:35:34Z",
+  "measurement_scope": {
+    "direct_process_only": false,
+    "platform": "linux-procfs",
+    "process_group": true,
+    "sample_interval_ms": 25,
+    "wsl": true
+  },
+  "overall_status": "passed",
+  "plan_sha256": "5d44bb26d387176a877a28090735000e86740899b4bc558d256f67e768016f7c",
+  "release_eligible": false,
+  "release_holds": [
+    "studio_final_identity_pending",
+    "published_artifacts_pending",
+    "release_matrices_incomplete",
+    "performance_budgets_not_frozen",
+    "cross_platform_process_metrics_not_collected"
+  ],
+  "runtime_identity": {
+    "python_commit_sha": "3567bd4abcaa64443a1946748a579f0803e91889",
+    "python_distribution": "nirs4all==1.0.0rc2",
+    "python_tree_sha": "a06c4015a26124df1e529f82108ee7bd115236cb",
+    "studio_candidate_commit_sha": "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+    "studio_candidate_tree_sha": "e6bdb63b994a276336e976d5b0a37904abc87731",
+    "studio_sidecar_sha256": "f82d421775668be210c4926ed287ee2a99a074da12215b1d47ccaad5015722f3"
+  },
+  "scenarios": [
+    {
+      "completed_repetitions": 3,
+      "duration_ms": 147511.714,
+      "id": "python-public-and-native-workspaces",
+      "integrity_status": "passed",
+      "latency_ms": {
+        "native-lifecycle-workspaces": {
+          "maximum": 5661.096,
+          "median": 5221.284,
+          "minimum": 4107.768,
+          "values": [
+            5221.284,
+            5661.096,
+            4107.768
+          ]
+        },
+        "user-basic-classification": {
+          "maximum": 4744.93,
+          "median": 4680.942,
+          "minimum": 4601.26,
+          "values": [
+            4744.93,
+            4680.942,
+            4601.26
+          ]
+        },
+        "user-basic-regression": {
+          "maximum": 6847.589,
+          "median": 6226.42,
+          "minimum": 6091.424,
+          "values": [
+            6847.589,
+            6226.42,
+            6091.424
+          ]
+        },
+        "user-hello-world": {
+          "maximum": 4664.346,
+          "median": 4587.073,
+          "minimum": 4073.023,
+          "values": [
+            4073.023,
+            4664.346,
+            4587.073
+          ]
+        },
+        "user-preprocessing-basics": {
+          "maximum": 21025.216,
+          "median": 20567.52,
+          "minimum": 19790.726,
+          "values": [
+            21025.216,
+            19790.726,
+            20567.52
+          ]
+        }
+      },
+      "peak_fd_count": 31,
+      "peak_process_count": 1,
+      "peak_rss_bytes": 453234688,
+      "repetitions": [
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U01_hello_world.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-hello-world",
+              "latency_ms": 4073.023,
+              "lingering_process_count": 0,
+              "peak_fd_count": 12,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 353816576,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 9560,
+              "stdout_sha256": "26bed835d33f7ad5f19b4603738c6fce2288e5233f8744d22a6acdad5f64f86e",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U02_basic_regression.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-regression",
+              "latency_ms": 6847.589,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 399933440,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 12040,
+              "stdout_sha256": "eadb41bad9965877cc8d244c119491db1a9da3a67e97350f137e4f111c979636",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U03_basic_classification.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-classification",
+              "latency_ms": 4744.93,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 402366464,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 10653,
+              "stdout_sha256": "36316c4c95601d8a0dd399d9ec375d7ffc04497970e0d98c1515494a920f132b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/03_preprocessing/U01_preprocessing_basics.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-preprocessing-basics",
+              "latency_ms": 21025.216,
+              "lingering_process_count": 0,
+              "peak_fd_count": 14,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 450084864,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 3348,
+              "stdout_sha256": "db0e32bcd6dc6d26f65956566cc9fd9ec512e18d4f510d5085793f3b670b430a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/integration/examples/test_native_tuning_conformal_example.py",
+                "tests/integration/api/test_dagml_native_retrain_roundtrip.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "native-lifecycle-workspaces",
+              "latency_ms": 5221.284,
+              "lingering_process_count": 0,
+              "peak_fd_count": 31,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 453120000,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 4711,
+              "stdout_sha256": "f3f1d275cec3837d3d4e95e6b0331f2b9837352ef6306de872b22579671970e5",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "3567bd4abcaa64443a1946748a579f0803e91889",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "python-candidate-tree",
+              "latency_ms": 30.59,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/unit/pipeline/storage/test_sqlite_concurrency.py",
+                "tests/unit/pipeline/storage/test_flush_transactionality.py",
+                "tests/unit/pipeline/storage/test_validated_compaction.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "workspace-store-integrity",
+              "latency_ms": 7930.481,
+              "lingering_process_count": 0,
+              "peak_fd_count": 59,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 344911872,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 894,
+              "stdout_sha256": "6855aab9d68955c98308551ea203feaed7dc47f0012d1da6b929911065186ed2",
+              "timed_out": false
+            }
+          ],
+          "index": 1
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U01_hello_world.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-hello-world",
+              "latency_ms": 4664.346,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 352120832,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 9560,
+              "stdout_sha256": "8dc014a70927f4a3da8e3d0d261e1f80e401cce826b087bfbe94d0efa1b6f66a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U02_basic_regression.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-regression",
+              "latency_ms": 6226.42,
+              "lingering_process_count": 0,
+              "peak_fd_count": 13,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 397201408,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 12031,
+              "stdout_sha256": "fff05851ebae7e5b18d73bc7c300d3a44cc8ee2afb05583630b738fcbb4f803a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U03_basic_classification.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-classification",
+              "latency_ms": 4680.942,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 402554880,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 10653,
+              "stdout_sha256": "44aa6d3fdf5f962ef2146112c8b2d68aab1f0b8aea653be4c88f4a49d9987e8d",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/03_preprocessing/U01_preprocessing_basics.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-preprocessing-basics",
+              "latency_ms": 19790.726,
+              "lingering_process_count": 0,
+              "peak_fd_count": 14,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 453234688,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 3348,
+              "stdout_sha256": "db0e32bcd6dc6d26f65956566cc9fd9ec512e18d4f510d5085793f3b670b430a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/integration/examples/test_native_tuning_conformal_example.py",
+                "tests/integration/api/test_dagml_native_retrain_roundtrip.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "native-lifecycle-workspaces",
+              "latency_ms": 5661.096,
+              "lingering_process_count": 0,
+              "peak_fd_count": 26,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 448098304,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 4711,
+              "stdout_sha256": "b5b436f6a5dc5a8e6e2859b2ac54c8d5e32e12163c5e11890670421bae5e8e7a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "3567bd4abcaa64443a1946748a579f0803e91889",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "python-candidate-tree",
+              "latency_ms": 33.591,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/unit/pipeline/storage/test_sqlite_concurrency.py",
+                "tests/unit/pipeline/storage/test_flush_transactionality.py",
+                "tests/unit/pipeline/storage/test_validated_compaction.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "workspace-store-integrity",
+              "latency_ms": 8888.967,
+              "lingering_process_count": 0,
+              "peak_fd_count": 45,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 341098496,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 894,
+              "stdout_sha256": "855ba559d9a835e1cc1c6ccc413978bcfaa6d06740b8a7f55df03596d4068cea",
+              "timed_out": false
+            }
+          ],
+          "index": 2
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U01_hello_world.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-hello-world",
+              "latency_ms": 4587.073,
+              "lingering_process_count": 0,
+              "peak_fd_count": 12,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 352468992,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 9560,
+              "stdout_sha256": "d3c502842f73ed32ef664af7717d8b0901b8f151e6094549c73b36b48ddcd443",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U02_basic_regression.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-regression",
+              "latency_ms": 6091.424,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 398159872,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 12032,
+              "stdout_sha256": "5c07f941eba8b3b6a5ef6f15ceee3fa1982e5dc4a4ad5a728879c399783e9ced",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/01_getting_started/U03_basic_classification.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-basic-classification",
+              "latency_ms": 4601.26,
+              "lingering_process_count": 0,
+              "peak_fd_count": 11,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 402354176,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 10653,
+              "stdout_sha256": "d48a80d66c878a5fb0c0e1b604e7ea5504391bd42a075b2e9496fc2b4ea119f2",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/ci_example_launcher.py",
+                "{workspace_root}/_worktrees/PY-r3-native-100rc2/examples/user/03_preprocessing/U01_preprocessing_basics.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "user-preprocessing-basics",
+              "latency_ms": 20567.52,
+              "lingering_process_count": 0,
+              "peak_fd_count": 14,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 450666496,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 3348,
+              "stdout_sha256": "db0e32bcd6dc6d26f65956566cc9fd9ec512e18d4f510d5085793f3b670b430a",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/integration/examples/test_native_tuning_conformal_example.py",
+                "tests/integration/api/test_dagml_native_retrain_roundtrip.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "native-lifecycle-workspaces",
+              "latency_ms": 4107.768,
+              "lingering_process_count": 0,
+              "peak_fd_count": 26,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 442392576,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 4711,
+              "stdout_sha256": "afac90c1095c521c64802530805655aaf70e8f4c1d7ae507021a7b11e27ddd32",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "3567bd4abcaa64443a1946748a579f0803e91889",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "python-candidate-tree",
+              "latency_ms": 30.285,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "{workspace_root}/_runtimes/nirs4all-r3-1.0.0rc2/bin/python",
+                "-P",
+                "-m",
+                "pytest",
+                "--import-mode=importlib",
+                "-q",
+                "tests/unit/pipeline/storage/test_sqlite_concurrency.py",
+                "tests/unit/pipeline/storage/test_flush_transactionality.py",
+                "tests/unit/pipeline/storage/test_validated_compaction.py"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "workspace-store-integrity",
+              "latency_ms": 7703.499,
+              "lingering_process_count": 0,
+              "peak_fd_count": 45,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 341094400,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 894,
+              "stdout_sha256": "53ed145a0a076e93fc4e1e8786e205d158e6cc02a5ba507de3636763db9c1bee",
+              "timed_out": false
+            }
+          ],
+          "index": 3
+        }
+      ],
+      "requested_repetitions": 3,
+      "resources_by_command": {
+        "native-lifecycle-workspaces": {
+          "peak_fd_count": {
+            "maximum": 31,
+            "median": 26,
+            "minimum": 26,
+            "values": [
+              31,
+              26,
+              26
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 453120000,
+            "median": 448098304,
+            "minimum": 442392576,
+            "values": [
+              453120000,
+              448098304,
+              442392576
+            ]
+          }
+        },
+        "user-basic-classification": {
+          "peak_fd_count": {
+            "maximum": 11,
+            "median": 11,
+            "minimum": 11,
+            "values": [
+              11,
+              11,
+              11
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 402554880,
+            "median": 402366464,
+            "minimum": 402354176,
+            "values": [
+              402366464,
+              402554880,
+              402354176
+            ]
+          }
+        },
+        "user-basic-regression": {
+          "peak_fd_count": {
+            "maximum": 13,
+            "median": 11,
+            "minimum": 11,
+            "values": [
+              11,
+              13,
+              11
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 399933440,
+            "median": 398159872,
+            "minimum": 397201408,
+            "values": [
+              399933440,
+              397201408,
+              398159872
+            ]
+          }
+        },
+        "user-hello-world": {
+          "peak_fd_count": {
+            "maximum": 12,
+            "median": 12,
+            "minimum": 11,
+            "values": [
+              12,
+              11,
+              12
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 353816576,
+            "median": 352468992,
+            "minimum": 352120832,
+            "values": [
+              353816576,
+              352120832,
+              352468992
+            ]
+          }
+        },
+        "user-preprocessing-basics": {
+          "peak_fd_count": {
+            "maximum": 14,
+            "median": 14,
+            "minimum": 14,
+            "values": [
+              14,
+              14,
+              14
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 453234688,
+            "median": 450666496,
+            "minimum": 450084864,
+            "values": [
+              450084864,
+              453234688,
+              450666496
+            ]
+          }
+        }
+      },
+      "status": "passed"
+    },
+    {
+      "completed_repetitions": 30,
+      "duration_ms": 4378.103,
+      "id": "studio-rust-runtime",
+      "integrity_status": "passed",
+      "latency_ms": {
+        "studio-readiness": {
+          "maximum": 31.008,
+          "median": 30.203,
+          "minimum": 29.93,
+          "values": [
+            30.202,
+            30.373,
+            30.323,
+            31.008,
+            30.061,
+            30.558,
+            30.426,
+            30.095,
+            30.175,
+            29.98,
+            30.295,
+            30.044,
+            30.772,
+            30.095,
+            30.192,
+            30.016,
+            30.342,
+            29.93,
+            30.201,
+            29.99,
+            30.369,
+            30.431,
+            30.369,
+            29.958,
+            30.667,
+            30.036,
+            30.326,
+            30.203,
+            30.247,
+            29.979
+          ]
+        }
+      },
+      "peak_fd_count": 4,
+      "peak_process_count": 1,
+      "peak_rss_bytes": 8642560,
+      "repetitions": [
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.202,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6479872,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ccab24d46101f7454f3390147f42316b10da4cc76bd098b4c06bd494c0eacb69",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.008,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6123520,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.898,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 1
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.373,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6516736,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.211,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6115328,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.75,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 2
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.323,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6586368,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.965,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6033408,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.34,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 3
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 31.008,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 8642560,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.079,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6103040,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.779,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 4
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.061,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6488064,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 31.182,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.672,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 5
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.558,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6512640,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ff5d6417004e30c02d1e7ba73a3a09ee393070013c8c043d2e4bd48d85d68531",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.436,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6193152,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 86.473,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 6
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.426,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6545408,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.073,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6115328,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.514,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 7
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.095,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6549504,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.526,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 5996544,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.551,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 8
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.175,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6381568,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.484,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6172672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.656,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 9
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 29.98,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6414336,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.699,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6111232,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.511,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 10
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.295,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6639616,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.08,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6172672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.967,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 11
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.044,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6459392,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.707,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6041600,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.342,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 12
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.772,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6451200,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.191,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6111232,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.483,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 13
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.095,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6742016,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ff5d6417004e30c02d1e7ba73a3a09ee393070013c8c043d2e4bd48d85d68531",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.082,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6045696,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.263,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 14
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.192,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6479872,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ccab24d46101f7454f3390147f42316b10da4cc76bd098b4c06bd494c0eacb69",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.769,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6160384,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.634,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 15
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.016,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6508544,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ccab24d46101f7454f3390147f42316b10da4cc76bd098b4c06bd494c0eacb69",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.866,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.24,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 16
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.342,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6676480,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.709,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6238208,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.126,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 17
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 29.93,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6295552,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.981,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6086656,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.494,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 18
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.201,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6451200,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.735,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6103040,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.98,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 19
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 29.99,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6422528,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.957,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6082560,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.075,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 20
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.369,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6414336,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "4a9b41fef5af38d0e3867232836fc0e1f2e861af619d2df09afb257881e223a4",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.206,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6254592,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.578,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 21
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.431,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6500352,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.415,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6172672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 86.363,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 22
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.369,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6393856,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.225,
+              "lingering_process_count": 0,
+              "peak_fd_count": null,
+              "peak_process_count": null,
+              "peak_rss_bytes": null,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.727,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2080768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 23
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 29.958,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6385664,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "07b606499cbc70c878b2525149aad0b0b2f855892a1905521242469f81e0c98b",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.627,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6090752,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.422,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 24
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.667,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6905856,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "73838e7b53116e8225a13e0ae451819865d10a935fdf14073ee5afc34893a671",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.231,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6049792,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.726,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 25
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.036,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6606848,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ccab24d46101f7454f3390147f42316b10da4cc76bd098b4c06bd494c0eacb69",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.874,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6098944,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.166,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 26
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.326,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6508544,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ad92532792c73c7f5c18cdeead8697a0aae122d443894b7c5051c1007983dac1",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.179,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6176768,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.606,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 27
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.203,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6557696,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ad92532792c73c7f5c18cdeead8697a0aae122d443894b7c5051c1007983dac1",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 29.878,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6045696,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.711,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 28
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 30.247,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6426624,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "ff5d6417004e30c02d1e7ba73a3a09ee393070013c8c043d2e4bd48d85d68531",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.034,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6111232,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 85.376,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2084864,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 29
+        },
+        {
+          "commands": [
+            {
+              "argv": [
+                "{workspace_root}/_worktrees/RC-v1-studio-r3-functional-0.11.0/backend-dist/native/studio-sidecar",
+                "--smoke-readiness"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-readiness",
+              "latency_ms": 29.979,
+              "lingering_process_count": 0,
+              "peak_fd_count": 4,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6651904,
+              "role": "workload",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 217,
+              "stdout_sha256": "03eb35743e88a8ca51a4cbfc2c8a7391492d16a3c9c12e78ebedf171a4fd1d23",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/git",
+                "diff",
+                "--exit-code",
+                "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b",
+                "--",
+                "."
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-candidate-tree",
+              "latency_ms": 30.091,
+              "lingering_process_count": 0,
+              "peak_fd_count": 3,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 6111232,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 0,
+              "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "timed_out": false
+            },
+            {
+              "argv": [
+                "/usr/bin/sha256sum",
+                "--strict",
+                "--check",
+                "{plan_dir}/studio-runtime.sha256"
+              ],
+              "exit_code": 0,
+              "failure": null,
+              "id": "studio-runtime-sha256",
+              "latency_ms": 84.524,
+              "lingering_process_count": 0,
+              "peak_fd_count": 5,
+              "peak_process_count": 1,
+              "peak_rss_bytes": 2076672,
+              "role": "integrity",
+              "status": "passed",
+              "stderr_bytes": 0,
+              "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdout_bytes": 126,
+              "stdout_sha256": "c4190fc94d1d72df5a532ce5fb843530c49e4534dd2bcea0a23b07d4132003e5",
+              "timed_out": false
+            }
+          ],
+          "index": 30
+        }
+      ],
+      "requested_repetitions": 30,
+      "resources_by_command": {
+        "studio-readiness": {
+          "peak_fd_count": {
+            "maximum": 4,
+            "median": 4.0,
+            "minimum": 4,
+            "values": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ]
+          },
+          "peak_process_count": {
+            "maximum": 1,
+            "median": 1.0,
+            "minimum": 1,
+            "values": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "peak_rss_bytes": {
+            "maximum": 8642560,
+            "median": 6504448.0,
+            "minimum": 6295552,
+            "values": [
+              6479872,
+              6516736,
+              6586368,
+              8642560,
+              6488064,
+              6512640,
+              6545408,
+              6549504,
+              6381568,
+              6414336,
+              6639616,
+              6459392,
+              6451200,
+              6742016,
+              6479872,
+              6508544,
+              6676480,
+              6295552,
+              6451200,
+              6422528,
+              6414336,
+              6500352,
+              6393856,
+              6385664,
+              6905856,
+              6606848,
+              6508544,
+              6557696,
+              6426624,
+              6651904
+            ]
+          }
+        }
+      },
+      "status": "passed"
+    }
+  ],
+  "schema_version": "nirs4all.soak-probe.report.v1",
+  "scope": "candidate-only sustained functional/non-crash soak over canonical public user examples, native lifecycle workspaces, store integrity checks, and the Studio Rust sidecar; no release-eligibility claim"
+}

@@ -35,7 +35,7 @@ closed.
 three content-integrity checks passed. It remains `release_eligible: false` for
 the holds above and is not evidence of a sustained or representative soak.
 
-## R3 functional campaign (prepared, not yet run)
+## R3 functional campaign (passed)
 
 `soak-plan.r3-functional.v1.json` is the next candidate campaign. It runs three
 isolated cycles of the four canonical public user examples, the public native
@@ -63,11 +63,12 @@ plus pytest's importlib mode prevents the source checkout from shadowing the
 wheel during direct native and store checks. Each example receives a distinct
 `NIRS4ALL_WORKSPACE` under `_receipts/soak-r3-functional/pass-N/`.
 
-Studio is pinned to candidate commit
-`1c905e4c51a146dcc85e017454557a7eace7209b`. Its packaged runtime checksum must
-still be refreshed from the final matrix artifact because the sidecar embeds the
-new Python source identity. After that matrix is green and RC2 is published, run
-exactly:
+Studio is pinned to the final `0.11.0` commit
+`1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b`. The native runtime came from
+`archive-linux-x64` (artifact `9941104415`) in release run `33882504444`; the
+tarball SHA-256 is
+`f415acd2b05cce6d26b49a3fd59b506c53a57e037473171d86df8210062e6f0a`.
+Run the frozen plan with:
 
 ```bash
 n4a-benchmarks soak-run \
@@ -87,6 +88,14 @@ to add arbitrary cycles. Keep these receipts together:
 - the installed RC2 version check plus the environment's `uv pip freeze` output;
 - the Python and Studio commit/tree identities plus `studio-runtime.sha256`;
 - the final CI matrix URLs and published-version identities when they exist.
+
+The 2026-09-04 execution is recorded in
+`soak-report.r3-functional.v1.json` (SHA-256
+`33a2d52cd60af8a03f2d092973a05c2b8442a775b5aa9a904f93603e70a1de91`).
+All three Python cycles and all 30 Studio readiness invocations passed, including
+every lifecycle, store-integrity, candidate-tree and native-runtime integrity
+check. The frozen Studio sidecar SHA-256 is
+`f82d421775668be210c4926ed287ee2a99a074da12215b1d47ccaad5015722f3`.
 
 Even after a green local campaign, `release_eligible` remains false until the
 Studio identity is final, release matrices are green, and the intended artifacts

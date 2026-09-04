@@ -166,7 +166,9 @@ def test_r3_functional_plan_pins_python_and_retains_release_holds() -> None:
     assert plan["runtime_identity"]["studio_candidate_commit_sha"] == (
         "1c36b93f62cf560d8f4822c76cfe09fbb1d0e67b"
     )
-    assert plan["runtime_identity"]["studio_sidecar_sha256"] is None
+    assert plan["runtime_identity"]["studio_sidecar_sha256"] == (
+        "f82d421775668be210c4926ed287ee2a99a074da12215b1d47ccaad5015722f3"
+    )
     assert plan["scenarios"][0]["repetitions"] == 3
     assert plan["scenarios"][1]["repetitions"] == 30
     assert plan["runtime_identity"]["python_distribution"] == "nirs4all==1.0.0rc2"
@@ -193,6 +195,22 @@ def test_checked_in_current_head_probe_passes_without_closing_soak_gate() -> Non
     )
     assert "representative_user_corpus_missing" in report["release_holds"]
     assert "sustained_soak_not_run" in report["release_holds"]
+
+
+def test_checked_in_r3_functional_campaign_passes() -> None:
+    report = json.loads(
+        (REPO_ROOT / "docs" / "soak-local" / "soak-report.r3-functional.v1.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert report["overall_status"] == "passed"
+    assert report["release_eligible"] is False
+    assert [scenario["completed_repetitions"] for scenario in report["scenarios"]] == [3, 30]
+    assert all(scenario["integrity_status"] == "passed" for scenario in report["scenarios"])
+    assert report["runtime_identity"]["studio_sidecar_sha256"] == (
+        "f82d421775668be210c4926ed287ee2a99a074da12215b1d47ccaad5015722f3"
+    )
 
 
 def test_report_writer_is_sorted_and_stable(tmp_path: Path) -> None:
