@@ -164,7 +164,7 @@ def test_r3_functional_plan_pins_python_and_retains_release_holds() -> None:
         "3567bd4abcaa64443a1946748a579f0803e91889"
     )
     assert plan["runtime_identity"]["studio_candidate_commit_sha"] == (
-        "6cfc807d63b0f4b9a1bf00324c00dd83471f4ba2"
+        "5adad85941f2b64784384b9ebf34295a7f53fd31"
     )
     assert plan["runtime_identity"]["studio_sidecar_sha256"] is None
     assert plan["scenarios"][0]["repetitions"] == 3

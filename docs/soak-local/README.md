@@ -64,7 +64,7 @@ wheel during direct native and store checks. Each example receives a distinct
 `NIRS4ALL_WORKSPACE` under `_receipts/soak-r3-functional/pass-N/`.
 
 Studio is pinned to candidate commit
-`6cfc807d63b0f4b9a1bf00324c00dd83471f4ba2`. Its packaged runtime checksum must
+`5adad85941f2b64784384b9ebf34295a7f53fd31`. Its packaged runtime checksum must
 still be refreshed from the final matrix artifact because the sidecar embeds the
 new Python source identity. After that matrix is green and RC2 is published, run
 exactly:
