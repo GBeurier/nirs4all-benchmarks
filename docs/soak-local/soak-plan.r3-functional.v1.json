@@ -9,7 +9,7 @@
     "python_distribution": "nirs4all==1.0.0rc2",
     "studio_candidate_commit_sha": "89b5278a47ae4d38d6b508fabdd6e712f96942c0",
     "studio_candidate_tree_sha": "931e2ae8c86c667c1da9507d8a2705fd20ff1ebb",
-    "studio_sidecar_sha256": "9d279af661e43ecadc78fb90fb301a291a60210dbfe8b6705c2f56a19f22ddc9"
+    "studio_sidecar_sha256": null
   },
   "release_holds": [
     "studio_final_identity_pending",
