@@ -12,6 +12,9 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/"
+    # Avoid no-op edits when a docs requirement already admits the newest
+    # Python-compatible release (Dependabot's requirement replacer can fail).
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: "weekly"
     groups:
