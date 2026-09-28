@@ -84,6 +84,11 @@ Ecosystem = "https://github.com/GBeurier/nirs4all-ecosystem"
 [project.scripts]
 n4a-benchmarks = "nirs4all_benchmarks.cli:main"
 n4a-arena = "nirs4all_benchmarks.cli:main"
+n4a-gate-json-adapter = "nirs4all_benchmarks.qualification.json_result_adapter:main"
+n4a-gate-core-rust = "nirs4all_benchmarks.qualification.scientific_runtime_adapter:core_rust_main"
+n4a-gate-python-legacy = "nirs4all_benchmarks.qualification.python_legacy_adapter:python_oracle_main"
+n4a-gate-studio-sidecar = "nirs4all_benchmarks.qualification.studio_sidecar_adapter:studio_sidecar_main"
+n4a-gate-web-wasm = "nirs4all_benchmarks.qualification.web_wasm_adapter:web_wasm_main"
 
 [tool.hatch.version]
 path = "src/nirs4all_benchmarks/version.py"

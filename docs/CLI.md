@@ -251,36 +251,44 @@ n4a-benchmarks leaderboard \
 
 ### `perf-compare`
 
-Run the RC-v1 legacy-vs-dag-ml timing harness. This command compares the same
-seeded synthetic case across two surfaces:
-
-- direct `nirs4all.run()`
-- Studio's pipeline job worker path
-
-The parent process only orchestrates subprocesses; the measured children
-auto-select a Python interpreter that can import Studio plus a usable workspace
-`nirs4all` source tree, alongside the `dag-ml` and `dag-ml-data` worktrees.
-
-| Option | Default | Description |
-|---|---|---|
-| `--suite` | both suites | Repeat to restrict to `python_run` and/or `studio_run`. |
-| `--repeats` | `3` | Measured repeats per suite/engine. |
-| `--warmups` | `0` | Discarded warmup runs per measurement child. |
-| `--python` | auto | Override the child interpreter used for the timed subprocesses. |
-| `--json-out` | none | Write the full machine-readable report as JSON. |
-| `--markdown-out` | none | Write the rendered summary table as Markdown. |
-| `--assert-max-ratio` | none | Repeat `SUITE=FLOAT` to fail when `dag-ml/legacy` run ratio for that suite exceeds the limit. |
+Compare Python oracle, direct Rust, Studio Rust, and Web WASM predictions and timings for one
+explicit Archive V2 plan. The plan pins candidate identities and the archive digest; supply a
+fresh plan for each new campaign. Missing adapters and mismatched artifacts are reported as
+refusals, not silently replaced.
 
 ```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --json-out ./perf-report.json \
-  --markdown-out ./perf-report.md
+n4a-benchmarks perf-compare --plan ./campaign/plan.json \
+  --workspace-root .. --archive ./campaign/model.n4a \
+  --adapter python_oracle=/absolute/path/to/oracle \
+  --adapter rust_direct=/absolute/path/to/rust-adapter \
+  --adapter studio_rust=/absolute/path/to/studio-adapter \
+  --adapter web_wasm=/absolute/path/to/web-adapter \
+  --json-out ./campaign/report.json
+```
 
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --assert-max-ratio python_run=1.25 \
-  --assert-max-ratio studio_run=1.35
+`--repeats` defaults to 3 and `--timeout` to 120 seconds. `--evidence-kind` defaults to
+`local_real`. The optional `--markdown-out` and `--handoff-dir` write summaries for consumers.
+
+### `soak-run`
+
+Run a bounded process probe from an explicit plan and record process metrics and integrity results:
+
+```bash
+n4a-benchmarks soak-run --plan ./campaign/soak-plan.json \
+  --workspace-root .. --json-out ./campaign/soak-report.json
+```
+
+### `qualify-artifacts`
+
+Run the four-runtime artifact gate from an explicit manifest. The manifest binds each adapter
+and input artifact to its digest. Exit code 1 means failure, 2 means refusal.
+The Core wheel's declared Git commit is supplied by the manifest; the adapter verifies wheel
+bytes and installed contents, but cannot derive a Git commit from wheel bytes alone. Treat that
+commit as a release provenance assertion and attest the wheel build separately.
+
+```bash
+n4a-benchmarks qualify-artifacts ./campaign/qualification.json \
+  --json-out ./campaign/qualification-report.json
 ```
 
 ### `serve`

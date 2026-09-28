@@ -1,0 +1,44 @@
+{
+  "schema_version": "nirs4all.perf-scenario.v1",
+  "scenario_id": "perf001-multitarget-archive-v2",
+  "operation": "archive_v2_predict",
+  "fallback_allowed": false,
+  "prediction": {
+    "sample_ids": ["predict.0", "predict.1"],
+    "x": [
+      [1.5, 0.5],
+      [3.5, 1.5]
+    ]
+  },
+  "legacy_oracle": {
+    "engine": "legacy",
+    "allow_fallback": false,
+    "random_state": 12345,
+    "splitter": {
+      "class": "sklearn.model_selection.KFold",
+      "n_splits": 3,
+      "shuffle": true,
+      "random_state": 12345
+    },
+    "model": {
+      "class": "sklearn.cross_decomposition.PLSRegression",
+      "n_components": 1,
+      "scale": true,
+      "max_iter": 500,
+      "tol": 0.000001
+    },
+    "training": {
+      "sample_ids": ["fit.0", "fit.1", "fit.2", "fit.3", "fit.4", "fit.5"],
+      "target_names": ["protein", "moisture"],
+      "x": [[0.0, 1.0], [1.0, 0.0], [2.0, 1.0], [3.0, 0.0], [4.0, 1.0], [5.0, 0.0]],
+      "y": [
+        [0.000000001, 10.000000002],
+        [1.0, 12.0],
+        [1.999999998, 13.999999996],
+        [3.0, 16.0],
+        [4.000000001, 18.000000002],
+        [5.0, 20.0]
+      ]
+    }
+  }
+}

@@ -219,43 +219,39 @@ def build_site_cmd(
 
 @app.command("perf-compare")
 def perf_compare_cmd(
-    suite: list[str] | None = typer.Option(
-        None,
-        "--suite",
-        help="Repeat to restrict to one or more suites: python_run, studio_run.",
-    ),
-    repeats: int = typer.Option(3, "--repeats", min=1, help="Measured repeats per suite/engine."),
-    warmups: int = typer.Option(0, "--warmups", min=0, help="Discarded warmup runs per measurement child."),
-    python: str | None = typer.Option(None, "--python", help="Override the child interpreter."),
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False, help="Explicit performance plan JSON."),
+    workspace_root: Path = typer.Option(..., "--workspace-root", exists=True, file_okay=False),
+    archive: Path | None = typer.Option(None, "--archive", help="Explicit Archive V2 witness."),
+    adapter: list[str] | None = typer.Option(None, "--adapter", help="Repeat SURFACE=/absolute/executable."),
+    repeats: int = typer.Option(3, "--repeats", min=1),
+    timeout: float = typer.Option(120.0, "--timeout", min=0.1),
+    evidence_kind: str = typer.Option("local_real", "--evidence-kind"),
     json_out: Path | None = typer.Option(None, "--json-out", help="Write the full report as JSON."),
     markdown_out: Path | None = typer.Option(None, "--markdown-out", help="Write the markdown summary to a file."),
-    assert_max_ratio: list[str] | None = typer.Option(
-        None,
-        "--assert-max-ratio",
-        help="Repeat SUITE=FLOAT to fail when dag-ml/legacy run ratio exceeds FLOAT.",
-    ),
-    assert_max_score_delta: list[str] | None = typer.Option(
-        None,
-        "--assert-max-score-delta",
-        help="Repeat SUITE=FLOAT to fail when the |legacy - dag-ml| score delta exceeds FLOAT.",
-    ),
+    handoff_dir: Path | None = typer.Option(None, "--handoff-dir"),
 ) -> None:
-    """Compare RC-v1 legacy vs dag-ml timings for the Python API and Studio worker path."""
+    """Compare one Archive V2 across four native product surfaces."""
     from nirs4all_benchmarks.performance_compare import (
-        DEFAULT_SUITES,
-        parse_ratio_overrides,
+        parse_adapter_overrides,
         render_markdown,
         run_comparison,
+        write_web_handoff,
     )
 
-    report = run_comparison(
-        suites=suite or DEFAULT_SUITES,
-        repeats=repeats,
-        warmups=warmups,
-        child_python=python,
-        max_ratios=parse_ratio_overrides(assert_max_ratio or []),
-        max_score_deltas=parse_ratio_overrides(assert_max_score_delta or []),
-    )
+    try:
+        adapters = parse_adapter_overrides(adapter or [])
+        report = run_comparison(
+            plan_path=plan,
+            workspace_root=workspace_root,
+            adapters=adapters,
+            archive=archive,
+            repeats=repeats,
+            timeout_seconds=timeout,
+            evidence_kind=evidence_kind,
+        )
+    except ValueError as error:
+        console.print(f"[red]refused:[/] {error}")
+        raise typer.Exit(code=2) from error
     console.print(render_markdown(report))
     if json_out:
         json_out.parent.mkdir(parents=True, exist_ok=True)
@@ -266,6 +262,48 @@ def perf_compare_cmd(
         markdown_out.parent.mkdir(parents=True, exist_ok=True)
         markdown_out.write_text(markdown + "\n", encoding="utf-8")
         console.print(f"[green]✓[/] wrote markdown report to [bold]{markdown_out}[/]")
+    if handoff_dir:
+        write_web_handoff(handoff_dir, report)
+    if report["overall_disposition"] == "failed":
+        raise typer.Exit(code=1)
+
+
+@app.command("soak-run")
+def soak_run_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    workspace_root: Path = typer.Option(..., "--workspace-root", exists=True, file_okay=False),
+    json_out: Path = typer.Option(..., "--json-out", dir_okay=False),
+) -> None:
+    """Run a bounded local workload and integrity probe."""
+    from nirs4all_benchmarks.soak_probe import run_plan, write_report
+
+    try:
+        report = run_plan(plan, workspace_root=workspace_root)
+    except ValueError as error:
+        console.print(f"[red]refused:[/] {error}")
+        raise typer.Exit(code=2) from error
+    write_report(json_out, report)
+    if report["overall_status"] != "passed":
+        raise typer.Exit(code=1)
+
+
+@app.command("qualify-artifacts")
+def qualify_artifacts_cmd(
+    manifest: Path = typer.Argument(..., exists=True, dir_okay=False, resolve_path=True),
+    json_out: Path = typer.Option(..., "--json-out"),
+) -> None:
+    """Qualify explicit Python/Core/Studio/Web artifacts."""
+    import json
+
+    from nirs4all_benchmarks.qualification import run_qualification
+
+    report = run_qualification(manifest)
+    json_out.parent.mkdir(parents=True, exist_ok=True)
+    json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if report["overall_disposition"] == "failed":
+        raise typer.Exit(code=1)
+    if report["overall_disposition"] == "refused":
+        raise typer.Exit(code=2)
 
 
 @app.command()
