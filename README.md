@@ -94,20 +94,8 @@ n4a-benchmarks ingest-bundle bundle.json --graph graph.json --store ./arena-stor
 n4a-benchmarks ingest-export run.json --store ./arena-store --release
 ```
 
-Compare the RC-v1 legacy and dag-ml execution surfaces without touching the
-runtime repos:
-
-```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --json-out ./perf-report.json \
-  --markdown-out ./perf-report.md
-```
-
-The harness auto-picks a child interpreter that can import Studio plus a usable
-workspace `nirs4all` source tree (preferring the RC-v1 worktree, then falling
-back to the sibling `nirs4all/` checkout when needed), runs fresh subprocesses
-for each engine/surface pair, and records the `dag-ml/legacy` timing ratios.
+Run artifact qualification, native performance comparison, or bounded soak probes with
+explicit campaign manifests. See [CLI.md](docs/CLI.md) for commands and adapter inputs.
 
 Plan repository pipelines locally without executing them:
 

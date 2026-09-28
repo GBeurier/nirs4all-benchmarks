@@ -1,0 +1,170 @@
+{
+  "schema_version": "nirs4all.performance-compare.plan.v1",
+  "scenario_id": "perf001-archive-v2-native-surfaces",
+  "scope": "local evidence; no publication, release lock, or performance budget claim",
+  "selection_snapshot": {
+    "selection_authority": "explicit final-head qualification request",
+    "governance_source": "docs/contracts/release/migration-work-ledger.yaml (pending projection of this local evidence)",
+    "governance_benchmark_parent_sha": "9aab2e13513b4e0a5a699a11ebc70f2bd00f10fb",
+    "observed_at": "2026-09-03",
+    "selection_scope": "current four product heads; other supporting candidates retain their prior selection",
+    "status": "locally_qualified_synthetic_no_go",
+    "four_runtime_execution": "passed_local_synthetic_current_heads",
+    "release_gate_status": "no_go",
+    "release_eligible": false,
+    "historical_report_policy": "The checked-in report measures the current four product heads on the deterministic Archive V2 workload; older reports remain attributable through git history.",
+    "holds": [
+      "representative_user_corpus_missing",
+      "sustained_soak_not_run",
+      "external_release_matrices",
+      "frozen_performance_budgets",
+      "complete_governance_projection_not_staged",
+      "candidates_unpublished_untagged",
+      "signed_artifacts_missing",
+      "final_release_lock_not_regenerated"
+    ]
+  },
+  "candidates": {
+    "methods": {
+      "commit_sha": "e0bee1ce160cd805d3060185fd151c09230c3381",
+      "tree_sha": "7e4658658e37f77be18ef6d3d6aff150886efb5b",
+      "runtime_commit_sha": "48ad1e5a50844f68c2b99e93b02ad6a3b491c07b",
+      "runtime_tree_sha": "f2eaa3c46629c26d11913a25bff723f9a9cefbc9",
+      "worktree": "_worktrees/MTH-n4m-publish",
+      "runtime_worktree": "_worktrees/CORE001-methods-48ad1e5",
+      "selection_note": "The selected release-guard descendant was not remeasured; PERF measurements remain attributed to the Methods runtime commit and tree."
+    },
+    "dag_ml": {
+      "commit_sha": "b08c62638829e0bcab741e66d44a3db66459e5a8",
+      "tree_sha": "5b5be85d2326fcb360e05ac65572faa18c3a322d",
+      "runtime_commit_sha": "dafb8b6fb98f9d380d30559a3f4b868c91e5b5c4",
+      "runtime_tree_sha": "44a2c4a46911d2c49c33fe75418674bd0e129d5e",
+      "worktree": "_worktrees/DAG001-persistence-final",
+      "runtime_worktree": "_worktrees/CORE001-dag-dafb8b6",
+      "selection_note": "The selected documented release descendant was not remeasured; PERF measurements remain attributed to the DAG runtime commit and tree."
+    },
+    "formats": {
+      "commit_sha": "2d46285843dc366da1d38f133131b5329c886b12",
+      "tree_sha": "2ee12c035db8a78721315ee65cf684d811552aa9",
+      "worktree": "_worktrees/CORE001-formats-2d462858"
+    },
+    "io": {
+      "commit_sha": "e41bf8f94a92356e98c215d4c41e907a7dfaf6ac",
+      "tree_sha": "ba5323cce8833610d974b7aa84ac65057355a687",
+      "worktree": "_worktrees/IO-formats-docs-consolidated"
+    },
+    "core": {
+      "commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "runtime_commit_sha": "550cb8c80708e88ac7ebbc880acb4b82d8531632",
+      "runtime_tree_sha": "5181e3bc65c9a3ee413bdfc8b81f34cd61450f7e",
+      "worktree": "_worktrees/CORE-0.3.27-canonical-snapshot",
+      "runtime_worktree": "_worktrees/CORE-0.3.27-canonical-snapshot",
+      "selection_note": "Published Core 0.3.28 head selected for direct Rust and Python-native local synthetic qualification."
+    },
+    "python": {
+      "commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
+      "runtime_commit_sha": "53a0acb964bff86dc67002763d8e9b850336731f",
+      "runtime_tree_sha": "2404b76783e9fc6e10723e671d274975e14756aa",
+      "worktree": "_worktrees/PY-r3-native-100rc2",
+      "runtime_worktree": "_worktrees/PY-r3-native-100rc2",
+      "selection_note": "Python R3 current head selected through explicit engine='native' with the published Core 0.3.28 and exact Methods closure; legacy and fallback remain forbidden."
+    },
+    "studio": {
+      "commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+      "runtime_commit_sha": "86d5e5033d62240815e532038b6e769b14b25c2b",
+      "runtime_tree_sha": "dc61df097434c38a8d2bdd9939d3057683fc7661",
+      "worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
+      "runtime_worktree": "_worktrees/RC-v1-studio-r3-functional-0.11.0",
+      "selection_note": "Studio R3 current head selected through the packaged Rust-sidecar route; the Python worker is excluded."
+    },
+    "web": {
+      "commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "runtime_commit_sha": "051bf636d7c1729087e5d40061b18bd690cd33b7",
+      "runtime_tree_sha": "e94251e350f31dbb996e1a2e477c466cfdf992ff",
+      "worktree": "_worktrees/WEB-0.1.10-security",
+      "runtime_worktree": "_worktrees/WEB-0.1.10-security",
+      "selection_note": "Published Web 0.1.10 head selected through its shipped Core/Methods WASM closure."
+    }
+  },
+  "surfaces": {
+    "python_oracle": {
+      "candidate": "python",
+      "entrypoint": "nirs4all.predict(model=archive_v2, data={X, sample_ids}, engine=native)"
+    },
+    "rust_direct": {
+      "candidate": "core",
+      "entrypoint": "nirs4all::predict_methods_archive_v2_matrix"
+    },
+    "studio_rust": {
+      "candidate": "studio",
+      "entrypoint": "POST /api/predict/archive-v2 on the Rust sidecar"
+    },
+    "web_wasm": {
+      "candidate": "web",
+      "entrypoint": "replayMethodsArchiveV2 through Core/Methods WASM"
+    }
+  },
+  "workload": {
+    "archive_v2": {
+      "sha256": "994252030ff80129d0431995bae53eb473082f05825b65714379262b72af13fa",
+      "source": {
+        "candidate": "web",
+        "worktree": "_worktrees/WEB-0.1.10-security",
+        "relative_path": "web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a"
+      }
+    },
+    "sample_ids": ["predict.0", "predict.1"],
+    "x": [[1.5, 0.5], [3.5, 1.5]],
+    "target_names": ["protein", "moisture"],
+    "expected_native_predictions": [
+      [1.6363636363636365, 13.272727272727273],
+      [2.4999999999999996, 15.0]
+    ]
+  },
+  "predictor_descriptor": {
+    "descriptor_type": "dagml.native_predictor_descriptor.v1",
+    "schema_version": 1,
+    "artifact_sha256": "4c4aead1e669235595970ee40530315d02c2dad80a72845c6930424d1580edc4",
+    "owner_controller": "controller:methods.pls",
+    "format": "N4MM",
+    "format_version": 1,
+    "writer_abi": {"major": 2, "minor": 3, "patch": 0},
+    "storage_algorithm": 0,
+    "capabilities": 3,
+    "dimensions": {
+      "training_samples": 6,
+      "n_features": 2,
+      "n_targets": 2,
+      "n_components": 1
+    },
+    "descriptor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b"
+  },
+  "predictor_fingerprint": "c130231adf7468c6682747e8b1c32d960a6da8ba3b05fb388a2c396392f6ca6b",
+  "numeric_tolerance": {"absolute": 1e-9, "relative": 1e-9},
+  "web_handoff": {
+    "directory": "performance-compare",
+    "files": [
+      "archive-v2-performance-compare.v1.json",
+      "performance-report.v1.json"
+    ]
+  },
+  "local_smoke_hold": {
+    "status": "passed_local_synthetic_current_head_no_go",
+    "missing": [
+      "representative_user_corpus_missing",
+      "sustained_soak_not_run",
+      "external_release_matrices",
+      "frozen_performance_budgets",
+      "complete_governance_projection_not_staged",
+      "candidates_unpublished_untagged",
+      "signed_artifacts_missing",
+      "final_release_lock_not_regenerated"
+    ],
+    "fixture_policy": "Contract fixtures exercise protocol failures only and never substitute for local product evidence.",
+    "release_hold": "NO-GO: local Archive V2 evidence uses a deterministic synthetic workload and cannot substitute for a representative user corpus, sustained soak, frozen budgets, external matrices, signatures, publication, or the final release lock."
+  }
+}
