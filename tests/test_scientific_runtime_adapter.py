@@ -8,8 +8,8 @@ import hashlib
 import io
 import json
 import stat
+import subprocess
 import sys
-import venv
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
@@ -135,7 +135,11 @@ def predict_methods_archive_v2_matrix(
 @pytest.fixture
 def scientific_artifacts(tmp_path: Path) -> dict[str, Path]:
     runtime = tmp_path / "runtime"
-    venv.EnvBuilder(with_pip=False, clear=True).create(runtime)
+    base_python = Path(sys.base_prefix) / (
+        "python.exe" if sys.platform == "win32"
+        else f"bin/python{sys.version_info.major}.{sys.version_info.minor}"
+    )
+    subprocess.run([str(base_python), "-m", "venv", "--without-pip", "--copies", str(runtime)], check=True)
     python = runtime / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
     site = runtime / (
         "Lib/site-packages"
