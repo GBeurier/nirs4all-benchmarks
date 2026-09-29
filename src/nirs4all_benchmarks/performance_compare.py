@@ -224,7 +224,10 @@ def _validated_output(output: Any, request: Mapping[str, Any]) -> dict[str, Any]
         len(row) != len(request["matrix"]["target_names"]) for row in predictions
     ):
         raise ValueError("adapter predictions do not align with the shared matrix")
-    startup = float(value.get("startup_ms"))
+    startup_raw = value.get("startup_ms")
+    if startup_raw is None:
+        raise ValueError("adapter startup_ms must be finite and non-negative")
+    startup = float(startup_raw)
     steady = value.get("steady_state_ms")
     if not math.isfinite(startup) or startup < 0:
         raise ValueError("adapter startup_ms must be finite and non-negative")
