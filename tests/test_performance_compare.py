@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ def _fixture_adapter(tmp_path: Path, *, divergent_surface: str | None = None) ->
     script = tmp_path / "adapter"
     divergence = repr(divergent_surface)
     script.write_text(
-        """#!/usr/bin/python3.11
+        """#!__PYTHON__
 import json, sys
 request = json.load(sys.stdin)
 predictions = [[1.6363636363636365, 13.272727272727273], [2.4999999999999996, 15.0]]
@@ -47,7 +48,7 @@ json.dump({
     'steady_state_ms': [1.25] * request['repeats'],
     'evidence': {'kind': 'deterministic-contract-fixture'},
 }, sys.stdout, sort_keys=True)
-""".replace("__DIVERGENCE__", divergence),
+""".replace("__DIVERGENCE__", divergence).replace("__PYTHON__", sys.executable),
         encoding="utf-8",
     )
     script.chmod(0o755)
