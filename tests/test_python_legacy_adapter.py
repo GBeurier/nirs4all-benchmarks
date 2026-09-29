@@ -16,8 +16,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
-from nirs4all_benchmarks.qualification.contract import AdapterRequest
 from nirs4all_benchmarks.qualification import python_legacy_adapter
+from nirs4all_benchmarks.qualification.contract import AdapterRequest
 from nirs4all_benchmarks.qualification.python_legacy_adapter import _verify_runtime_tree, adapt
 from nirs4all_benchmarks.qualification.scientific_runtime_adapter import _wheel_contract
 
