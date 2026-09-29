@@ -34,7 +34,7 @@ jobs:
         run: .venv/bin/mypy --python-version ${{ matrix.python-version }}
 
       - name: Pytest (with coverage)
-        run: .venv/bin/pytest -q --cov=nirs4all_benchmarks --cov-report=xml
+        run: .venv/bin/python -m pytest -q --cov=nirs4all_benchmarks --cov-report=xml
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'
