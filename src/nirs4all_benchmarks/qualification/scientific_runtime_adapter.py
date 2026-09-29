@@ -476,7 +476,7 @@ def adapt(request: AdapterRequest) -> ComponentOutput:
     if len(process.stdout.encode()) > _MAX_CHILD_OUTPUT or len(process.stderr.encode()) > _MAX_CHILD_OUTPUT:
         raise ValueError("scientific runtime output exceeded the 2 MiB limit")
     if process.returncode != 0:
-        detail = process.stderr.strip().splitlines()[-1] if process.stderr.strip() else "no diagnostic"
+        detail = process.stderr.strip() or "no diagnostic"
         raise ValueError(f"scientific runtime failed with code {process.returncode}: {detail[:500]}")
     result = json.loads(process.stdout)
     if not isinstance(result, dict) or result.get("protocol") != _CHILD_PROTOCOL:
