@@ -59,6 +59,21 @@ _REQUIRED_CLOSURE_ROLES = {
     "methods_index",
     "methods_wasm",
 }
+_REQUIRED_DESTINATIONS = {
+    "aggregate_package": "node_modules/nirs4all/package.json",
+    "aggregate_index": "node_modules/nirs4all/src/index.js",
+    "aggregate_archive_v2": "node_modules/nirs4all/src/archive-v2.js",
+    "core_provenance": "node_modules/nirs4all/PROVENANCE.md",
+    "native_package": "node_modules/nirs4all/native/package.json",
+    "native_loader": "node_modules/nirs4all/native/nirs4all_core_wasm_native.js",
+    "core_native_wasm": "node_modules/nirs4all/native/nirs4all_core_wasm_native_bg.wasm",
+    "methods_index": "node_modules/@nirs4all/methods/dist/index.js",
+    "methods_wasm": "node_modules/@nirs4all/methods/dist/n4m.wasm",
+}
+_SOURCE_NAMESPACES = {
+    "node_modules/nirs4all/": "web-app/vendor/nirs4all/",
+    "node_modules/@nirs4all/methods/dist/": "web-app/src/engine/wasm/methods/",
+}
 _STRICT_PROFILE = {
     "contract": "nirs4all.web-runtime-profile.v1",
     "profile": "strict-wasm",
@@ -321,6 +336,16 @@ def _closure_manifest(
         if destination.is_absolute() or not destination.parts or ".." in destination.parts:
             raise ValueError(f"closure file {role!r} has an unsafe destination")
         destination_text = destination.as_posix()
+        expected_destination = _REQUIRED_DESTINATIONS.get(role)
+        if expected_destination is not None and destination_text != expected_destination:
+            raise ValueError(f"required closure role {role!r} must bind execution destination {expected_destination!r}")
+        for runtime_prefix, snapshot_prefix in _SOURCE_NAMESPACES.items():
+            if destination_text.startswith(runtime_prefix):
+                expected_member = snapshot_prefix + destination_text[len(runtime_prefix):]
+                if snapshot_member != expected_member:
+                    raise ValueError(
+                        f"closure execution file {destination_text!r} must bind its exact Web source member"
+                    )
         if destination_text in destinations:
             raise ValueError(f"closure destination {destination_text!r} is duplicated")
         if not isinstance(digest, str) or len(digest) != 64 or _sha256(source) != digest:

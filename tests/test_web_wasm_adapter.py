@@ -24,10 +24,10 @@ REQUIRED_CLOSURE = {
     "aggregate_index": "node_modules/nirs4all/src/index.js",
     "aggregate_archive_v2": "node_modules/nirs4all/src/archive-v2.js",
     "native_package": "node_modules/nirs4all/native/package.json",
-    "native_loader": "node_modules/nirs4all/native/native.js",
-    "core_native_wasm": "node_modules/nirs4all/native/native.wasm",
-    "methods_index": "node_modules/@nirs4all/methods/index.js",
-    "methods_wasm": "node_modules/@nirs4all/methods/n4m.wasm",
+    "native_loader": "node_modules/nirs4all/native/nirs4all_core_wasm_native.js",
+    "core_native_wasm": "node_modules/nirs4all/native/nirs4all_core_wasm_native_bg.wasm",
+    "methods_index": "node_modules/@nirs4all/methods/dist/index.js",
+    "methods_wasm": "node_modules/@nirs4all/methods/dist/n4m.wasm",
 }
 
 
@@ -107,7 +107,9 @@ def web_artifacts(tmp_path: Path) -> dict[str, Path]:
                 "path": str(closure_file),
                 "destination": destination,
                 "sha256": _sha256(closure_file),
-                "snapshot_member": f"web-app/runtime/{role}",
+                "snapshot_member": destination.replace("node_modules/nirs4all/", "web-app/vendor/nirs4all/").replace(
+                    "node_modules/@nirs4all/methods/dist/", "web-app/src/engine/wasm/methods/"
+                ),
             }
         )
     native = next(item for item in files if item["role"] == "core_native_wasm")
@@ -357,7 +359,7 @@ def test_required_closure_code_cannot_escape_source_binding(web_artifacts: dict[
     item["sha256"] = _sha256(Path(item["path"]))
     item["snapshot_member"] = None
     _write_json(closure_path, closure)
-    with pytest.raises(ValueError, match="must bind the Web source snapshot"):
+    with pytest.raises(ValueError, match="must bind its exact Web source member"):
         web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), web_artifacts["web_source_snapshot"])
 
 
@@ -370,3 +372,34 @@ def test_declared_commit_cannot_relabel_existing_source_archive(web_artifacts: d
     request.declared_commit_sha = "f" * 40
     with pytest.raises(ValueError, match="snapshot Git commit"):
         web_wasm_adapter._closure_manifest(closure_path, request, web_artifacts["web_source_snapshot"])
+
+
+@pytest.mark.parametrize("role", sorted(REQUIRED_CLOSURE))
+def test_required_role_cannot_be_moved_away_from_executed_file(web_artifacts: dict[str, Path], role: str) -> None:
+    closure_path = web_artifacts["web_runtime_closure"]
+    closure = json.loads(closure_path.read_text())
+    item = next(item for item in closure["files"] if item["role"] == role)
+    replacement = {**item, "role": "runtime_dependency", "snapshot_member": None}
+    item["destination"] = "unused/" + role
+    closure["files"].append(replacement)
+    _write_json(closure_path, closure)
+    with pytest.raises(ValueError, match="must bind execution destination"):
+        web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), web_artifacts["web_source_snapshot"])
+
+
+def test_unbound_vendored_dependency_is_refused_but_external_package_is_preserved(
+    web_artifacts: dict[str, Path], tmp_path: Path,
+) -> None:
+    closure_path = web_artifacts["web_runtime_closure"]
+    closure = json.loads(closure_path.read_text())
+    external = tmp_path / "external-yaml.js"
+    external.write_bytes(b"export const external = true;")
+    item = {"role": "runtime_dependency", "path": str(external), "destination": "node_modules/yaml/dist/index.js",
+            "sha256": _sha256(external), "snapshot_member": None}
+    closure["files"].append(item)
+    _write_json(closure_path, closure)
+    web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), web_artifacts["web_source_snapshot"])
+    item["destination"] = "node_modules/nirs4all/src/execution.js"
+    _write_json(closure_path, closure)
+    with pytest.raises(ValueError, match="must bind its exact Web source member"):
+        web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), web_artifacts["web_source_snapshot"])
