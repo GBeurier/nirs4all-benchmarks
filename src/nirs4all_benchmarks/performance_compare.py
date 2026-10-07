@@ -518,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
         args.markdown_out.write_text(markdown + "\n", encoding="utf-8")
     if args.handoff_dir:
         write_web_handoff(args.handoff_dir, report)
-    return 0 if report["overall_disposition"] != "failed" else 1
+    return 0 if report["overall_disposition"] == "passed" else 1
 
 
 if __name__ == "__main__":

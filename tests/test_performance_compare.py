@@ -234,3 +234,27 @@ def test_module_smoke_writes_one_repeat_report_and_web_handoff(tmp_path: Path) -
     assert report["overall_disposition"] == "passed"
     assert all(len(value["timings_ms"]["steady_state"]) == 1 for value in report["surfaces"].values())
     assert (tmp_path / "performance-compare" / "archive-v2-performance-compare.v1.json").is_file()
+
+
+@pytest.mark.parametrize("entrypoint", ["module", "cli"])
+@pytest.mark.parametrize("missing", ["adapters", "archive"])
+def test_refused_runs_have_nonzero_exit_and_preserve_report(tmp_path: Path, entrypoint: str, missing: str) -> None:
+    plan, archive = _fixture_plan(tmp_path)
+    output = tmp_path / "refused-report.json"
+    args = ["--plan", str(plan), "--workspace-root", str(tmp_path), "--archive", str(archive),
+            "--repeats", "1", "--json-out", str(output)]
+    if missing == "archive":
+        archive.unlink()
+        adapter = _fixture_adapter(tmp_path)
+        for surface in pc.SURFACES:
+            args.extend(["--adapter", f"{surface}={adapter}"])
+    if entrypoint == "module":
+        assert pc.main(args) == 1
+    else:
+        from typer.testing import CliRunner
+
+        from nirs4all_benchmarks.cli import app
+
+        result = CliRunner().invoke(app, ["perf-compare", *args])
+        assert result.exit_code == 1, result.output
+    assert json.loads(output.read_text())["overall_disposition"] == "refused"

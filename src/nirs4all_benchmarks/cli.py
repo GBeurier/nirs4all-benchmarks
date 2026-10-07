@@ -264,7 +264,7 @@ def perf_compare_cmd(
         console.print(f"[green]✓[/] wrote markdown report to [bold]{markdown_out}[/]")
     if handoff_dir:
         write_web_handoff(handoff_dir, report)
-    if report["overall_disposition"] == "failed":
+    if report["overall_disposition"] != "passed":
         raise typer.Exit(code=1)
 
 

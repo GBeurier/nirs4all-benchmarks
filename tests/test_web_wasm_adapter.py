@@ -117,7 +117,7 @@ def web_artifacts(tmp_path: Path) -> dict[str, Path]:
         encoding="utf-8",
     )
     provenance["sha256"] = _sha256(Path(provenance["path"]))
-    with tarfile.open(source, "w") as snapshot:
+    with tarfile.open(source, "w", pax_headers={"comment": WEB_COMMIT}) as snapshot:
         snapshot.add(archive, arcname="web-app/src/engine/fixtures/archive-v2/multitarget-pls.n4a")
         for item in files:
             snapshot.add(item["path"], arcname=item["snapshot_member"])
@@ -326,3 +326,47 @@ export async function replayMethodsArchiveV2(_archive, dataset) {
     assert process.returncode != 0
     assert "fit/refit call observed" in process.stderr
     assert "n4m_model_refit" in process.stderr
+
+
+@pytest.mark.parametrize("snapshot_commit", [None, "f" * 40])
+def test_closure_refuses_unbound_or_mismatched_snapshot_commit(
+    web_artifacts: dict[str, Path], snapshot_commit: str | None,
+) -> None:
+    source = web_artifacts["web_source_snapshot"]
+    with tarfile.open(source, "r:") as snapshot:
+        members = [(item, snapshot.extractfile(item).read()) for item in snapshot.getmembers() if item.isfile()]
+    with tarfile.open(source, "w", pax_headers={} if snapshot_commit is None else {"comment": snapshot_commit}) as snapshot:
+        import io
+
+        for item, content in members:
+            snapshot.addfile(item, io.BytesIO(content))
+    closure_path = web_artifacts["web_runtime_closure"]
+    closure = json.loads(closure_path.read_text())
+    closure["source_snapshot_sha256"] = _sha256(source)
+    _write_json(closure_path, closure)
+    with pytest.raises(ValueError, match="snapshot Git commit"):
+        web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), source)
+
+
+@pytest.mark.parametrize("role", sorted(REQUIRED_CLOSURE))
+def test_required_closure_code_cannot_escape_source_binding(web_artifacts: dict[str, Path], role: str) -> None:
+    closure_path = web_artifacts["web_runtime_closure"]
+    closure = json.loads(closure_path.read_text())
+    item = next(item for item in closure["files"] if item["role"] == role)
+    Path(item["path"]).write_bytes(b"substituted runtime bytes")
+    item["sha256"] = _sha256(Path(item["path"]))
+    item["snapshot_member"] = None
+    _write_json(closure_path, closure)
+    with pytest.raises(ValueError, match="must bind the Web source snapshot"):
+        web_wasm_adapter._closure_manifest(closure_path, _request(web_artifacts), web_artifacts["web_source_snapshot"])
+
+
+def test_declared_commit_cannot_relabel_existing_source_archive(web_artifacts: dict[str, Path]) -> None:
+    closure_path = web_artifacts["web_runtime_closure"]
+    closure = json.loads(closure_path.read_text())
+    closure["web_commit_sha"] = "f" * 40
+    _write_json(closure_path, closure)
+    request = _request(web_artifacts)
+    request.declared_commit_sha = "f" * 40
+    with pytest.raises(ValueError, match="snapshot Git commit"):
+        web_wasm_adapter._closure_manifest(closure_path, request, web_artifacts["web_source_snapshot"])
