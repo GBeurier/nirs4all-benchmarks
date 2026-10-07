@@ -279,6 +279,12 @@ def _closure_manifest(
         raise ValueError("declared Web version differs from the runtime closure")
     if value["source_snapshot_sha256"] != _sha256(source_snapshot):
         raise ValueError("Web source snapshot identity differs from the runtime closure")
+    try:
+        with tarfile.open(source_snapshot, "r:") as snapshot:
+            if snapshot.pax_headers.get("comment") != value["web_commit_sha"]:
+                raise ValueError("Web source snapshot Git commit differs from the runtime closure")
+    except (OSError, tarfile.TarError) as exc:
+        raise ValueError("Web source snapshot is not a valid Git archive") from exc
     for name in ("web_commit_sha", "core_commit_sha"):
         item = value[name]
         if not isinstance(item, str) or len(item) != 40 or any(char not in "0123456789abcdef" for char in item):
@@ -319,6 +325,8 @@ def _closure_manifest(
             raise ValueError(f"closure destination {destination_text!r} is duplicated")
         if not isinstance(digest, str) or len(digest) != 64 or _sha256(source) != digest:
             raise ValueError(f"closure file {role!r} SHA-256 changed before execution")
+        if role in _REQUIRED_CLOSURE_ROLES and snapshot_member is None:
+            raise ValueError(f"required closure file {role!r} must bind the Web source snapshot")
         snapshot_bytes: bytes | None = None
         if snapshot_member is not None:
             if not isinstance(snapshot_member, str) or not snapshot_member.startswith("web-app/"):

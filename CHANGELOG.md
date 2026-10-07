@@ -15,6 +15,12 @@ Publish the existing qualification runtime developed since 0.1.6.
 - Include artifact qualification adapters for Python, Rust Core, Studio sidecar and browser WASM, with bounded child diagnostics and isolated runtime staging.
 - Include the existing performance comparison and soak runners and their CLI entry points. Numerical workloads, comparison thresholds and qualification assertions are unchanged by this release preparation.
 
+### Fixed
+
+- Bind required Web runtime files and the declared Web commit to the selected Git source archive.
+- Return a nonzero exit for refused performance comparisons while retaining their report.
+- Document the delivered Archive V2 comparison interface and its bounded numerical and timing policy.
+
 ### Changed
 
 - Align package, VERSION and citation metadata for the public runtime delivery.

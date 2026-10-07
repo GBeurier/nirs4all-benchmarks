@@ -1,109 +1,42 @@
 # Performance comparison harness
 
-`nirs4all-benchmarks` ships a small comparison harness for the RC-v1 migration
-worktrees. It does not edit `nirs4all` or Studio, and it does not require a
-workspace dataset on disk.
+`nirs4all-benchmarks perf-compare` compares an explicitly selected Archive V2 on four product surfaces: `python_oracle`, `rust_direct`, `studio_rust` and `web_wasm`. It invokes explicit stdio adapter executables; it does not discover sibling Python environments or import a runtime checkout into the orchestrator.
 
-## What it measures
+The plan selects the archive digest, prediction matrix, sample and target identities, predictor descriptor, candidate commits and absolute numerical tolerance. Every adapter must return these same identities and finite predictions without fallback. Missing archives or adapters produce a `refused` report; invalid results or numerical divergence produce a `failed` report. Both dispositions exit nonzero. Only `passed` exits zero, and reports are written before this final exit check.
 
-The harness runs one seeded synthetic PLS case on two surfaces:
+## Running the selected workload
 
-- `python_run`: direct `nirs4all.run(...)`
-- `studio_run`: Studio's real pipeline job worker
-  `api.pipelines._run_pipeline_task(...)`
-
-Each surface is measured twice: once with `engine="legacy"` and once with
-`engine="dag-ml"`. Fallback is disabled, so an unsupported dag-ml path fails
-the run instead of silently timing legacy.
-
-Because both engines in a suite run the *same* seeded case, their `best_score`
-values are directly comparable. The report therefore carries, per suite, a
-`scores` block (`legacy`, `dag_ml`, `abs_delta`) so the comparison shows not
-just *how fast* dag-ml is relative to legacy but *whether it computed the same
-answer*. This is a single-case agreement signal, not full numeric parity.
-
-## Why it is stable enough for CI
-
-- fixed synthetic dataset (`80 x 50`, seed `2026`)
-- fixed pipeline (`MinMaxScaler -> ShuffleSplit(2) -> PLSRegression(3)`)
-- fresh subprocess per repeat
-- single-threaded BLAS/OpenMP environment
-- median-based report
-
-The goal is not an absolute performance claim. The gate is a reproducible
-comparison report that catches "the dag-ml path got much slower than legacy on
-this representative small case" without requiring full numeric parity.
-
-## Running it
-
-From the `RC-v1-benchmarks` worktree:
+Use a plan whose candidate identities and artifact digests describe the actual staged runtimes. The checked-in `tests/fixtures/performance-plan.historical.json` is a historical contract fixture, not a selection of the current public cohort.
 
 ```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
+n4a-benchmarks perf-compare \
+  --plan /absolute/path/to/performance-plan.json \
+  --workspace-root /absolute/path/to/release-workspace \
+  --archive /absolute/path/to/selected-model.n4a \
+  --adapter python_oracle=/absolute/path/to/python-adapter \
+  --adapter rust_direct=/absolute/path/to/rust-adapter \
+  --adapter studio_rust=/absolute/path/to/studio-adapter \
+  --adapter web_wasm=/absolute/path/to/web-adapter \
   --repeats 3 \
+  --timeout 120 \
+  --evidence-kind local_real \
   --json-out ./perf-report.json \
-  --markdown-out ./perf-report.md
+  --markdown-out ./perf-report.md \
+  --handoff-dir ./performance-compare
 ```
 
-The parent command only needs the benchmark package environment. The measured
-children auto-discover a Python interpreter that can import Studio plus a usable
-workspace `nirs4all` source tree. The harness prefers the RC-v1 `nirs4all`
-worktree and falls back to the sibling `nirs4all/` checkout when the RC tree is
-not runnable for the dag-ml case. Override the child interpreter explicitly when
-needed:
+The module entry point accepts the same inputs:
 
 ```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --python ../nirs4all-studio/.venv/bin/python
+python -m nirs4all_benchmarks.performance_compare --help
 ```
 
-You can also pin the exact `nirs4all` source root:
+`--evidence-kind contract_fixture` identifies contract-test output; it must not be presented as execution of a real public product. The adapters and their installed runtime dependencies must be available before running this command.
 
-```bash
-N4A_BENCH_NIRS4ALL_ROOT=../nirs4all \
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare
-```
+## Evidence and interpretation
 
-Or run the module directly:
+The report separates startup and steady-state measurements and retains each repeat. It compares predictions against the Python oracle using the absolute tolerance in the plan, preserving sample order, target order and predictor identity. The deterministic Web handoff contains the archive, matrix, descriptor, oracle predictions and selected Web candidate.
 
-```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/python -m nirs4all_benchmarks.performance_compare
-```
+This harness reports timings without a definitive speed threshold (`performance_policy.thresholds` is null). Its numerical comparison is scoped to the selected archive and matrix, not the complete estimator catalog. `passed` does not imply `release_eligible`: the report retains explicit release eligibility holds, including unfrozen budgets and incomplete release matrices.
 
-## Optional ratio gates
-
-The command can fail when the measured `dag-ml/legacy` run-time ratio exceeds a
-suite-specific ceiling:
-
-```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --assert-max-ratio python_run=1.25 \
-  --assert-max-ratio studio_run=1.35
-```
-
-The exact ceilings are coordinator policy, not package policy. Start by running
-the report a few times on the target CI class, then set conservative bounds
-above the observed medians.
-
-## Optional score-agreement gates
-
-Timing bounds only catch "dag-ml got slower". To also catch "dag-ml computed a
-different answer than legacy on this case", gate on the absolute score delta:
-
-```bash
-PYTHONPATH=src \
-  ../nirs4all-benchmarks/.venv/bin/n4a-benchmarks perf-compare \
-  --assert-max-score-delta python_run=0.001 \
-  --assert-max-score-delta studio_run=0.001
-```
-
-The gate fails when `|legacy_score - dag_ml_score|` for a suite exceeds the
-ceiling, or when either engine did not produce a finite score (reported as
-`score delta unavailable`). Like the ratio gate, the tolerance is coordinator
-policy: the two engines should agree closely on the seeded PLS case, so a tight
-bound is appropriate.
+The earlier RC-v1 direct `python_run`/Studio Python worker workload, interpreter discovery, `--python`, `--assert-max-ratio` and `--assert-max-score-delta` options are retired. Historical reports remain renderable through read-only compatibility; those options are not executable interfaces of this harness. The separate ecosystem ALL11 performance workload and its strict speed and parity assertions are unchanged by this package delivery.
