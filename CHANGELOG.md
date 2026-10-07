@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-10-07
+
+Publish the existing qualification runtime developed since 0.1.6.
+
+### Added
+
+- Include artifact qualification adapters for Python, Rust Core, Studio sidecar and browser WASM, with bounded child diagnostics and isolated runtime staging.
+- Include the existing performance comparison and soak runners and their CLI entry points. Numerical workloads, comparison thresholds and qualification assertions are unchanged by this release preparation.
+
+### Changed
+
+- Align package, VERSION and citation metadata for the public runtime delivery.
+
 ## [0.1.5] — 2026-07-07
 
 Patch release for the V1 RC benchmark lane.
