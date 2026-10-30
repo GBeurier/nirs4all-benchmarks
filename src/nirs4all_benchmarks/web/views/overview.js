@@ -90,7 +90,10 @@ export default {
       if (bySplit?.rows?.length > 1) {
         const lo = bestOf(bySplit.rows, "min"), hi = bestOf(bySplit.rows, "max");
         findings.push(card("✂️", "Split sensitivity", fmt(hi.value - lo.value),
-          `${lo.group_value} best · ${hi.group_value} worst`, "playground"));
+          `${lo.group_value}: lower RMSE · ${hi.group_value}: higher RMSE. `
+          + "Better scores may reflect easier or less independent splits. "
+          + "Weigh observed performance against leakage risk; match split independence to deployment. "
+          + "Do not tune splits on held-out test results.", "playground"));
       }
 
       if (rob?.length) {

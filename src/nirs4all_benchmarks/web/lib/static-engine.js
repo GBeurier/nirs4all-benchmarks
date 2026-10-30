@@ -42,7 +42,16 @@ function median(a) { const s = a.slice().sort((x, y) => x - y); return quantile(
 function pearson(xs, ys) { const mx = mean(xs), my = mean(ys); let n = 0, dx = 0, dy = 0; for (let i = 0; i < xs.length; i++) { n += (xs[i] - mx) * (ys[i] - my); dx += (xs[i] - mx) ** 2; dy += (ys[i] - my) ** 2; } return dx > 0 && dy > 0 ? n / Math.sqrt(dx * dy) : null; }
 
 export async function createStaticApi(base = "/data") {
-  const bundle = await (await fetch(`${base}/bundle.json`)).json();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let bundle;
+  try {
+    const response = await fetch(`${base}/bundle.json`, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Snapshot request failed: ${response.status}`);
+    bundle = await response.json();
+  } finally {
+    clearTimeout(timeout);
+  }
   const M = bundle.metrics;
   const FAC = bundle.facets;
   const NODES = bundle.pipeline_nodes;

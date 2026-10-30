@@ -37,10 +37,27 @@ const NO_LENS = new Set(["datasets", "pipelines", "planned", "upload", "run", "o
 
 // Shared, persisted lens — set ONCE in the context bar, read by every analysis view.
 const STATE_KEY = "arena.state.v1";
+function readStorage(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeStorage(key, value) {
+  try { localStorage.setItem(key, value); } catch { /* Storage is optional. */ }
+}
+function savedLens() {
+  try {
+    const saved = JSON.parse(readStorage(STATE_KEY) || "{}");
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+    const lens = {};
+    for (const key of ["metric", "scope", "dataset"]) {
+      if (typeof saved[key] === "string") lens[key] = saved[key];
+    }
+    return lens;
+  } catch { return {}; }
+}
 const state = {
   metric: "rmse", scope: "cv", dataset: "", _overview: null, _datasets: null,
-  ...(JSON.parse(localStorage.getItem(STATE_KEY) || "{}")),
-  save() { localStorage.setItem(STATE_KEY, JSON.stringify({ metric: this.metric, scope: this.scope, dataset: this.dataset })); },
+  ...savedLens(),
+  save() { writeStorage(STATE_KEY, JSON.stringify({ metric: this.metric, scope: this.scope, dataset: this.dataset })); },
 };
 
 // Meta-analysis narrative: rank → understand drivers → see structure → drill into runs.
@@ -142,14 +159,14 @@ async function renderChrome() {
 
 function renderProtoBanner() {
   const host = document.getElementById("proto-banner");
-  if (!host || localStorage.getItem("arena.proto.dismissed")) return;
+  if (!host || readStorage("arena.proto.dismissed")) return;
   dom.clear(host);
   host.className = "proto-banner";
   host.appendChild(dom.el("div", { class: "proto-banner-inner" },
     dom.el("span", {}, "⚠ Early ", dom.el("strong", {}, "prototype"),
       window.ARENA_STATIC ? " — a static snapshot of demo data; the live service ingests real runs." : " — schemas, scores and views may still change."),
     dom.el("button", { class: "proto-x", title: "Dismiss",
-      onclick: () => { localStorage.setItem("arena.proto.dismissed", "1"); host.remove(); } }, "✕")));
+      onclick: () => { writeStorage("arena.proto.dismissed", "1"); host.remove(); } }, "✕")));
 }
 
 function parseHash() {
@@ -177,16 +194,30 @@ async function route() {
   }
 }
 
-window.addEventListener("hashchange", route);
-window.addEventListener("DOMContentLoaded", async () => {
-  // Static mode: replace the live API client with the client-side snapshot engine.
-  if (window.ARENA_STATIC) {
-    try { Object.assign(api, await createStaticApi()); } catch (e) { console.error("static snapshot failed to load", e); }
+let ready = false;
+async function boot() {
+  const root = document.getElementById("view-root");
+  dom.mount(root, dom.loading("Booting the Arena…"));
+  let loadingSnapshot = !!window.ARENA_STATIC;
+  try {
+    // A static site cannot recover by falling back to the live API.
+    if (window.ARENA_STATIC) Object.assign(api, await createStaticApi());
+    loadingSnapshot = false;
+    if (!location.hash) location.hash = "#/overview";
+    renderProtoBanner();
+    await renderChrome();
+    await refreshHeader();
+    ready = true;
+    await route();
+  } catch (err) {
+    console.error("Arena initialization failed", err);
+    const message = loadingSnapshot
+      ? "The benchmark data could not be loaded. Check your connection and try again."
+      : "The Arena could not start. Please try again.";
+    dom.mount(root, dom.banner(message, "warn"),
+      dom.el("button", { type: "button", onclick: boot }, "Retry"));
   }
-  if (!location.hash) location.hash = "#/overview";
-  renderProtoBanner();
-  await renderChrome();
-  await refreshHeader();
-  await route();
-});
+}
+window.addEventListener("hashchange", () => { if (ready) route(); });
+window.addEventListener("DOMContentLoaded", boot);
 window.__arena = { refreshHeader };

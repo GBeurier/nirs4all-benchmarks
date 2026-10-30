@@ -19,6 +19,14 @@ def test_build_site_produces_static_snapshot(tmp_path: Path):
     assert (out / "app.js").exists()
     assert (out / "lib" / "static-engine.js").exists()
     assert (out / "brand" / "icon.svg").exists()
+    overview = (out / "views" / "overview.js").read_text()
+    assert "lower RMSE" in overview and "higher RMSE" in overview
+    assert "easier or less independent splits" in overview
+    assert "performance against leakage risk" in overview
+    assert "match split independence to deployment" in overview
+    assert "Do not tune splits on held-out test results" in overview
+    assert "${lo.group_value} best" not in overview
+    assert "${hi.group_value} worst" not in overview
     assert (out / "config.js").read_text().strip() == "window.ARENA_STATIC = true;"
     assert (out / "CNAME").read_text().strip() == "benchmarks.nirs4all.org"
     assert "Sitemap: https://benchmarks.nirs4all.org/sitemap.xml" in (out / "robots.txt").read_text()
