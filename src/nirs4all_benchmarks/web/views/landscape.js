@@ -16,20 +16,42 @@ function pretty(facetKey) {
 const MAX_LABELLED_VALUES = 20;
 const MAX_TICK_CHARS = 16;
 
-// For one dimension: if every row value is a number, use it as-is.
-// Otherwise map distinct strings -> integer codes; `names[code]` is the display name.
-function codeDim(rows, key, displayName) {
+// Mean score (row.metric) of each distinct value of `key`.
+function meanScoreBy(rows, key) {
+  const acc = new Map();
+  for (const r of rows) {
+    const k = String(r[key]);
+    const e = acc.get(k) || { s: 0, n: 0 };
+    e.s += r.metric; e.n += 1; acc.set(k, e);
+  }
+  return new Map([...acc].map(([k, e]) => [k, e.s / e.n]));
+}
+
+// For one dimension: numeric values are used as-is (sorting by value reverses the axis for
+// descending). Otherwise distinct values map to integer codes in display order, unsorted or
+// sorted by `sort` = { by: "score" | "value", dir: "asc" | "desc" }; `names[code]` is the
+// display name. Sorting a numeric dimension by score makes it categorical (ranked positions).
+function codeDim(rows, key, displayName, sort = null) {
   const values = rows.map((r) => r[key]);
-  if (values.every((v) => typeof v === "number")) return { vals: values, names: null, categorical: false };
+  if (values.every((v) => typeof v === "number") && sort?.by !== "score") {
+    return { vals: values, names: null, categorical: false, reversed: sort?.dir === "desc" };
+  }
   const distinct = [...new Set(values.map((v) => String(v)))];
+  if (sort) {
+    const score = sort.by === "score" ? meanScoreBy(rows, key) : null;
+    distinct.sort(score
+      ? (a, b) => score.get(a) - score.get(b)
+      : (a, b) => String(displayName(a)).localeCompare(String(displayName(b)), undefined, { numeric: true }));
+    if (sort.dir === "desc") distinct.reverse();
+  }
   const code = new Map(distinct.map((v, i) => [v, i]));
-  return { vals: values.map((v) => code.get(String(v))), names: distinct.map(displayName), categorical: true };
+  return { vals: values.map((v) => code.get(String(v))), names: distinct.map((v) => String(displayName(v))), categorical: true };
 }
 
 // Axis for a dimension: numeric as-is; categorical with one short label per value, or none
 // (title gives the count) when there are too many values to read.
 function axisFor(title, d) {
-  if (!d.categorical) return { title };
+  if (!d.categorical) return d.reversed ? { title, autorange: "reversed" } : { title };
   const n = d.names.length;
   if (n > MAX_LABELLED_VALUES) return { title: `${title} (${n} values, hover for names)`, showticklabels: false };
   const short = (s) => (s.length > MAX_TICK_CHARS ? s.slice(0, MAX_TICK_CHARS - 1) + "…" : s);
@@ -75,6 +97,15 @@ export default {
       { id: "z", type: "select", label: "Z axis",
         options: [{ value: Z_METRIC, label: "metric (score)" }, ...facetOptions], value: Z_METRIC },
       { id: "chart", type: "select", label: "Chart", options: ["scatter3d", "surface"], value: "scatter3d" },
+      { id: "sort_axis", type: "select", label: "Sort axis", value: "none", options: [
+        { value: "none", label: "none" }, { value: "x", label: "X" }, { value: "y", label: "Y" },
+      ] },
+      { id: "sort_by", type: "select", label: "Sort by", value: "score", options: [
+        { value: "score", label: "mean score" }, { value: "value", label: "axis value" },
+      ] },
+      { id: "sort_dir", type: "select", label: "Order", value: "asc", options: [
+        { value: "asc", label: "ascending" }, { value: "desc", label: "descending" },
+      ] },
     ], () => refresh());
 
     const note = dom.el("div", { class: "sub" },
@@ -124,15 +155,16 @@ export default {
       const dirArrow = dir === "max" ? "↑ higher is better" : "↓ lower is better";
       const dsName = new Map((state._datasets || []).map((d) => [d.dataset_fingerprint, d.name || d.dataset_fingerprint]));
       const displayFor = (key) => (key === "dataset" ? (v) => dsName.get(v) || v : (v) => v);
-      const dx = codeDim(rows, x, displayFor(x));
-      const dy = codeDim(rows, y, displayFor(y));
+      const sortAxis = bar.get("sort_axis");
+      const sort = { by: bar.get("sort_by"), dir: bar.get("sort_dir") };
+      const dx = codeDim(rows, x, displayFor(x), sortAxis === "x" ? sort : null);
+      const dy = codeDim(rows, y, displayFor(y), sortAxis === "y" ? sort : null);
       const xUniqCount = new Set(dx.vals).size;
       const yUniqCount = new Set(dy.vals).size;
       if (xUniqCount < 2 && yUniqCount < 2) {
         bannerNode.appendChild(dom.banner(
           "Both axes have a single distinct value — nothing to surface. Pick wider dimensions.", "info"));
       }
-
 
       if (chart === "scatter3d") {
         const color = rows.map((r) => r.metric);
@@ -214,8 +246,10 @@ export default {
         });
       }
 
+      const sortNote = sortAxis === "none" ? "" : `${sortAxis.toUpperCase()} sorted by `
+        + `${sort.by === "score" ? `mean ${state.metric}` : "axis value"}, ${sort.dir === "asc" ? "ascending" : "descending"}. `;
       note.textContent =
-        `${rows.length} run(s) over ${pretty(x)} × ${pretty(y)}; color = ${state.metric} (${dirArrow}). `
+        `${rows.length} run(s) over ${pretty(x)} × ${pretty(y)}; color = ${state.metric} (${dirArrow}). ${sortNote}`
         + `Categorical axes are coded to integers; ticks are labelled up to ${MAX_LABELLED_VALUES} values, hover shows full labels.`;
     };
 
