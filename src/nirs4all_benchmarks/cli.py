@@ -90,6 +90,19 @@ def ingest_workspace_cmd(
     console.print(f"[green]✓[/] workspace ingested: {counts}")
 
 
+@app.command("ingest-history")
+def ingest_history_cmd(
+    path: Path = typer.Argument(..., exists=True, file_okay=False, help="Historical data pack directory."),
+    store: str = StoreOpt,
+) -> None:
+    """Import checked-in real research scores (no synthetic fixtures or fitted artifacts)."""
+    from nirs4all_benchmarks.history import ingest_history
+
+    with _store(store) as s:
+        summary = ingest_history(s, path, progress=lambda done, total: console.print(f"Imported {done}/{total}"))
+    console.print(summary)
+
+
 @app.command("ingest-bundle")
 def ingest_bundle_cmd(
     bundle: Path = typer.Argument(..., exists=True, help="dag-ml ExecutionBundle JSON."),

@@ -1,8 +1,8 @@
 // Overview — a run meta-analysis dashboard: headline findings + store health.
-// Uses rmse @ cv as the headline lens; deeper slicing lives in the analysis views.
+// Uses held-out test RMSE as the headline lens; deeper slicing lives in the analysis views.
 
 const METRIC = "rmse";
-const SCOPE = "cv";
+const SCOPE = "test";
 
 function bestOf(rows, direction) {
   if (!rows || !rows.length) return null;
@@ -38,11 +38,11 @@ export default {
       stat("Score sets", ov.score_sets), stat("Quarantined", ov.quarantined_executions));
 
     dom.mount(root, head,
-      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } }, `Key findings · ${METRIC} (cv)`),
+      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } }, `Key findings · ${METRIC} (${SCOPE})`),
       findingsHost, stats,
       dom.el("div", { class: "card", style: { marginTop: "16px" } },
         dom.el("h3", {}, "Best pipeline per dataset"),
-        dom.el("div", { class: "sub" }, "Lowest mean RMSE (cv) on each dataset — click to focus."),
+        dom.el("div", { class: "sub" }, "Lowest mean test RMSE on each dataset — click to focus."),
         dom.el("div", { id: "ov-best" }, dom.loading())));
 
     // ── findings (computed from the analysis endpoints) ──
@@ -118,7 +118,7 @@ export default {
     }
     dom.mount(document.getElementById("ov-best"), dom.table([
       { key: "dataset", label: "Dataset" },
-      { key: "pipeline", label: "Best pipeline (cv rmse)" },
+      { key: "pipeline", label: "Best pipeline (test rmse)" },
       { key: "rmse", label: "rmse", num: true, render: (r) => dom.fmt(r.rmse, 4) },
       { key: "n", label: "runs", num: true },
     ], bestRows, { onRow: (r) => { state.dataset = r.df; state.save(); ctx.navigate("leaderboard"); } }));

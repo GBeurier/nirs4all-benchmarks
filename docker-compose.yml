@@ -1,7 +1,7 @@
 # Run the Arena dataviz service with a persistent store volume.
 #   docker compose up --build
-#   # seed demo data once:
-#   docker compose run --rm arena n4a-benchmarks fixtures
+#   # import measured results once:
+#   docker compose run --rm arena n4a-benchmarks ingest-history /app/data/catalog-history-2026-09 --store /data/arena-store
 services:
   arena:
     build: .

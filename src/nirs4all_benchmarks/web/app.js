@@ -55,7 +55,7 @@ function savedLens() {
   } catch { return {}; }
 }
 const state = {
-  metric: "rmse", scope: "cv", dataset: "", _overview: null, _datasets: null,
+  metric: "rmse", scope: "test", dataset: "", _overview: null, _datasets: null,
   ...savedLens(),
   save() { writeStorage(STATE_KEY, JSON.stringify({ metric: this.metric, scope: this.scope, dataset: this.dataset })); },
 };
@@ -164,7 +164,7 @@ function renderProtoBanner() {
   host.className = "proto-banner";
   host.appendChild(dom.el("div", { class: "proto-banner-inner" },
     dom.el("span", {}, "⚠ Early ", dom.el("strong", {}, "prototype"),
-      window.ARENA_STATIC ? " — a static snapshot of demo data; the live service ingests real runs." : " — schemas, scores and views may still change."),
+      window.ARENA_STATIC ? " — a static snapshot of measured research runs; scores and coverage may still change." : " — schemas, scores and views may still change."),
     dom.el("button", { class: "proto-x", title: "Dismiss",
       onclick: () => { writeStorage("arena.proto.dismissed", "1"); host.remove(); } }, "✕")));
 }

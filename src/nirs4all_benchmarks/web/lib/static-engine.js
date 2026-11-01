@@ -4,7 +4,7 @@
 const DIRECTION = {
   mse: "min", rmse: "min", mae: "min", medae: "min", bias: "min", log_loss: "min",
   r2: "max", rpd: "max", rpiq: "max", ccc: "max", accuracy: "max", balanced_accuracy: "max",
-  f1_macro: "max", f1_micro: "max", precision_macro: "max", recall_macro: "max", roc_auc: "max", mcc: "max",
+  f1_macro: "max", f1_micro: "max", f1_weighted: "max", precision_macro: "max", recall_macro: "max", roc_auc: "max", mcc: "max",
 };
 const dir = (m) => DIRECTION[String(m).toLowerCase()] || "min";
 

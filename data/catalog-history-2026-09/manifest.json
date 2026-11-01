@@ -1,0 +1,1014 @@
+{
+  "schema_version": 1,
+  "collection_id": "catalog_history_2026_09",
+  "name": "Catalog research runs (September 2026)",
+  "description": "Measured held-out test scores from existing NIRPFN, TabPFN, PLS and AOM research runs. Producer-reported scores; no raw spectra, targets, residuals or model weights included.",
+  "archive_sha256": "35cbeb93e324a09a7e905b9fae5ab8b942a4075ba4070f18d6c2185397e4e013",
+  "executions": 11103,
+  "datasets": 107,
+  "tasks": 156,
+  "metric_observations": 26364,
+  "by_method": {
+    "AOM_PLS": 231,
+    "AOM_PLS_default": 231,
+    "AOM_Ridge_Blender": 231,
+    "AOM_Ridge_Blender_default": 231,
+    "NIRPFN_triplet": 468,
+    "PLS10": 231,
+    "PLSDA10": 237,
+    "PLS_CV_GCU": 231,
+    "PLS_CV_GCU_LVSE": 231,
+    "PLS_CV_LVSE": 231,
+    "PLS_CV_raw": 231,
+    "Ridge1": 231,
+    "Ridge_CV_GCU": 231,
+    "Ridge_CV_GCU_LVSE": 231,
+    "Ridge_CV_LVSE": 231,
+    "Ridge_CV_raw": 231,
+    "TabPFN_GCU": 468,
+    "TabPFN_GCU_LVSE": 468,
+    "TabPFN_LVSE": 468,
+    "TabPFN_raw": 468,
+    "TabPFN_v2.5_GCU": 441,
+    "TabPFN_v2.5_GCU_LVSE": 441,
+    "TabPFN_v2.5_LVSE": 441,
+    "TabPFN_v2.5_raw": 441,
+    "TabPFN_v3.5_GCU": 441,
+    "TabPFN_v3.5_GCU_LVSE": 441,
+    "TabPFN_v3.5_LVSE": 441,
+    "TabPFN_v3.5_raw": 441,
+    "TabPFN_v3_GCU": 441,
+    "TabPFN_v3_GCU_LVSE": 441,
+    "TabPFN_v3_LVSE": 441,
+    "TabPFN_v3_raw": 441
+  },
+  "by_task_type": {
+    "multiclass": 4158,
+    "regression": 6945
+  },
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "selection_policy": "First target in lexical order per dataset/source/task kind; all available methods and seeds. No selection by score. Final export overrides duplicate experiment keys.",
+  "sources": {
+    "nirs4all-lab/RamanPFN/results/score_matrix.csv": {
+      "sha256": "c17078464efc4793f78eb71afd58e790969b2b3ffb4e478b5e6a3ccffd20accd",
+      "rows": 63508
+    },
+    "nirs4all-lab/RamanPFN/results/catalog_tabpfn_final_benchmark_export.csv": {
+      "sha256": "9963f33dc54ee72690706c4c0cb2d084fd734ef0119a6c4cf76c8cc0ce9889e2",
+      "rows": 4584
+    }
+  },
+  "selection": [
+    {
+      "dataset_id": "cartilage_spectroscopy_scientificdata_nir",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "bone_type"
+    },
+    {
+      "dataset_id": "cartilage_spectroscopy_scientificdata_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "cartilage_thickness"
+    },
+    {
+      "dataset_id": "cgl_nir_grain_eigenvector",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Casein_wt_pct"
+    },
+    {
+      "dataset_id": "corn_eigenvector_nir",
+      "source_id": "X1",
+      "kind": "regression",
+      "target": "Moisture"
+    },
+    {
+      "dataset_id": "corn_eigenvector_nir",
+      "source_id": "X2",
+      "kind": "regression",
+      "target": "Moisture"
+    },
+    {
+      "dataset_id": "corn_eigenvector_nir",
+      "source_id": "X3",
+      "kind": "regression",
+      "target": "Moisture"
+    },
+    {
+      "dataset_id": "diesel_fuels_nir_eigenvector",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "BP50"
+    },
+    {
+      "dataset_id": "ecosis_2008_university_of_wisconsin_biotron_fresh_leaf_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Geo_Species_Info"
+    },
+    {
+      "dataset_id": "ecosis_2008_university_of_wisconsin_biotron_fresh_leaf_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Ev"
+    },
+    {
+      "dataset_id": "ecosis_2014_cedar_creek_esr_grassland_biodiversity_experiment_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C"
+    },
+    {
+      "dataset_id": "ecosis_2018_cedar_creek_pressed_leaves_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "FullSpecies"
+    },
+    {
+      "dataset_id": "ecosis_2018_cedar_creek_pressed_leaves_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C"
+    },
+    {
+      "dataset_id": "ecosis_2018_talladega_national_forest_leaf_level_reflectance_s_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Genus"
+    },
+    {
+      "dataset_id": "ecosis_2018_talladega_national_forest_leaf_level_reflectance_s_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "DBH"
+    },
+    {
+      "dataset_id": "ecosis_2019_plosone_wheat_hessian_fly_ms_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C"
+    },
+    {
+      "dataset_id": "ecosis_3d_canopy_level_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "easting"
+    },
+    {
+      "dataset_id": "ecosis_3d_leaf_level_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "lma_g_m2"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_absorbance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_absorbance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Al_mass"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_transmittance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_transmittance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Al_mass"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_v2_absorbance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_v2_absorbance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Al_area"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_v2_transmittance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_cabo_2018_2019_leaf_level_spectra_v2_transmittance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Al_mass"
+    },
+    {
+      "dataset_id": "ecosis_calcareous_grassland_species_over_growing_season_at_the_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "species"
+    },
+    {
+      "dataset_id": "ecosis_calcareous_grassland_species_over_growing_season_at_the_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "doy"
+    },
+    {
+      "dataset_id": "ecosis_canopy_spectra_of_boreal_tree_species_from_alberta_pott_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Genus"
+    },
+    {
+      "dataset_id": "ecosis_canopy_spectra_of_boreal_tree_species_from_alberta_pott_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Individual"
+    },
+    {
+      "dataset_id": "ecosis_common_milkweed_leaf_responses_to_water_stress_and_elev_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Water_treatment"
+    },
+    {
+      "dataset_id": "ecosis_common_milkweed_leaf_responses_to_water_stress_and_elev_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ABG__g"
+    },
+    {
+      "dataset_id": "ecosis_cucurbita_pepo_two_stresses_leaf_canopy_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Treatment"
+    },
+    {
+      "dataset_id": "ecosis_cucurbita_pepo_two_stresses_leaf_canopy_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "AminoAcids"
+    },
+    {
+      "dataset_id": "ecosis_dessain_project_reflectance_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_dessain_project_reflectance_spectra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Al_mass"
+    },
+    {
+      "dataset_id": "ecosis_fab_leaf_spectra_across_a_light_gradient_at_cedar_creek_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Genus"
+    },
+    {
+      "dataset_id": "ecosis_fine_scale_vnir_hyperspectral_canopy_reflectances_from_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "DOY"
+    },
+    {
+      "dataset_id": "ecosis_freeze_dried_leaf_spectra_and_measured_traits_from_the_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_freeze_dried_leaf_spectra_and_measured_traits_from_the_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "LMA_value_g/m2"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_spectra_and_measured_traits_from_the_sierra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "plant_functional_type"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_spectra_and_measured_traits_from_the_sierra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "LMA_value_g/m2"
+    },
+    {
+      "dataset_id": "ecosis_fresh_leaf_spectra_to_estimate_leaf_morphology_and_bioc_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Species"
+    },
+    {
+      "dataset_id": "ecosis_greater_cape_floristic_region_leaf_spectral_library_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "FamilyManningGoldblatt"
+    },
+    {
+      "dataset_id": "ecosis_ground_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_ground_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_ground_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_ground_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_hyperspectral_leaf_reflectance_biochemistry_and_physiol_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Treatment"
+    },
+    {
+      "dataset_id": "ecosis_hyperspectral_leaf_reflectance_biochemistry_and_physiol_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Plant_Age"
+    },
+    {
+      "dataset_id": "ecosis_intact_and_ground_leaf_litter_spectra_from_cedar_creek_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "latin_genus"
+    },
+    {
+      "dataset_id": "ecosis_intact_and_ground_leaf_litter_spectra_from_cedar_creek_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Carea"
+    },
+    {
+      "dataset_id": "ecosis_leaf_reflectance_and_traits_of_plants_sampled_along_a_w_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "group"
+    },
+    {
+      "dataset_id": "ecosis_leaf_reflectance_and_traits_of_plants_sampled_along_a_w_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Car"
+    },
+    {
+      "dataset_id": "ecosis_leaf_reflectance_and_tratis_of_floating_and_emergent_ma_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CaS"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_of_4_plant_species_from_belgian_dune_grass_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "latin_genus"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_of_4_plant_species_from_belgian_dune_grass_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "EWT__mg/cm2"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_of_boreal_tree_species_from_alberta_potted_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Genus"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_of_boreal_tree_species_from_alberta_potted_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Individual"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_structural_and_biochemical_leaf_traits_of_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "species"
+    },
+    {
+      "dataset_id": "ecosis_leaf_spectra_structural_and_biochemical_leaf_traits_of_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C_N_m2"
+    },
+    {
+      "dataset_id": "ecosis_nasa_fft_project_leaf_reflectance_morphology_and_bioche_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Species"
+    },
+    {
+      "dataset_id": "ecosis_nasa_fft_project_leaf_reflectance_morphology_and_bioche_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "EWT_gDW_cm2"
+    },
+    {
+      "dataset_id": "ecosis_nasa_fft_project_leaf_transmittance_morphology_and_bioc_transmittance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Species"
+    },
+    {
+      "dataset_id": "ecosis_nasa_fft_project_leaf_transmittance_morphology_and_bioc_transmittance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CNRatio"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_2017_canopy_spectral_reflectance_seward_pen_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Spectra_Group"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_2017_leaf_spectral_reflectance_teller_water_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Species"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_2017_leaf_spectral_reflectance_teller_water_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CNratio"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_leaf_spectral_reflectance_and_transmittance_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "USDA_Species_Code"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_leaf_spectral_reflectance_and_transmittance_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CN_ratio"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_leaf_spectral_reflectance_and_transmittance_transmittance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "USDA_Species_Code"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_leaf_spectral_reflectance_utqiagvik_barrow_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "USDA_Species"
+    },
+    {
+      "dataset_id": "ecosis_ngee_arctic_leaf_spectral_reflectance_utqiagvik_barrow_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "A652"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_february_2017_leaf_spectral_reflectance_me_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Genus_species"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_february_2017_leaf_spectral_reflectance_me_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C_N"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_gliht_puerto_rico_campaign_leaf_spectral_r_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Overlap_Matching_Type"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_gliht_puerto_rico_campaign_leaf_spectral_r_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CNratio"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_gliht_puerto_rico_campaign_leaf_spectral_r_transmittance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CNratio"
+    },
+    {
+      "dataset_id": "ecosis_ngee_tropics_leaf_spectral_reflectance_measured_in_pana_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "H20_pc"
+    },
+    {
+      "dataset_id": "ecosis_oven_dried_leaf_spectra_and_measured_traits_from_the_si_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "family"
+    },
+    {
+      "dataset_id": "ecosis_oven_dried_leaf_spectra_and_measured_traits_from_the_si_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "LMA_value_g/m2"
+    },
+    {
+      "dataset_id": "ecosis_pressed_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_pressed_leaf_cabo_spectra_from_herbarium_project_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_pressed_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "GrowthForm"
+    },
+    {
+      "dataset_id": "ecosis_pressed_leaf_cabo_spectra_from_herbarium_project_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "ADF"
+    },
+    {
+      "dataset_id": "ecosis_productivity_and_characterization_of_soybean_foliar_tra_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "CAROTENOIDS"
+    },
+    {
+      "dataset_id": "ecosis_purdue_leaf_spectral_functional_traits_plsr_v2_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Data_Collection_Date"
+    },
+    {
+      "dataset_id": "ecosis_seasonal_measurements_of_photosynthesis_and_leaf_traits_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Asat"
+    },
+    {
+      "dataset_id": "ecosis_spectra_from_in_situ_deciduous_leaves_and_leaves_collec_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Species"
+    },
+    {
+      "dataset_id": "ecosis_spectra_from_in_situ_deciduous_leaves_and_leaves_collec_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "C"
+    },
+    {
+      "dataset_id": "ecosis_spectral_characterization_of_multiple_corn_varieties_we_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Variety"
+    },
+    {
+      "dataset_id": "ecosis_tabletop_leaf_drydowns_to_relate_leaf_spectra_and_leaf_reflectance_nirs",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "capacitance_g/cm2/MPa"
+    },
+    {
+      "dataset_id": "ecosis_urban_materials_spectral_library_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "material"
+    },
+    {
+      "dataset_id": "ecosis_uw_bnl_nasa_hyspiri_airborne_campaign_leaf_and_canopy_s_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Target_Type"
+    },
+    {
+      "dataset_id": "ecosis_uw_bnl_nasa_hyspiri_california_airborne_campaign_ground_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "Target_Type"
+    },
+    {
+      "dataset_id": "ecosis_varietal_discrimination_and_detection_of_pvy_in_solanum_reflectance_nirs",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "row_id"
+    },
+    {
+      "dataset_id": "ecostress_manmade_all_536points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_meteorites_tir_2287points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_mineral_tir_2256points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_mineral_tir_2287points_113rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "subclass"
+    },
+    {
+      "dataset_id": "ecostress_mineral_tir_2287points_207rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "subclass"
+    },
+    {
+      "dataset_id": "ecostress_mineral_vswir_2101points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_mineral_vswir_826points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_nonphotosyntheticvegetation_tir_1736points_47rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_nonphotosyntheticvegetation_vswir_2151points_57rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_rock_all_2257points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_rock_all_2826points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_rock_all_2844points_29rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "subclass"
+    },
+    {
+      "dataset_id": "ecostress_rock_all_2844points_46rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_rock_all_2868points_41rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_rock_vswir_2101points",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_vegetation_tir_1737points_138rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_vegetation_tir_1737points_342rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_vegetation_vswir_2151points_210rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "ecostress_vegetation_vswir_2151points_343rows",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "class_label"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X1",
+      "kind": "classification",
+      "target": "Species_code_grpStrat"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X1",
+      "kind": "regression",
+      "target": "An"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X2",
+      "kind": "classification",
+      "target": "Species_code_grpStrat"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X2",
+      "kind": "regression",
+      "target": "An"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X3",
+      "kind": "classification",
+      "target": "Species_code_grpStrat"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X3",
+      "kind": "regression",
+      "target": "An"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X4",
+      "kind": "classification",
+      "target": "Species_code_grpStrat"
+    },
+    {
+      "dataset_id": "grapevine_leaftraits_multisensor_nir",
+      "source_id": "X4",
+      "kind": "regression",
+      "target": "An"
+    },
+    {
+      "dataset_id": "malaria_anopheles_gambiae_oocyst_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "x"
+    },
+    {
+      "dataset_id": "malaria_anopheles_gambiae_sporozoite_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "x"
+    },
+    {
+      "dataset_id": "manure21_nir_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "AN"
+    },
+    {
+      "dataset_id": "ohpl_beer_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "original_extract"
+    },
+    {
+      "dataset_id": "ohpl_soil_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "som"
+    },
+    {
+      "dataset_id": "ohpl_wheat_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "protein"
+    },
+    {
+      "dataset_id": "ossl_afsis2_mir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "al_ext_usda_a1056_mg_kg"
+    },
+    {
+      "dataset_id": "ossl_icraf_visnir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "acidity_usda_a795_cmolc_kg"
+    },
+    {
+      "dataset_id": "ossl_jovic_mir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "c_tot_usda_a622_w_pct"
+    },
+    {
+      "dataset_id": "ossl_lucas_woodwell_mir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "caco3_usda_a54_w_pct"
+    },
+    {
+      "dataset_id": "ossl_neospectra_mir_soil_all_y",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "efferv_usda_a479_class"
+    },
+    {
+      "dataset_id": "ossl_neospectra_mir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "al_dith_usda_a65_w_pct"
+    },
+    {
+      "dataset_id": "ossl_neospectra_nir_soil_all_y",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "efferv_usda_a479_class"
+    },
+    {
+      "dataset_id": "ossl_neospectra_nir_soil_all_y",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "al_dith_usda_a65_w_pct"
+    },
+    {
+      "dataset_id": "perten_cereals_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "Moisture"
+    },
+    {
+      "dataset_id": "pharmaceutical_tablets_nir_shootout_eigenvector",
+      "source_id": "X1",
+      "kind": "regression",
+      "target": "assay"
+    },
+    {
+      "dataset_id": "pharmaceutical_tablets_nir_shootout_eigenvector",
+      "source_id": "X2",
+      "kind": "regression",
+      "target": "assay"
+    },
+    {
+      "dataset_id": "plastic_polymer_name_grouped_flopp_e_ftir",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "polymer_name"
+    },
+    {
+      "dataset_id": "plastic_polymer_name_grouped_flopp_ftir",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "polymer_name"
+    },
+    {
+      "dataset_id": "timeseries_boeuf_classe_adulteration_ts",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "classe_adulteration"
+    },
+    {
+      "dataset_id": "timeseries_cafe_instantane_espece_cafe_ts",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "espece_cafe"
+    },
+    {
+      "dataset_id": "timeseries_huile_olive_extra_vierge_origine_geographique_ts",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "origine_geographique"
+    },
+    {
+      "dataset_id": "timeseries_puree_fraise_authenticite_ts",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "authenticite"
+    },
+    {
+      "dataset_id": "timeseries_roche_type_roche_ts",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "type_roche"
+    },
+    {
+      "dataset_id": "timeseries_solution_eau_ethanol_bouteille_whisky_concentration_ethanol_ts",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "concentration_ethanol"
+    },
+    {
+      "dataset_id": "timeseries_spiritueux_whisky_bouteille_taux_ethanol_ts",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "taux_ethanol"
+    },
+    {
+      "dataset_id": "timeseries_viande_espece_viande_ts",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "espece_viande"
+    },
+    {
+      "dataset_id": "timeseries_vin_cepage_type_ts",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "cepage_type"
+    },
+    {
+      "dataset_id": "ucph_tablet_nir",
+      "source_id": "X",
+      "kind": "classification",
+      "target": "tablet_type"
+    },
+    {
+      "dataset_id": "ucph_tablet_nir",
+      "source_id": "X",
+      "kind": "regression",
+      "target": "active_w_w"
+    }
+  ],
+  "protocol_evidence": {
+    "nirs4all-lab/RamanPFN/data.py": "792ddf657e569bdb0e691bab0c16c858afd9799d10f1d02f88f7a1a1543dc486",
+    "nirs4all-lab/RamanPFN/run.py": "0c8ba25ff88039178509dea253ca65fe58dc30e83330fd4ecee5383a0da76b60",
+    "nirs4all-lab/RamanPFN/run_classical_reps.py": "21b7a43ca867c10328a3cd0be46648c863f45fe8eacd39fa6de2cffcb5b2ef24",
+    "nirs4all-lab/RamanPFN/run_aom.py": "62ca18da488be86fcbd49e806b9cb9588bee0d8147fbe9a6b4f90200829c8b72",
+    "nirs4all-lab/RamanPFN/run_aom_defaults.py": "b9268bf108d3f46b3b674500ca5d0410a62571e9341e133216f84a99a9e0d925",
+    "nirs4all-lab/RamanPFN/run_versions.py": "3f92f89bd61d55ad566746977df45ef89ecf3382265389296403901aa356ddea",
+    "nirs4all-lab/RamanPFN/run_version_reps.py": "02c43e0b6d97344a245a1bae9b671465a75315a90ab29b4c757182c172529593",
+    "nirs4all-lab/RamanPFN/build_score_matrix.py": "a6d86c4d01951987d8dcb97a19ef02a99e025b8378428a09eaf259f9e83ae2fc",
+    "nirs4all-lab/RamanPFN/export_benchmarks.py": "f19a7c7fbdfd0e00e75a5affe32f56634ae55941da5801b16d42d484e0e70ea5"
+  }
+}

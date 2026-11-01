@@ -33,6 +33,7 @@ def test_directions():
     assert direction_of("rmse") == "min"
     assert direction_of("r2") == "max"
     assert direction_of("accuracy") == "max"
+    assert direction_of("f1_weighted") == "max"
     assert direction_of("unknown_metric") == "min"
 
 
