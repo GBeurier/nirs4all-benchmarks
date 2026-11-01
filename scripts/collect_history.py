@@ -37,8 +37,41 @@ EXCLUDED_DATASETS = {
 }
 
 
+# Derived scores added to every regression export; recorded in the manifest.
+DERIVED_METRICS = {
+    "nrmse": "RMSE divided by the standard deviation of the target over the whole catalog dataset "
+             "(nirs4all-datasets card statistics, recorded in dataset_card.target_scale), so scores "
+             "of targets with different units and scales are comparable. Targets whose card statistics "
+             "include the undeclared -9999 missing-value sentinel have no reliable scale and get no nRMSE.",
+}
+MISSING_SENTINEL = -9999.0
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def target_scale(datasets_root: Path, dataset_id: str, target: str) -> dict | None:
+    """Standard deviation of ``target`` from its nirs4all-datasets card, with provenance.
+
+    None when the card statistics count the -9999 missing-value sentinel as a value.
+    """
+    path = datasets_root / dataset_id / "card.json"
+    card = json.loads(path.read_text(encoding="utf-8"))
+    stats = next(v for v in card["variables"] if v["name"] == target)["stats"]
+    if stats["min"] == MISSING_SENTINEL:
+        return None
+    return {"target": target, "sd": stats["std"], "n": stats["n"],
+            "card_path": f"nirs4all-datasets/datasets/{dataset_id}/card.json", "card_sha256": sha256(path)}
+
+
+def add_nrmse(manifest: dict, scale: dict) -> None:
+    """Record the target scale and add an nRMSE observation next to each RMSE observation."""
+    manifest["dataset"]["dataset_card"]["target_scale"] = scale
+    observations = manifest["scores"]["observations"]
+    for observation in [o for o in observations if o["metric_name"] == "rmse"]:
+        observations.append({**observation, "metric_name": "nrmse",
+                             "metric_value": observation["metric_value"] / scale["sd"]})
 
 
 def collect(workspace: Path, output: Path) -> dict:
@@ -132,6 +165,9 @@ def collect(workspace: Path, output: Path) -> dict:
             "exporter_path": exporter_path.relative_to(workspace).as_posix(),
             "exporter_sha256": sha256(exporter_path),
         }}
+        scale = target_scale(workspace / "nirs4all-datasets" / "datasets", dataset_id, row["target"])
+        if manifest["task"]["task_type"] == "regression" and scale is not None:
+            add_nrmse(manifest, scale)
         if not manifest["scores"]["observations"]:
             raise ValueError(f"Missing metrics: {key}")
         for observation in manifest["scores"]["observations"]:
@@ -162,6 +198,7 @@ def collect(workspace: Path, output: Path) -> dict:
         "selection_policy": "First target in lexical order per dataset/source/task kind; all available methods "
                             "and seeds. No selection by score. Final export overrides duplicate experiment keys.",
         "excluded_datasets": EXCLUDED_DATASETS,
+        "derived_metrics": DERIVED_METRICS,
         "sources": sources, "selection": selection,
         "protocol_evidence": {f"nirs4all-lab/RamanPFN/{name}": sha256(producer / name) for name in evidence},
     }

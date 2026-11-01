@@ -20,7 +20,7 @@ def test_build_site_produces_static_snapshot(tmp_path: Path):
     assert (out / "lib" / "static-engine.js").exists()
     assert (out / "brand" / "icon.svg").exists()
     overview = (out / "views" / "overview.js").read_text()
-    assert "lower RMSE" in overview and "higher RMSE" in overview
+    assert "lower ${FIND}" in overview and "higher ${FIND}" in overview
     assert "easier or less independent splits" in overview
     assert "performance against leakage risk" in overview
     assert "match split independence to deployment" in overview

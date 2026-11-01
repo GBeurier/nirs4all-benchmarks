@@ -2,7 +2,7 @@
 
 `catalog-history-2026-09/` contains 10,824 existing research executions on **104 datasets** from
 `nirs4all-datasets`: 153 dataset/source/target/task-kind combinations, 32 method labels, seeds 0/1/2,
-and 25,806 metric observations. There are 6,666 regression runs and 4,158 classification runs.
+and 32,286 metric observations. There are 6,666 regression runs and 4,158 classification runs.
 Source-specific views occupy 110 dataset fingerprints; these are not 110 independent datasets.
 
 Methods include PLS, PLS-DA, Ridge, AOM-PLS, AOM-Ridge, NIRPFN, and TabPFN v2.5/v3/v3.5,
@@ -55,7 +55,8 @@ The producer's existing group-aware 80/20 hold-out and train-only selection atte
 preserved. The split seed, sample counts, method details, selected parameters, and pipeline graph
 are retained. These are **producer-reported historical scores**, imported as a user run collection,
 not a newly qualified release. Producer graphs reflect the recorded recipe; they are not certified
-complete replay bundles. Metrics were copied without rescaling or recomputation.
+complete replay bundles. Producer metrics were copied without rescaling or recomputation; the only
+derived score is nRMSE (below).
 
 All observations remain `scope=test`, `partition=test`. Inner-CV method selection does not make a
 held-out score a CV observation. Use the **test** lens in the existing charts. No fold scores,
@@ -64,6 +65,17 @@ comparison views therefore have no data for this collection. Raw-data access tie
 importing scores does not grant access to the underlying datasets. Compare scores within matching
 dataset/source/target, metric, and protocol: absolute RMSE values across different targets have
 different units and scales. Method coverage is incomplete on some tasks.
+
+### Derived nRMSE
+
+Every regression export whose target has a usable scale carries an extra `nrmse` observation:
+RMSE divided by the standard deviation of the target over the whole catalog dataset, taken from
+`nirs4all-datasets/datasets/<id>/card.json` and recorded with that card's SHA-256 in
+`dataset_card.target_scale` (6,480 of 6,666 regression runs). nRMSE is scale-free, so it is the
+default lens for charts that pool datasets. It equals 1/RPD up to the choice of standard deviation:
+the whole catalog dataset, not each held-out test split. Two targets get none because their card
+statistics count the undeclared `-9999` missing-value sentinel as a value (`EWT_gDW_cm2` in the
+NASA FFT leaf dataset and `CN_ratio` in the NGEE Arctic leaf dataset); their RMSE remains available.
 
 ## Refresh from the original local sources
 

@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+### Added
+- nRMSE, RMSE divided by the target's standard deviation, as a scale-free regression metric. The
+  catalog data pack derives it from the `nirs4all-datasets` card statistics (recorded per export in
+  `dataset_card.target_scale`), Arena scoring computes it from the test targets, and it is the
+  default lens metric and the metric of the Overview findings.
+
 ### Changed
 - The static site's `bundle.json` is columnar with a shared string table and carries only the columns
   the client engine reads: 88 MB → 13 MB (1.6 MB gzipped) for the catalog snapshot.

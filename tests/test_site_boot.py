@@ -38,7 +38,7 @@ def test_static_site_recovers_from_startup_failures(tmp_path: Path) -> None:
     try:
         cases = [
             ("normal", "", True),
-            ("corrupt", 'localStorage.setItem("arena.state.v1", "{broken");', True),
+            ("corrupt", 'localStorage.setItem("arena.state.v2", "{broken");', True),
             ("blocked", 'Object.defineProperty(window, "localStorage", {get() { throw new Error("blocked"); }});', True),
             ("snapshot_error", '''
               const realFetch = window.fetch;

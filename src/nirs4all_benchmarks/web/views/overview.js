@@ -1,5 +1,7 @@
 // Overview — a run meta-analysis dashboard: headline findings + store health.
-// Uses held-out test RMSE as the headline lens; deeper slicing lives in the analysis views.
+// Headline findings pool every dataset, so they use the scale-free nRMSE when the store has it;
+// the best-per-dataset table keeps RMSE in each target's own units. Deeper slicing lives in the
+// analysis views.
 
 const METRIC = "rmse";
 const SCOPE = "test";
@@ -19,6 +21,7 @@ export default {
     const { root, api, dom, plot, state } = ctx;
     const ov = await api.overview();
     state._overview = ov;
+    const FIND = ov.metrics?.includes("nrmse") ? "nrmse" : METRIC;
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("div", { class: "eyebrow" }, dom.el("span", { class: "pulse-dot" }), "NIRS pipeline meta-analysis"),
@@ -38,7 +41,7 @@ export default {
       stat("Score sets", ov.score_sets), stat("Quarantined", ov.quarantined_executions));
 
     dom.mount(root, head,
-      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } }, `Key findings · ${METRIC} (${SCOPE})`),
+      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } }, `Key findings · ${FIND} (${SCOPE})`),
       findingsHost, stats,
       dom.el("div", { class: "card", style: { marginTop: "16px" } },
         dom.el("h3", {}, "Best pipeline per dataset"),
@@ -57,13 +60,13 @@ export default {
       return c;
     };
     const fmt = (x) => dom.fmt(x, 4);
-    const pivot = (group_by) => api.pivot({ group_by, metric: METRIC, scope: SCOPE }).then((p) => p).catch(() => null);
+    const pivot = (group_by) => api.pivot({ group_by, metric: FIND, scope: SCOPE }).then((p) => p).catch(() => null);
 
     try {
       const [lb, byModel, byPp, byAug, bySplit, rob] = await Promise.all([
-        api.leaderboard({ metric: METRIC, scope: SCOPE, limit: 1 }).catch(() => null),
+        api.leaderboard({ metric: FIND, scope: SCOPE, limit: 1 }).catch(() => null),
         pivot("model_family"), pivot("preprocessing_op"), pivot("has_augmentation"),
-        pivot("split_method"), api.robustness({ metric: METRIC, scope: SCOPE }).catch(() => null),
+        pivot("split_method"), api.robustness({ metric: FIND, scope: SCOPE }).catch(() => null),
       ]);
       const findings = [];
 
@@ -71,26 +74,26 @@ export default {
       if (top) findings.push(card("🏆", "Top pipeline", fmt(top.mean), top.pipeline_label || top.pipeline_dag_hash.slice(0, 12), "leaderboard"));
 
       const bm = bestOf(byModel?.rows, "min");
-      if (bm) findings.push(card("🧠", "Best model family", bm.group_value, `${fmt(bm.value)} mean rmse`, "playground"));
+      if (bm) findings.push(card("🧠", "Best model family", bm.group_value, `${fmt(bm.value)} mean ${FIND}`, "playground"));
 
       const bp = bestOf(byPp?.rows, "min");
-      if (bp) findings.push(card("🧪", "Best preprocessing", bp.group_value, `${fmt(bp.value)} mean rmse`, "operator-effect"));
+      if (bp) findings.push(card("🧪", "Best preprocessing", bp.group_value, `${fmt(bp.value)} mean ${FIND}`, "operator-effect"));
 
       if (byAug?.rows?.length) {
         const yes = byAug.rows.find((r) => r.group_value === "yes");
         const no = byAug.rows.find((r) => r.group_value === "no");
         if (yes && no) {
-          const lift = no.value - yes.value; // >0 ⇒ augmentation lowers rmse (helps)
+          const lift = no.value - yes.value; // >0 ⇒ augmentation lowers the error (helps)
           findings.push(card("✨", "Augmentation effect",
             (lift >= 0 ? "−" : "+") + fmt(Math.abs(lift)),
-            lift >= 0 ? "augmentation improves rmse" : "augmentation hurts rmse", "playground"));
+            lift >= 0 ? `augmentation improves ${FIND}` : `augmentation hurts ${FIND}`, "playground"));
         }
       }
 
       if (bySplit?.rows?.length > 1) {
         const lo = bestOf(bySplit.rows, "min"), hi = bestOf(bySplit.rows, "max");
         findings.push(card("✂️", "Split sensitivity", fmt(hi.value - lo.value),
-          `${lo.group_value}: lower RMSE · ${hi.group_value}: higher RMSE. `
+          `${lo.group_value}: lower ${FIND} · ${hi.group_value}: higher ${FIND}. `
           + "Better scores may reflect easier or less independent splits. "
           + "Weigh observed performance against leakage risk; match split independence to deployment. "
           + "Do not tune splits on held-out test results.", "playground"));

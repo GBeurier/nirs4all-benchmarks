@@ -59,11 +59,21 @@ def test_checked_in_real_data_archive() -> None:
                 if observation.direction == "max":
                     assert 0 <= observation.metric_value <= 1
                 counts["observations"] += 1
+            # nRMSE is RMSE in units of the target's catalog standard deviation.
+            values = {o.metric_name: o.metric_value for o in export.scores.observations}
+            scale = export.dataset.dataset_card.get("target_scale")
+            if "nrmse" in values:
+                assert export.task.task_type == "regression" and scale["sd"] > 0
+                assert values["nrmse"] == pytest.approx(values["rmse"] / scale["sd"])
+                counts["nrmse"] += 1
+            else:
+                assert scale is None
             counts["executions"] += 1
     assert counts["executions"] == metadata["executions"] == 10824
-    assert counts["observations"] == metadata["metric_observations"] == 25806
+    assert counts["observations"] == metadata["metric_observations"] == 32286
     assert len(datasets) == metadata["datasets"] == 104
     assert len(tasks) == metadata["tasks"] == 153
+    assert counts["nrmse"] == 6480 and "nrmse" in metadata["derived_metrics"]
 
 
 def _small_pack(root: Path) -> dict:
@@ -137,7 +147,7 @@ def test_real_charts_recover_from_saved_demo_filters(tmp_path: Path) -> None:
             ({"metric": "f1_weighted", "scope": "test", "dataset": ""}, "f1_weighted"),
         ]
         for number, (lens, expected_metric) in enumerate(cases):
-            setup = f"localStorage.setItem('arena.state.v1', {json.dumps(json.dumps(lens))});"
+            setup = f"localStorage.setItem('arena.state.v2', {json.dumps(json.dumps(lens))});"
             # Check actual SVG bar paths, rather than treating a rendered table
             # or the absence of JavaScript errors as proof that a chart exists.
             setup += """
@@ -145,7 +155,7 @@ def test_real_charts_recover_from_saved_demo_filters(tmp_path: Path) -> None:
                   const plot = document.getElementById('lb-plot');
                   if (plot?.querySelector('.barlayer .point path')) {
                     document.body.dataset.chartRendered = 'true';
-                    document.body.dataset.chartLens = localStorage.getItem('arena.state.v1');
+                    document.body.dataset.chartLens = localStorage.getItem('arena.state.v2');
                     clearInterval(check);
                   }
                 }, 100);

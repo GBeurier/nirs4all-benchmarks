@@ -2,7 +2,7 @@
 // so the SPA runs on GitHub Pages with no backend. Mirrors store/queries.py.
 
 const DIRECTION = {
-  mse: "min", rmse: "min", mae: "min", medae: "min", bias: "min", log_loss: "min",
+  mse: "min", rmse: "min", nrmse: "min", mae: "min", medae: "min", bias: "min", log_loss: "min",
   r2: "max", rpd: "max", rpiq: "max", ccc: "max", accuracy: "max", balanced_accuracy: "max",
   f1_macro: "max", f1_micro: "max", f1_weighted: "max", precision_macro: "max", recall_macro: "max", roc_auc: "max", mcc: "max",
 };
