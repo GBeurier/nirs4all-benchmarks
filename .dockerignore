@@ -12,6 +12,7 @@ __pycache__
 .coverage
 htmlcov
 arena-store
+pages-store
 *.sqlite*
 tests
 docs

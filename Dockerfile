@@ -16,6 +16,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY LICENSES ./LICENSES
 COPY src ./src
+COPY data ./data
 RUN uv pip install --system ".[service]"
 
 # Persistent store lives on a mounted volume.
@@ -24,7 +25,7 @@ VOLUME ["/data"]
 EXPOSE 8000
 
 # Seed nothing by default; the store is created on first request / ingest.
-# Override CMD to run `n4a-benchmarks fixtures` once if you want demo data.
+# Import /app/data/catalog-history-2026-09 once to populate a fresh volume.
 CMD ["uvicorn", "--factory", "nirs4all_benchmarks.service.app:create_app", \
      "--host", "0.0.0.0", "--port", "8000"]
 

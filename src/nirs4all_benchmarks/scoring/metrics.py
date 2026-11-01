@@ -29,6 +29,7 @@ METRIC_DIRECTION: dict[str, str] = {
     "balanced_accuracy": "max",
     "f1_macro": "max",
     "f1_micro": "max",
+    "f1_weighted": "max",
     "precision_macro": "max",
     "recall_macro": "max",
     "log_loss": "min",

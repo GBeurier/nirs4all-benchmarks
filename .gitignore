@@ -20,6 +20,7 @@ htmlcov/
 
 # arena runtime data (never commit a store)
 arena-store/
+/pages-store/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

@@ -37,7 +37,12 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 - **Next (medium term): a live meta-analysis server** that manages **runs, pipelines and meta-analyses**
   and interacts with **[`nirs4all-repository`](https://github.com/GBeurier/nirs4all-repository)** (pipeline
   recipes to score) and **[`nirs4all-datasets`](https://github.com/GBeurier/nirs4all-datasets)** (the dataset
-  catalog) — turning the static demo into a continuously-updated public benchmark.
+  catalog) — turning the static research snapshot into a continuously-updated public benchmark.
+
+The checked-in [real-data pack](data/README.md) contains **11,103 measured runs on 107 catalog datasets**,
+covering 156 source/target tasks, 32 method labels, three seeds, and 26,364 score observations.
+The Pages build imports this pack instead of synthetic fixtures. Scores retain their original held-out
+**test** scope and source provenance; the existing charts use test scores by default.
 
 Full plan: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
 
@@ -71,11 +76,11 @@ See the design docs for the *why*: [DESIGN.md](DESIGN.md) ·
 uv venv --python 3.11 .venv
 uv pip install --python .venv -e ".[service]"
 
-# create a store, seed the demo fixtures, and explore from the terminal
+# create a store, import real measured results, and explore from the terminal
 .venv/bin/n4a-benchmarks init      --store ./arena-store
-.venv/bin/n4a-benchmarks fixtures  --store ./arena-store
+.venv/bin/n4a-benchmarks ingest-history data/catalog-history-2026-09 --store ./arena-store
 .venv/bin/n4a-benchmarks stats     --store ./arena-store
-.venv/bin/n4a-benchmarks leaderboard --store ./arena-store --metric rmse
+.venv/bin/n4a-benchmarks leaderboard --store ./arena-store --metric rmse --scope test
 
 # launch the dataviz web app  ->  http://127.0.0.1:8000
 .venv/bin/n4a-benchmarks serve --store ./arena-store
@@ -116,7 +121,7 @@ With Docker:
 
 ```bash
 docker compose up --build           # serves on :8000 with a persistent volume
-docker compose run --rm arena n4a-benchmarks fixtures   # seed demo data once
+docker compose run --rm arena n4a-benchmarks ingest-history /app/data/catalog-history-2026-09 --store /data/arena-store
 ```
 
 ## Documentation
