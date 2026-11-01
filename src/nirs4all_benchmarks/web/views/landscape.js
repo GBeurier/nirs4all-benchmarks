@@ -61,6 +61,17 @@ function axisFor(title, d) {
 // Full display value of row i on a dimension (for hover).
 const shown = (d, i) => (d.categorical ? d.names[d.vals[i]] : String(d.vals[i]));
 
+// Per-axis sort choices: "<by>:<dir>" (see codeDim), or none.
+const SORT_OPTIONS = [
+  { value: "none", label: "none" },
+  { value: "score:asc", label: "mean score ↑" }, { value: "score:desc", label: "mean score ↓" },
+  { value: "value:asc", label: "value ↑" }, { value: "value:desc", label: "value ↓" },
+];
+const parseSort = (v) => (v === "none" ? null : { by: v.split(":")[0], dir: v.split(":")[1] });
+const describeSort = (axis, sort, metric) => (sort
+  ? `${axis} sorted by ${sort.by === "score" ? `mean ${metric}` : "value"}, ${sort.dir === "asc" ? "ascending" : "descending"}. `
+  : "");
+
 export default {
   id: "landscape",
   title: "Landscape (3D)",
@@ -97,15 +108,8 @@ export default {
       { id: "z", type: "select", label: "Z axis",
         options: [{ value: Z_METRIC, label: "metric (score)" }, ...facetOptions], value: Z_METRIC },
       { id: "chart", type: "select", label: "Chart", options: ["scatter3d", "surface"], value: "scatter3d" },
-      { id: "sort_axis", type: "select", label: "Sort axis", value: "none", options: [
-        { value: "none", label: "none" }, { value: "x", label: "X" }, { value: "y", label: "Y" },
-      ] },
-      { id: "sort_by", type: "select", label: "Sort by", value: "score", options: [
-        { value: "score", label: "mean score" }, { value: "value", label: "axis value" },
-      ] },
-      { id: "sort_dir", type: "select", label: "Order", value: "asc", options: [
-        { value: "asc", label: "ascending" }, { value: "desc", label: "descending" },
-      ] },
+      { id: "x_sort", type: "select", label: "X sort", options: SORT_OPTIONS, value: "none" },
+      { id: "y_sort", type: "select", label: "Y sort", options: SORT_OPTIONS, value: "none" },
     ], () => refresh());
 
     const note = dom.el("div", { class: "sub" },
@@ -155,10 +159,10 @@ export default {
       const dirArrow = dir === "max" ? "↑ higher is better" : "↓ lower is better";
       const dsName = new Map((state._datasets || []).map((d) => [d.dataset_fingerprint, d.name || d.dataset_fingerprint]));
       const displayFor = (key) => (key === "dataset" ? (v) => dsName.get(v) || v : (v) => v);
-      const sortAxis = bar.get("sort_axis");
-      const sort = { by: bar.get("sort_by"), dir: bar.get("sort_dir") };
-      const dx = codeDim(rows, x, displayFor(x), sortAxis === "x" ? sort : null);
-      const dy = codeDim(rows, y, displayFor(y), sortAxis === "y" ? sort : null);
+      const xSort = parseSort(bar.get("x_sort"));
+      const ySort = parseSort(bar.get("y_sort"));
+      const dx = codeDim(rows, x, displayFor(x), xSort);
+      const dy = codeDim(rows, y, displayFor(y), ySort);
       const xUniqCount = new Set(dx.vals).size;
       const yUniqCount = new Set(dy.vals).size;
       if (xUniqCount < 2 && yUniqCount < 2) {
@@ -246,8 +250,7 @@ export default {
         });
       }
 
-      const sortNote = sortAxis === "none" ? "" : `${sortAxis.toUpperCase()} sorted by `
-        + `${sort.by === "score" ? `mean ${state.metric}` : "axis value"}, ${sort.dir === "asc" ? "ascending" : "descending"}. `;
+      const sortNote = describeSort("X", xSort, state.metric) + describeSort("Y", ySort, state.metric);
       note.textContent =
         `${rows.length} run(s) over ${pretty(x)} × ${pretty(y)}; color = ${state.metric} (${dirArrow}). ${sortNote}`
         + `Categorical axes are coded to integers; ticks are labelled up to ${MAX_LABELLED_VALUES} values, hover shows full labels.`;
