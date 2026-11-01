@@ -111,7 +111,8 @@ function renderContextBar(activeId) {
   host.appendChild(dom.el("div", { class: "ctx-inner" },
     dom.el("span", { class: "ctx-lens" }, "Lens"),
     sel("metric", "Metric", metrics, state.metric, (v) => { state.metric = v; state.save(); route(); }),
-    sel("scope", "Score level", ["cv", "test", "refit", "fold"], state.scope, (v) => { state.scope = v; state.save(); route(); }),
+    sel("scope", "Score level", ov.score_scopes?.length ? ov.score_scopes : ["cv", "test", "refit", "fold"],
+      state.scope, (v) => { state.scope = v; state.save(); route(); }),
     sel("dataset", "Dataset",
       [{ value: "", label: "All datasets" },
         ...ds.map((d) => ({ value: d.dataset_fingerprint, label: d.name || d.dataset_fingerprint.slice(0, 10) }))],
@@ -124,6 +125,18 @@ async function refreshHeader() {
     const ov = await api.overview();
     state._overview = ov;
     if (!state._datasets) { try { state._datasets = await api.datasets(); } catch { state._datasets = []; } }
+    // A new snapshot may replace the metrics, score levels, and dataset identities
+    // stored in an earlier visit. Restore usable filters before rendering charts.
+    if (ov.metrics?.length && !ov.metrics.includes(state.metric)) {
+      state.metric = ov.metrics.includes("rmse") ? "rmse" : ov.metrics[0];
+    }
+    if (ov.score_scopes?.length && !ov.score_scopes.includes(state.scope)) {
+      state.scope = ov.score_scopes.includes("test") ? "test" : ov.score_scopes[0];
+    }
+    if (state.dataset && !state._datasets.some((d) => d.dataset_fingerprint === state.dataset)) {
+      state.dataset = "";
+    }
+    state.save();
     document.getElementById("header-pill").textContent =
       `${ov.valid_executions}/${ov.executions} runs · ${ov.pipelines} pipelines · ${ov.datasets} datasets`;
   } catch {
