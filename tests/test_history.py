@@ -60,10 +60,10 @@ def test_checked_in_real_data_archive() -> None:
                     assert 0 <= observation.metric_value <= 1
                 counts["observations"] += 1
             counts["executions"] += 1
-    assert counts["executions"] == metadata["executions"] == 11010
-    assert counts["observations"] == metadata["metric_observations"] == 26178
-    assert len(datasets) == metadata["datasets"] == 106
-    assert len(tasks) == metadata["tasks"] == 155
+    assert counts["executions"] == metadata["executions"] == 10824
+    assert counts["observations"] == metadata["metric_observations"] == 25806
+    assert len(datasets) == metadata["datasets"] == 104
+    assert len(tasks) == metadata["tasks"] == 153
 
 
 def _small_pack(root: Path) -> dict:

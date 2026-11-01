@@ -39,8 +39,8 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
   recipes to score) and **[`nirs4all-datasets`](https://github.com/GBeurier/nirs4all-datasets)** (the dataset
   catalog) — turning the static research snapshot into a continuously-updated public benchmark.
 
-The checked-in [real-data pack](data/README.md) contains **11,010 measured runs on 106 catalog datasets**,
-covering 155 source/target tasks, 32 method labels, three seeds, and 26,178 score observations.
+The checked-in [real-data pack](data/README.md) contains **10,824 measured runs on 104 catalog datasets**,
+covering 153 source/target tasks, 32 method labels, three seeds, and 25,806 score observations.
 The Pages build imports this pack instead of synthetic fixtures. Scores retain their original held-out
 **test** scope and source provenance; the existing charts use test scores by default.
 
