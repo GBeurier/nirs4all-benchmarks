@@ -62,7 +62,9 @@ export default {
       const freshPlot = dom.el("div", { class: "plot tall", id: "pc-plot" });
       dom.mount(card, dom.el("h3", {}, "Run trajectories"), freshPlot, note);
 
-      const pc = await api.parallel({ dimensions: chosen.join(","), metric: state.metric, scope: state.scope });
+      const pc = await api.parallel({
+        dimensions: chosen.join(","), metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
+      });
       const rows = pc.rows || [];
       if (!rows.length) {
         dom.mount(freshPlot, dom.empty("No runs match these dimensions at this score level."));

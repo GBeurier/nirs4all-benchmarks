@@ -21,7 +21,7 @@ export default {
     const refresh = async () => {
       const plotNode = document.getElementById("oe-plot");
       dom.mount(tableHost, dom.loading());
-      const oe = await api.operatorEffect({ metric: state.metric, scope: state.scope });
+      const oe = await api.operatorEffect({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
       const series = oe.series || [];
       if (!series.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No operators match these filters.")); return; }
 

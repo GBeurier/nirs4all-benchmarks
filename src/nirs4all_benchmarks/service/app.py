@@ -114,9 +114,11 @@ def create_app(store_root: str | Path | None = None) -> Any:
             )
 
     @app.get("/api/matrix")
-    def matrix(metric: str = "rmse", scope: str = "cv", include_quarantined: bool = False) -> dict[str, Any]:
+    def matrix(metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
+               include_quarantined: bool = False) -> dict[str, Any]:
         with queries() as q:
-            return q.matrix(metric=metric, scope=scope, include_quarantined=include_quarantined)
+            return q.matrix(metric=metric, scope=scope, dataset_fingerprint=dataset,
+                            include_quarantined=include_quarantined)
 
     @app.get("/api/runs")
     def runs(
@@ -135,19 +137,20 @@ def create_app(store_root: str | Path | None = None) -> Any:
             )
 
     @app.get("/api/operator-effect")
-    def operator_effect(metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def operator_effect(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
         with queries() as q:
-            return q.operator_effect(metric=metric, scope=scope)
+            return q.operator_effect(metric=metric, scope=scope, dataset_fingerprint=dataset)
 
     @app.get("/api/parameter-effect")
-    def parameter_effect(param: str, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def parameter_effect(param: str, metric: str = "rmse", scope: str = "cv",
+                         dataset: str | None = None) -> dict[str, Any]:
         with queries() as q:
-            return q.parameter_effect(param, metric=metric, scope=scope)
+            return q.parameter_effect(param, metric=metric, scope=scope, dataset_fingerprint=dataset)
 
     @app.get("/api/robustness")
-    def robustness(metric: str = "rmse", scope: str = "cv") -> list[dict[str, Any]]:
+    def robustness(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> list[dict[str, Any]]:
         with queries() as q:
-            return q.robustness(metric=metric, scope=scope)
+            return q.robustness(metric=metric, scope=scope, dataset_fingerprint=dataset)
 
     # ── faceting / pivot / playground ──────────────────────────────────
     @app.get("/api/facets")
@@ -178,11 +181,11 @@ def create_app(store_root: str | Path | None = None) -> Any:
             )
 
     @app.get("/api/parallel")
-    def parallel(dimensions: str, metric: str = "rmse", scope: str = "cv",
+    def parallel(dimensions: str, metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
                  include_quarantined: bool = False) -> dict[str, Any]:
         dims = [d.strip() for d in dimensions.split(",") if d.strip()]
         with queries() as q:
-            return q.parallel(dimensions=dims, metric=metric, scope=scope,
+            return q.parallel(dimensions=dims, metric=metric, scope=scope, dataset_fingerprint=dataset,
                               include_quarantined=include_quarantined)
 
     @app.get("/api/planned")
@@ -191,22 +194,22 @@ def create_app(store_root: str | Path | None = None) -> Any:
             return q.planned()
 
     @app.get("/api/graph")
-    def graph(kind: str = "pipelines", metric: str = "rmse", scope: str = "cv",
+    def graph(kind: str = "pipelines", metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
               min_jaccard: float = 0.34) -> dict[str, Any]:
         with queries() as q:
             if kind == "operators":
-                return q.operator_graph(metric=metric, scope=scope)
-            return q.pipeline_graph(metric=metric, scope=scope, min_jaccard=min_jaccard)
+                return q.operator_graph(metric=metric, scope=scope, dataset_fingerprint=dataset)
+            return q.pipeline_graph(metric=metric, scope=scope, dataset_fingerprint=dataset, min_jaccard=min_jaccard)
 
     @app.get("/api/composition")
-    def composition(metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def composition(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
         with queries() as q:
-            return q.composition(metric=metric, scope=scope)
+            return q.composition(metric=metric, scope=scope, dataset_fingerprint=dataset)
 
     @app.get("/api/stats")
-    def stats(metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def stats(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
         with queries() as q:
-            return q.stats(metric=metric, scope=scope)
+            return q.stats(metric=metric, scope=scope, dataset_fingerprint=dataset)
 
     @app.get("/api/run/{execution_hash}")
     def run_detail(execution_hash: str) -> dict[str, Any]:

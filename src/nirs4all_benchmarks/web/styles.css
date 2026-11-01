@@ -207,6 +207,8 @@ select:focus, input:focus, textarea:focus { outline: none; border-color: var(--t
 /* ── tables ──────────────────────────────────────────────────── */
 .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
 table.tbl { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.tbl-more { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 15px; border-top: 1px solid var(--border); color: var(--text-2); font-size: .8rem; }
+.tbl-more:empty { display: none; }
 table.tbl th { text-align: left; padding: 11px 15px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-weight: 700; color: var(--text-2); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; font-family: var(--mono); position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
 table.tbl th:hover { color: var(--teal-d); }
 table.tbl td { padding: 10px 15px; border-bottom: 1px solid var(--border); vertical-align: middle; }

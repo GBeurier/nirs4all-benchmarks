@@ -10,22 +10,34 @@ function pretty(facetKey) {
   return k.replace(/_/g, " ");
 }
 
-// For one dimension: if every row value is a number, use it as-is (no ticktext).
-// Otherwise map distinct strings -> integer codes and keep the tick labels.
-function codeDim(rows, key) {
+// A 3D scene turns every tick label into WebGL geometry: a hundred 64-character dataset
+// fingerprints take seconds to draw and read as an illegible wall of text. Label a categorical
+// axis only when it has few values, with short labels; hover always shows the full name.
+const MAX_LABELLED_VALUES = 20;
+const MAX_TICK_CHARS = 16;
+
+// For one dimension: if every row value is a number, use it as-is.
+// Otherwise map distinct strings -> integer codes; `names[code]` is the display name.
+function codeDim(rows, key, displayName) {
   const values = rows.map((r) => r[key]);
-  const allNumeric = values.every((v) => typeof v === "number");
-  if (allNumeric) return { vals: values, ticktext: null, tickvals: null, categorical: false, code: null };
+  if (values.every((v) => typeof v === "number")) return { vals: values, names: null, categorical: false };
   const distinct = [...new Set(values.map((v) => String(v)))];
   const code = new Map(distinct.map((v, i) => [v, i]));
-  return {
-    vals: values.map((v) => code.get(String(v))),
-    ticktext: distinct,
-    tickvals: distinct.map((_, i) => i),
-    categorical: true,
-    code,
-  };
+  return { vals: values.map((v) => code.get(String(v))), names: distinct.map(displayName), categorical: true };
 }
+
+// Axis for a dimension: numeric as-is; categorical with one short label per value, or none
+// (title gives the count) when there are too many values to read.
+function axisFor(title, d) {
+  if (!d.categorical) return { title };
+  const n = d.names.length;
+  if (n > MAX_LABELLED_VALUES) return { title: `${title} (${n} values, hover for names)`, showticklabels: false };
+  const short = (s) => (s.length > MAX_TICK_CHARS ? s.slice(0, MAX_TICK_CHARS - 1) + "…" : s);
+  return { title, tickvals: d.names.map((_, i) => i), ticktext: d.names.map(short) };
+}
+
+// Full display value of row i on a dimension (for hover).
+const shown = (d, i) => (d.categorical ? d.names[d.vals[i]] : String(d.vals[i]));
 
 export default {
   id: "landscape",
@@ -66,7 +78,7 @@ export default {
     ], () => refresh());
 
     const note = dom.el("div", { class: "sub" },
-      "Categorical axes are coded to integers; hover/ticks show the original labels.");
+      "Categorical axes are coded to integers; hover shows the full labels.");
     const card = dom.el("div", { class: "card" },
       dom.el("h3", { id: "ls-title" }, "Score landscape"),
       dom.el("div", { id: "ls-banner" }),
@@ -89,26 +101,31 @@ export default {
       titleNode.textContent = chart === "scatter3d"
         ? `${pretty(x)} × ${pretty(y)} × ${zLabel}` + (zReal ? ` (color ${state.metric})` : "")
         : `${state.metric} over ${pretty(x)} × ${pretty(y)}`;
-      plot.purge(plotNode);
 
       if (x === y) {
         bannerNode.appendChild(dom.banner("Pick two different facets for the X and Y axes.", "warn"));
+        plot.purge(plotNode);
         dom.mount(plotNode, dom.empty("Choose distinct dimensions."));
         return;
       }
 
       const dims = zReal ? [x, y, zKey] : [x, y];
-      const pc = await api.parallel({ dimensions: dims.join(","), metric: state.metric, scope: state.scope });
+      const pc = await api.parallel({
+        dimensions: dims.join(","), metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
+      });
       const rows = pc.rows || [];
       if (!rows.length) {
+        plot.purge(plotNode);
         dom.mount(plotNode, dom.empty("No runs match these dimensions at this score level."));
         return;
       }
 
       const dir = pc.direction;
       const dirArrow = dir === "max" ? "↑ higher is better" : "↓ lower is better";
-      const dx = codeDim(rows, x);
-      const dy = codeDim(rows, y);
+      const dsName = new Map((state._datasets || []).map((d) => [d.dataset_fingerprint, d.name || d.dataset_fingerprint]));
+      const displayFor = (key) => (key === "dataset" ? (v) => dsName.get(v) || v : (v) => v);
+      const dx = codeDim(rows, x, displayFor(x));
+      const dy = codeDim(rows, y, displayFor(y));
       const xUniqCount = new Set(dx.vals).size;
       const yUniqCount = new Set(dy.vals).size;
       if (xUniqCount < 2 && yUniqCount < 2) {
@@ -116,20 +133,12 @@ export default {
           "Both axes have a single distinct value — nothing to surface. Pick wider dimensions.", "info"));
       }
 
-      const axisFor = (key, d, isZ) => {
-        if (isZ) return { title: state.metric };
-        const ax = { title: pretty(key) };
-        if (d.categorical) { ax.tickvals = d.tickvals; ax.ticktext = d.ticktext; }
-        return ax;
-      };
 
       if (chart === "scatter3d") {
         const color = rows.map((r) => r.metric);
-        const dz = zReal ? codeDim(rows, zKey) : null;
+        const dz = zReal ? codeDim(rows, zKey, displayFor(zKey)) : null;
         const z = zReal ? dz.vals : color;
-        const zAxis = zReal
-          ? (() => { const a = { title: pretty(zKey) }; if (dz.categorical) { a.tickvals = dz.tickvals; a.ticktext = dz.ticktext; } return a; })()
-          : { title: state.metric };
+        const zAxis = zReal ? axisFor(pretty(zKey), dz) : { title: state.metric };
         const labelFor = (r) => r.pipeline_label || (r.execution_hash ? String(r.execution_hash).slice(0, 10) : "run");
         plot.draw(plotNode, [{
           type: "scatter3d",
@@ -138,7 +147,7 @@ export default {
           y: dy.vals,
           z,
           text: rows.map(labelFor),
-          customdata: rows.map((r) => [String(r[x]), String(r[y]), zReal ? String(r[zKey]) : "", r.metric]),
+          customdata: rows.map((r, i) => [shown(dx, i), shown(dy, i), zReal ? shown(dz, i) : "", r.metric]),
           marker: {
             size: 4,
             color,
@@ -156,8 +165,8 @@ export default {
         }], {
           margin: { l: 0, r: 0, t: 10, b: 0 },
           scene: {
-            xaxis: axisFor(x, dx, false),
-            yaxis: axisFor(y, dy, false),
+            xaxis: axisFor(pretty(x), dx),
+            yaxis: axisFor(pretty(y), dy),
             zaxis: zAxis,
           },
         });
@@ -183,10 +192,6 @@ export default {
           ? plot.sequential.map(([s, col]) => [1 - s, col]).reverse()
           : plot.sequential;
 
-        const tickFor = (d, unique) => d.categorical
-          ? { tickvals: unique, ticktext: unique.map((v) => d.ticktext[v]) }
-          : {};
-
         plot.draw(plotNode, [{
           type: "surface",
           x: xUnique,
@@ -202,16 +207,16 @@ export default {
         }], {
           margin: { l: 0, r: 0, t: 10, b: 0 },
           scene: {
-            xaxis: { ...axisFor(x, dx, false), ...tickFor(dx, xUnique) },
-            yaxis: { ...axisFor(y, dy, false), ...tickFor(dy, yUnique) },
-            zaxis: axisFor(null, null, true),
+            xaxis: axisFor(pretty(x), dx),
+            yaxis: axisFor(pretty(y), dy),
+            zaxis: { title: state.metric },
           },
         });
       }
 
       note.textContent =
         `${rows.length} run(s) over ${pretty(x)} × ${pretty(y)}; color = ${state.metric} (${dirArrow}). `
-        + "Categorical axes are coded to integers; ticks show the original labels.";
+        + `Categorical axes are coded to integers; ticks are labelled up to ${MAX_LABELLED_VALUES} values, hover shows full labels.`;
     };
 
     await refresh();

@@ -22,7 +22,7 @@ export default {
     const refresh = async () => {
       const plotNode = document.getElementById("rb-plot");
       dom.mount(tableHost, dom.loading());
-      const rows = await api.robustness({ metric: state.metric, scope: state.scope });
+      const rows = await api.robustness({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
       if (!rows.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No runs match these filters.")); return; }
 
       // One trace per dataset, colored from the brand palette. Marker size ~ n.

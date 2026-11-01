@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+### Changed
+- The static site's `bundle.json` is columnar with a shared string table and carries only the columns
+  the client engine reads: 88 MB → 13 MB (1.6 MB gzipped) for the catalog snapshot.
+- Landscape (3D): categorical axes are labelled only up to 20 values, with short names (dataset names
+  instead of fingerprints); hover shows full labels. A dataset axis took ~9 s to draw and pipeline or
+  parameter-detail axes never finished. The 3D scene is updated in place instead of rebuilt.
+- Tables render 200 rows at a time with a "Show more" control (Robustness, Pipelines, Runs, …).
+- Network keeps each node's 6 strongest edges and shows labels on hover when there are more than
+  40 nodes; Parameter effect defaults to a parameter with at most 30 values and plots the 30 most
+  frequent values of larger categorical parameters.
+
+### Fixed
+- The lens Dataset filter now applies to every analysis view (Matrix, Parameter/Operator effect,
+  Statistics, Parallel, Landscape, Composition, Network, Robustness), in both the API and the static
+  engine; previously only Leaderboard, Playground, Runs and Compare honoured it.
+
+### Removed
+- The EcoSIS 3D canopy reflectance dataset from the catalog data pack (now 11,010 runs on 106
+  datasets): its selected target is a UTM easting coordinate, whose RMSE (4e3–8e5) dominated every
+  cross-dataset chart. Exclusions are recorded in `manifest.json` (`excluded_datasets`).
+
 ## [0.1.7] — 2026-10-07
 
 Publish the existing qualification runtime developed since 0.1.6.

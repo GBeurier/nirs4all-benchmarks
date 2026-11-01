@@ -41,14 +41,20 @@ export function empty(msg = "No data yet.") { return el("div", { class: "empty" 
 
 export function banner(msg, kind = "info") { return el("div", { class: `banner ${kind}` }, msg); }
 
+// Rows rendered per page: building thousands of DOM rows at once stalls view switches.
+const TABLE_PAGE = 200;
+
 // Sortable table. columns: [{key,label,num?,render?(row,i),sortKey?(row)}]. onRow optional.
+// Sorting covers every row; only the first `shown` rows of the sorted order are rendered.
 export function table(columns, rows, { onRow, sort } = {}) {
   let sortKey = sort?.key ?? null;
   let sortDir = sort?.dir ?? 1;
+  let shown = TABLE_PAGE;
   const wrap = el("div", { class: "tbl-wrap" });
   const tbl = el("table", { class: "tbl" });
   const thead = el("thead");
   const tbody = el("tbody");
+  const more = el("div", { class: "tbl-more" });
 
   function headerRow() {
     return el("tr", {}, columns.map((c) =>
@@ -71,7 +77,13 @@ export function table(columns, rows, { onRow, sort } = {}) {
     }
     clear(thead); thead.appendChild(headerRow());
     clear(tbody);
-    for (const [i, r] of data.entries()) {
+    clear(more);
+    if (data.length > shown) {
+      more.appendChild(el("span", {}, `Showing ${fmtInt(shown)} of ${fmtInt(data.length)} rows`));
+      more.appendChild(el("button", { type: "button", class: "btn",
+        onclick: () => { shown += TABLE_PAGE; redraw(); } }, `Show ${fmtInt(Math.min(TABLE_PAGE, data.length - shown))} more`));
+    }
+    for (const [i, r] of data.slice(0, shown).entries()) {
       const tr = el("tr", { class: onRow ? "clickable" : "" });
       if (onRow) tr.addEventListener("click", () => onRow(r));
       for (const c of columns) {
@@ -84,7 +96,7 @@ export function table(columns, rows, { onRow, sort } = {}) {
       tbody.appendChild(tr);
     }
   }
-  tbl.appendChild(thead); tbl.appendChild(tbody); wrap.appendChild(tbl);
+  tbl.appendChild(thead); tbl.appendChild(tbody); wrap.appendChild(tbl); wrap.appendChild(more);
   redraw();
   return wrap;
 }

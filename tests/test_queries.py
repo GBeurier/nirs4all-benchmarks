@@ -130,3 +130,24 @@ def test_invalid_scope_raises(queries: Queries):
 
     with pytest.raises(ValueError):
         queries.leaderboard(metric="rmse", scope="nonsense")
+
+
+def test_analysis_queries_honor_the_dataset_lens(queries: Queries):
+    ds = queries.datasets()[0]["dataset_fingerprint"]
+    kw = {"metric": "rmse", "scope": "cv"}
+    assert {r["dataset_fingerprint"] for r in queries.robustness(**kw, dataset_fingerprint=ds)} == {ds}
+    assert {d["dataset_fingerprint"] for d in queries.matrix(**kw, dataset_fingerprint=ds)["datasets"]} == {ds}
+    assert {d["dataset_fingerprint"] for d in queries.stats(**kw, dataset_fingerprint=ds)["by_dataset"]} == {ds}
+    points = queries.parameter_effect("n_components", **kw, dataset_fingerprint=ds)["points"]
+    assert points and {p["dataset_fingerprint"] for p in points} == {ds}
+    assert 0 < len(queries.parallel(dimensions=["seed"], **kw, dataset_fingerprint=ds)["rows"]) < len(
+        queries.parallel(dimensions=["seed"], **kw)["rows"]
+    )
+    totals = {
+        "operator_effect": lambda **k: sum(s["n"] for s in queries.operator_effect(**k)["series"]),
+        "composition": lambda **k: sum(r["n_runs"] for r in queries.composition(**k)["rows"]),
+        "pipeline_graph": lambda **k: sum(n["size"] for n in queries.pipeline_graph(**k)["nodes"]),
+        "operator_graph": lambda **k: sum(n["n_runs"] for n in queries.operator_graph(**k)["nodes"]),
+    }
+    for name, total in totals.items():
+        assert 0 < total(**kw, dataset_fingerprint=ds) < total(**kw), name

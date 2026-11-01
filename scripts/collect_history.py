@@ -20,6 +20,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+# Datasets left out of the pack; the reasons are recorded in the manifest.
+EXCLUDED_DATASETS = {
+    "ecosis_3d_canopy_level_spectra_reflectance_nirs": (
+        "The selected target is the UTM easting coordinate (metres), not a measured property; "
+        "its RMSE of 4e3-8e5 dominated every cross-dataset aggregate."
+    ),
+}
+
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -50,7 +58,7 @@ def collect(workspace: Path, output: Path) -> dict:
         with path.open(encoding="utf-8", newline="") as stream:
             for line, row in enumerate(csv.DictReader(stream), 2):
                 sources[relative]["rows"] += 1
-                if row["status"] != "ok":
+                if row["status"] != "ok" or row["dataset"] in EXCLUDED_DATASETS:
                     continue
                 key = tuple(row[k] for k in ("dataset", "source", "target", "kind", "seed", "method", "origin"))
                 # A later final export takes precedence over its earlier aggregate copy.
@@ -145,6 +153,7 @@ def collect(workspace: Path, output: Path) -> dict:
         "seeds": sorted({m["rng"]["root_seed"] for m in exports}),
         "selection_policy": "First target in lexical order per dataset/source/task kind; all available methods "
                             "and seeds. No selection by score. Final export overrides duplicate experiment keys.",
+        "excluded_datasets": EXCLUDED_DATASETS,
         "sources": sources, "selection": selection,
         "protocol_evidence": {f"nirs4all-lab/RamanPFN/{name}": sha256(producer / name) for name in evidence},
     }
