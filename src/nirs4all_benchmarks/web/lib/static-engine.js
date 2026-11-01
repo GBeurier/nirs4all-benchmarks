@@ -76,7 +76,7 @@ export async function createStaticApi(base = "/data") {
 
   return {
     healthz: async () => ({ status: "ok", version: bundle.meta.version, store: "static", store_exists: true }),
-    overview: async () => bundle.overview,
+    overview: async () => ({ ...bundle.overview, score_scopes: [...new Set(M.map((r) => r.score_scope))].sort() }),
     collections: async () => bundle.collections,
     datasets: async () => bundle.datasets,
     pipelines: async () => bundle.pipelines,

@@ -54,6 +54,9 @@ class Queries:
             "residual_sets": s.count("residual_sets"),
             "collections": s.count("collections"),
             "metrics": self.metrics_available(),
+            "score_scopes": [r["scope"] for r in s.query(
+                "SELECT DISTINCT scope FROM score_sets WHERE validity_status = 'valid' ORDER BY scope"
+            )],
             "schema_version": int(s.get_meta("arena_schema_version") or 0),
         }
 
