@@ -23,6 +23,13 @@ _VALID_SCOPES = {"fold", "cv", "refit", "test", "view"}
 _VALID_PARTITIONS = {"train", "validation", "test", "final"}
 
 
+def _dataset_filter(dataset_fingerprint: str | None) -> tuple[str, list[Any]]:
+    """SQL fragment and parameter restricting ``v_run_metrics mo`` rows to one dataset (or none)."""
+    if not dataset_fingerprint:
+        return "", []
+    return " AND mo.dataset_fingerprint = ?", [dataset_fingerprint]
+
+
 def _safe_scope(scope: str) -> str:
     if scope not in _VALID_SCOPES:
         raise ValueError(f"invalid scope '{scope}'")
@@ -165,12 +172,18 @@ class Queries:
         return {"metric": metric, "scope": scope, "direction": direction, "rows": rows[:limit]}
 
     # ── pipeline × dataset matrix ──────────────────────────────────────
-    def matrix(self, *, metric: str = "rmse", scope: str = "cv", include_quarantined: bool = False) -> dict[str, Any]:
+    def matrix(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None,
+        include_quarantined: bool = False,
+    ) -> dict[str, Any]:
         _safe_scope(scope)
         where = ["mo.metric_name = ?", "mo.score_scope = ?", "mo.score_validity = 'valid'"]
         params: list[Any] = [metric, scope]
         if not include_quarantined:
             where.append("mo.execution_validity = 'valid'")
+        if dataset_fingerprint:
+            where.append("mo.dataset_fingerprint = ?")
+            params.append(dataset_fingerprint)
         rows = self.store.query(
             f"""
             SELECT mo.pipeline_dag_hash, mo.pipeline_label, mo.dataset_fingerprint,
@@ -247,18 +260,21 @@ class Queries:
         return rows
 
     # ── operator / parameter effects ──────────────────────────────────
-    def operator_effect(self, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def operator_effect(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None
+    ) -> dict[str, Any]:
         """Score distribution per operator presence — what each operator does."""
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         rows = self.store.query(
-            """
+            f"""
             SELECT pn.operator AS operator, pn.role AS role, mo.metric_value AS value
             FROM pipeline_nodes pn
             JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
-            WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.execution_validity = 'valid'
+            WHERE mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.execution_validity = 'valid'
                   AND pn.operator IS NOT NULL AND pn.role != 'input'
             """,
-            [metric, scope],
+            [metric, scope, *ds_params],
         )
         groups: dict[str, list[float]] = {}
         roles: dict[str, str] = {}
@@ -282,19 +298,23 @@ class Queries:
         series.sort(key=lambda s: s["mean"], reverse=(direction_of(metric) == "max"))
         return {"metric": metric, "scope": scope, "direction": direction_of(metric), "series": series}
 
-    def parameter_effect(self, param_name: str, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def parameter_effect(
+        self, param_name: str, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None
+    ) -> dict[str, Any]:
         """Metric vs a (numeric or categorical) parameter — e.g. PLS n_components."""
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         rows = self.store.query(
-            """
+            f"""
             SELECT pv.numeric_value AS num, pv.value_json AS raw, pv.is_numeric AS is_numeric,
                    mo.metric_value AS value, mo.dataset_fingerprint AS df, mo.pipeline_label AS label
             FROM pipeline_node_params pnp
             JOIN parameter_values pv ON pv.param_value_hash = pnp.param_value_hash
             JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pnp.pipeline_dag_hash
-            WHERE pv.name = ? AND mo.metric_name = ? AND mo.score_scope = ? AND mo.execution_validity = 'valid'
+            WHERE pv.name = ? AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql}
+                  AND mo.execution_validity = 'valid'
             """,
-            [param_name, metric, scope],
+            [param_name, metric, scope, *ds_params],
         )
         points = []
         for r in rows:
@@ -409,14 +429,17 @@ class Queries:
         }
 
     # ── robustness ─────────────────────────────────────────────────────
-    def robustness(self, *, metric: str = "rmse", scope: str = "cv") -> list[dict[str, Any]]:
+    def robustness(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None
+    ) -> list[dict[str, Any]]:
         """Variance of a pipeline's score across executions (folds/seeds/splits)."""
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         rows = self.store.query(
-            """SELECT mo.pipeline_dag_hash, mo.pipeline_label, mo.dataset_fingerprint, mo.metric_value AS value
+            f"""SELECT mo.pipeline_dag_hash, mo.pipeline_label, mo.dataset_fingerprint, mo.metric_value AS value
                FROM v_run_metrics mo
-               WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.execution_validity = 'valid'""",
-            [metric, scope],
+               WHERE mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.execution_validity = 'valid'""",
+            [metric, scope, *ds_params],
         )
         groups: dict[tuple[str, str], list[float]] = {}
         labels: dict[tuple[str, str], str] = {}
@@ -530,6 +553,7 @@ class Queries:
         dimensions: list[str],
         metric: str = "rmse",
         scope: str = "cv",
+        dataset_fingerprint: str | None = None,
         include_quarantined: bool = False,
     ) -> dict[str, Any]:
         """Per-execution rows with selected single-valued facet columns + the metric.
@@ -541,6 +565,9 @@ class Queries:
         params: list[Any] = [metric, scope]
         if not include_quarantined:
             where.append("mo.execution_validity = 'valid'")
+        if dataset_fingerprint:
+            where.append("mo.dataset_fingerprint = ?")
+            params.append(dataset_fingerprint)
         base = self.store.query(
             f"""SELECT mo.execution_hash, mo.run_condition_hash, mo.pipeline_label,
                        AVG(mo.metric_value) AS metric_value
@@ -586,7 +613,9 @@ class Queries:
         )
 
     # ── statistics ─────────────────────────────────────────────────────
-    def stats(self, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def stats(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None
+    ) -> dict[str, Any]:
         """Distribution summary, per-dataset spread, and facet↔metric correlations.
 
         Powers the Statistics view: overall + per-dataset summaries (mean/median/std/
@@ -596,13 +625,14 @@ class Queries:
         import numpy as np
 
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         rows = self.store.query(
-            """SELECT mo.execution_hash AS eh, mo.dataset_fingerprint AS df, AVG(mo.metric_value) AS v
+            f"""SELECT mo.execution_hash AS eh, mo.dataset_fingerprint AS df, AVG(mo.metric_value) AS v
                FROM v_run_metrics mo
-               WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+               WHERE mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.score_validity = 'valid'
                      AND mo.execution_validity = 'valid'
                GROUP BY mo.execution_hash""",
-            [metric, scope],
+            [metric, scope, *ds_params],
         )
 
         def summ(a: Any) -> dict[str, Any]:
@@ -624,13 +654,13 @@ class Queries:
 
         # facet↔metric correlations (numeric facets only)
         crows = self.store.query(
-            """SELECT rf.facet_key AS fk, rf.facet_num AS fn, AVG(mo.metric_value) AS v
+            f"""SELECT rf.facet_key AS fk, rf.facet_num AS fn, AVG(mo.metric_value) AS v
                FROM run_facets rf
                JOIN v_run_metrics mo ON mo.run_condition_hash = rf.run_condition_hash
-               WHERE rf.facet_num IS NOT NULL AND mo.metric_name = ? AND mo.score_scope = ?
+               WHERE rf.facet_num IS NOT NULL AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql}
                      AND mo.score_validity = 'valid' AND mo.execution_validity = 'valid'
                GROUP BY rf.facet_key, mo.execution_hash, rf.facet_num""",
-            [metric, scope],
+            [metric, scope, *ds_params],
         )
         by_facet: dict[str, list[tuple[float, float]]] = {}
         for r in crows:
@@ -653,15 +683,16 @@ class Queries:
         }
 
     # ── graph / network ────────────────────────────────────────────────
-    def _pipeline_scores(self, metric: str, scope: str) -> list[dict[str, Any]]:
+    def _pipeline_scores(self, metric: str, scope: str, dataset_fingerprint: str | None) -> list[dict[str, Any]]:
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         return self.store.query(
-            """SELECT mo.pipeline_dag_hash AS pdh, mo.pipeline_label AS label, mo.main_model AS main_model,
+            f"""SELECT mo.pipeline_dag_hash AS pdh, mo.pipeline_label AS label, mo.main_model AS main_model,
                       AVG(mo.metric_value) AS score, COUNT(DISTINCT mo.execution_hash) AS n_runs
                FROM v_run_metrics mo
-               WHERE mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+               WHERE mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.score_validity = 'valid'
                      AND mo.execution_validity = 'valid'
                GROUP BY mo.pipeline_dag_hash""",
-            [metric, scope],
+            [metric, scope, *ds_params],
         )
 
     def _pipeline_operator_sets(self, pdhs: list[str]) -> dict[str, set[str]]:
@@ -679,7 +710,8 @@ class Queries:
         return out
 
     def pipeline_graph(
-        self, *, metric: str = "rmse", scope: str = "cv", min_jaccard: float = 0.34, max_nodes: int = 150
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None,
+        min_jaccard: float = 0.34, max_nodes: int = 150,
     ) -> dict[str, Any]:
         """A clustered network of pipelines — edges = shared-operator Jaccard.
 
@@ -689,7 +721,8 @@ class Queries:
         pipelines surface as clusters.
         """
         _safe_scope(scope)
-        rows = sorted(self._pipeline_scores(metric, scope), key=lambda r: -(r["n_runs"] or 0))[:max_nodes]
+        rows = sorted(self._pipeline_scores(metric, scope, dataset_fingerprint),
+                      key=lambda r: -(r["n_runs"] or 0))[:max_nodes]
         pdhs = [r["pdh"] for r in rows]
         opsets = self._pipeline_operator_sets(pdhs)
         nodes = [
@@ -713,7 +746,9 @@ class Queries:
         return {"kind": "pipelines", "metric": metric, "scope": scope, "direction": direction_of(metric),
                 "nodes": nodes, "edges": edges}
 
-    def operator_graph(self, *, metric: str = "rmse", scope: str = "cv", max_nodes: int = 150) -> dict[str, Any]:
+    def operator_graph(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None, max_nodes: int = 150
+    ) -> dict[str, Any]:
         """A clustered network of operators — edges = co-occurrence in the same pipeline.
 
         Nodes are operators (clustered by stage role, sized by pipeline count, colored
@@ -723,17 +758,18 @@ class Queries:
         from nirs4all_benchmarks.indexing import classify_role
 
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         stat_rows = self.store.query(
-            """SELECT pn.operator AS operator, MAX(pn.role) AS role,
+            f"""SELECT pn.operator AS operator, MAX(pn.role) AS role,
                       COUNT(DISTINCT pn.pipeline_dag_hash) AS n_pipes,
                       COUNT(DISTINCT mo.execution_hash) AS n_runs, AVG(mo.metric_value) AS score
                FROM pipeline_nodes pn
                JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
                WHERE pn.operator IS NOT NULL AND pn.role != 'input'
-                     AND mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.score_validity = 'valid'
                      AND mo.execution_validity = 'valid'
                GROUP BY pn.operator ORDER BY n_pipes DESC LIMIT ?""",
-            [metric, scope, max_nodes],
+            [metric, scope, *ds_params, max_nodes],
         )
         keep = {r["operator"] for r in stat_rows}
         nodes = [
@@ -743,7 +779,7 @@ class Queries:
             for r in stat_rows
         ]
         # co-occurrence within pipelines that have valid runs
-        pdhs = [r["pdh"] for r in self._pipeline_scores(metric, scope)]
+        pdhs = [r["pdh"] for r in self._pipeline_scores(metric, scope, dataset_fingerprint)]
         opsets = self._pipeline_operator_sets(pdhs)
         leaf_keep = {op.split(".")[-1] for op in keep}
         pair_counts: dict[tuple[str, str], int] = {}
@@ -756,22 +792,25 @@ class Queries:
         return {"kind": "operators", "metric": metric, "scope": scope, "direction": direction_of(metric),
                 "nodes": nodes, "edges": edges}
 
-    def composition(self, *, metric: str = "rmse", scope: str = "cv") -> dict[str, Any]:
+    def composition(
+        self, *, metric: str = "rmse", scope: str = "cv", dataset_fingerprint: str | None = None
+    ) -> dict[str, Any]:
         """Role → operator usage hierarchy (for a sunburst/treemap), colored by score."""
         from nirs4all_benchmarks.indexing import classify_role
 
         _safe_scope(scope)
+        ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
         rows = self.store.query(
-            """SELECT pn.operator AS operator, pn.role AS role,
+            f"""SELECT pn.operator AS operator, pn.role AS role,
                       COUNT(DISTINCT pn.pipeline_dag_hash) AS n_pipes,
                       COUNT(DISTINCT mo.execution_hash) AS n_runs, AVG(mo.metric_value) AS score
                FROM pipeline_nodes pn
                JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pn.pipeline_dag_hash
                WHERE pn.operator IS NOT NULL AND pn.role != 'input'
-                     AND mo.metric_name = ? AND mo.score_scope = ? AND mo.score_validity = 'valid'
+                     AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql} AND mo.score_validity = 'valid'
                      AND mo.execution_validity = 'valid'
                GROUP BY pn.operator""",
-            [metric, scope],
+            [metric, scope, *ds_params],
         )
         for r in rows:
             r["role"] = classify_role(r["operator"], r["role"])

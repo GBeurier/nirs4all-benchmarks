@@ -41,6 +41,20 @@ function quantile(sorted, p) { if (!sorted.length) return null; const i = (sorte
 function median(a) { const s = a.slice().sort((x, y) => x - y); return quantile(s, 0.5); }
 function pearson(xs, ys) { const mx = mean(xs), my = mean(ys); let n = 0, dx = 0, dy = 0; for (let i = 0; i < xs.length; i++) { n += (xs[i] - mx) * (ys[i] - my); dx += (xs[i] - mx) ** 2; dy += (ys[i] - my) ** 2; } return dx > 0 && dy > 0 ? n / Math.sqrt(dx * dy) : null; }
 
+// Rebuild row objects from a columnar table (site_build._columnar): string columns hold
+// indices into the bundle's shared string table, other columns hold the values.
+function decodeTable(table, strings) {
+  const cols = Object.entries(table.columns).map(([name, c]) =>
+    [name, c.s ? c.s.map((i) => (i == null ? null : strings[i])) : c.v]);
+  const rows = new Array(table.n);
+  for (let i = 0; i < table.n; i++) {
+    const row = {};
+    for (const [name, values] of cols) row[name] = values[i];
+    rows[i] = row;
+  }
+  return rows;
+}
+
 export async function createStaticApi(base = "/data") {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -52,9 +66,10 @@ export async function createStaticApi(base = "/data") {
   } finally {
     clearTimeout(timeout);
   }
-  const M = bundle.metrics;
-  const FAC = bundle.facets;
-  const NODES = bundle.pipeline_nodes;
+  const M = decodeTable(bundle.tables.metrics, bundle.strings);
+  const FAC = decodeTable(bundle.tables.facets, bundle.strings);
+  const NODES = decodeTable(bundle.tables.pipeline_nodes, bundle.strings);
+  const PIPELINES = decodeTable(bundle.tables.pipelines, bundle.strings);
   const dsLabel = Object.fromEntries(bundle.datasets.map((d) => [d.dataset_fingerprint, d.name || d.dataset_fingerprint.slice(0, 10)]));
   // index facets by run_condition_hash
   const facByRc = new Map();
@@ -79,7 +94,7 @@ export async function createStaticApi(base = "/data") {
     overview: async () => ({ ...bundle.overview, score_scopes: [...new Set(M.map((r) => r.score_scope))].sort() }),
     collections: async () => bundle.collections,
     datasets: async () => bundle.datasets,
-    pipelines: async () => bundle.pipelines,
+    pipelines: async () => PIPELINES,
     operators: async () => bundle.operators,
     parameters: async () => bundle.parameters,
     planned: async () => bundle.planned,
@@ -99,8 +114,8 @@ export async function createStaticApi(base = "/data") {
       return { metric, scope, direction: d, rows: out.slice(0, limit) };
     },
 
-    matrix: async ({ metric = "rmse", scope = "cv", include_quarantined = false } = {}) => {
-      const rows = sel(metric, scope, { quar: include_quarantined });
+    matrix: async ({ metric = "rmse", scope = "cv", dataset, include_quarantined = false } = {}) => {
+      const rows = sel(metric, scope, { quar: include_quarantined, dataset });
       const cells = []; const pipes = new Map(); const dsset = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash + "|" + r.dataset_fingerprint)) {
         const vals = g.map((r) => r.metric_value).filter((v) => v != null);
@@ -131,8 +146,8 @@ export async function createStaticApi(base = "/data") {
       return out.slice(0, limit);
     },
 
-    operatorEffect: async ({ metric = "rmse", scope = "cv" } = {}) => {
-      const rows = sel(metric, scope, {});
+    operatorEffect: async ({ metric = "rmse", scope = "cv", dataset } = {}) => {
+      const rows = sel(metric, scope, { dataset });
       const groups = new Map(); const roles = {};
       for (const r of rows) for (const o of (opsByPipe.get(r.pipeline_dag_hash) || [])) {
         if (!groups.has(o.operator)) groups.set(o.operator, []); groups.get(o.operator).push(r.metric_value); roles[o.operator] = o.role;
@@ -144,8 +159,8 @@ export async function createStaticApi(base = "/data") {
     },
 
     parameterEffect: async (params) => {
-      const { param, metric = "rmse", scope = "cv" } = params;
-      const rows = sel(metric, scope, {});
+      const { param, metric = "rmse", scope = "cv", dataset } = params;
+      const rows = sel(metric, scope, { dataset });
       const points = [];
       for (const r of rows) {
         const f = (facByRc.get(r.run_condition_hash) || []).find((x) => x.facet_key === `param:${param}`);
@@ -156,8 +171,8 @@ export async function createStaticApi(base = "/data") {
       return { param_name: param, metric, scope, direction: dir(metric), points };
     },
 
-    robustness: async ({ metric = "rmse", scope = "cv" } = {}) => {
-      const rows = sel(metric, scope, {});
+    robustness: async ({ metric = "rmse", scope = "cv", dataset } = {}) => {
+      const rows = sel(metric, scope, { dataset });
       const out = [];
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash + "|" + r.dataset_fingerprint)) {
         const vals = g.map((r) => r.metric_value).filter((v) => v != null); const m = mean(vals), s = pstdev(vals);
@@ -168,8 +183,8 @@ export async function createStaticApi(base = "/data") {
       return out;
     },
 
-    stats: async ({ metric = "rmse", scope = "cv" } = {}) => {
-      const rows = sel(metric, scope, {});
+    stats: async ({ metric = "rmse", scope = "cv", dataset } = {}) => {
+      const rows = sel(metric, scope, { dataset });
       const byExec = groupBy(rows, (r) => r.execution_hash);
       const execMean = []; const dsVals = new Map();
       for (const [, g] of byExec) { const v = mean(g.map((r) => r.metric_value)); execMean.push({ v, df: g[0].dataset_fingerprint, rc: g[0].run_condition_hash }); (dsVals.get(g[0].dataset_fingerprint) || dsVals.set(g[0].dataset_fingerprint, []).get(g[0].dataset_fingerprint)).push(v); }
@@ -220,9 +235,9 @@ export async function createStaticApi(base = "/data") {
       return { group_by, color_by: color_by || null, metric, scope, direction: dir(metric), agg, rows: out };
     },
 
-    parallel: async ({ dimensions, metric = "rmse", scope = "cv", include_quarantined = false } = {}) => {
+    parallel: async ({ dimensions, metric = "rmse", scope = "cv", dataset, include_quarantined = false } = {}) => {
       const dims = Array.isArray(dimensions) ? dimensions : String(dimensions).split(",").map((s) => s.trim()).filter(Boolean);
-      const rows = sel(metric, scope, { quar: include_quarantined });
+      const rows = sel(metric, scope, { quar: include_quarantined, dataset });
       const out = [];
       for (const [, g] of groupBy(rows, (r) => r.execution_hash)) {
         const fmap = {}; for (const f of (facByRc.get(g[0].run_condition_hash) || [])) if (dims.includes(f.facet_key) && !(f.facet_key in fmap)) fmap[f.facet_key] = f.facet_num != null ? f.facet_num : f.facet_value;
@@ -233,8 +248,8 @@ export async function createStaticApi(base = "/data") {
       return { dimensions: [...dims, "metric"], metric, scope, direction: dir(metric), rows: out };
     },
 
-    graph: async ({ kind = "pipelines", metric = "rmse", scope = "cv", min_jaccard = 0.34 } = {}) => {
-      const rows = sel(metric, scope, {});
+    graph: async ({ kind = "pipelines", metric = "rmse", scope = "cv", dataset, min_jaccard = 0.34 } = {}) => {
+      const rows = sel(metric, scope, { dataset });
       const pipeAgg = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash)) {
         const vals = g.map((r) => r.metric_value); pipeAgg.set(g[0].pipeline_dag_hash, { label: g[0].pipeline_label, main_model: g[0].main_model, score: mean(vals), execs: new Set(g.map((r) => r.execution_hash)) });
@@ -256,8 +271,8 @@ export async function createStaticApi(base = "/data") {
       return { kind: "pipelines", metric, scope, direction: dir(metric), nodes, edges };
     },
 
-    composition: async ({ metric = "rmse", scope = "cv" } = {}) => {
-      const rows = sel(metric, scope, {});
+    composition: async ({ metric = "rmse", scope = "cv", dataset } = {}) => {
+      const rows = sel(metric, scope, { dataset });
       const byPipeScore = new Map(); const byPipeExecs = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash)) { byPipeScore.set(g[0].pipeline_dag_hash, mean(g.map((r) => r.metric_value))); byPipeExecs.set(g[0].pipeline_dag_hash, new Set(g.map((r) => r.execution_hash)).size); }
       const agg = new Map();

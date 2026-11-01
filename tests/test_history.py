@@ -60,10 +60,10 @@ def test_checked_in_real_data_archive() -> None:
                     assert 0 <= observation.metric_value <= 1
                 counts["observations"] += 1
             counts["executions"] += 1
-    assert counts["executions"] == metadata["executions"] == 11103
-    assert counts["observations"] == metadata["metric_observations"] == 26364
-    assert len(datasets) == metadata["datasets"] == 107
-    assert len(tasks) == metadata["tasks"] == 156
+    assert counts["executions"] == metadata["executions"] == 11010
+    assert counts["observations"] == metadata["metric_observations"] == 26178
+    assert len(datasets) == metadata["datasets"] == 106
+    assert len(tasks) == metadata["tasks"] == 155
 
 
 def _small_pack(root: Path) -> dict:
@@ -96,7 +96,8 @@ def test_history_ingest_is_idempotent_and_builds_real_site(tmp_path: Path) -> No
     summary = build_site(tmp_path / "store", tmp_path / "site", domain=None)
     assert summary["executions"] == 1
     bundle = json.loads((tmp_path / "site/data/bundle.json").read_text())
-    assert all(row["score_scope"] == "test" for row in bundle["metrics"])
+    scopes = bundle["tables"]["metrics"]["columns"]["score_scope"]["s"]
+    assert {bundle["strings"][i] for i in scopes} == {"test"}
     assert bundle["collections"][0]["collection_id"] == "catalog_history_2026_09"
 
 

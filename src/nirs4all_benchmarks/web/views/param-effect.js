@@ -1,6 +1,10 @@
 // Parameter-effect explorer — how a hyperparameter moves the score (e.g. PLS n_components).
 // Same reactive pattern as leaderboard.js: page-head + controls + refresh().
 
+// A categorical parameter can have thousands of values (free-text details): one box each is
+// unreadable and slow to draw. Plot the most frequent values; the table below lists them all.
+const MAX_BOXES = 30;
+
 export default {
   id: "param-effect",
   title: "Parameter effect",
@@ -10,7 +14,8 @@ export default {
     const { root, api, dom, plot, state } = ctx;
     const params = await api.parameters();
     const paramNames = params.map((p) => p.name);
-    const defaultParam = paramNames.includes("n_components") ? "n_components" : paramNames[0];
+    const defaultParam = paramNames.includes("n_components") ? "n_components"
+      : (params.find((p) => p.n_values > 1 && p.n_values <= MAX_BOXES) || params[0])?.name;
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
@@ -45,7 +50,9 @@ export default {
       subNode.textContent = "";
       dom.mount(tableHost, dom.loading());
 
-      const pe = await api.parameterEffect({ param, metric: state.metric, scope: state.scope });
+      const pe = await api.parameterEffect({
+        param, metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
+      });
       const points = pe.points || [];
       if (!points.length) {
         plot.purge(plotNode);
@@ -105,7 +112,11 @@ export default {
           if (!byValue.has(key)) byValue.set(key, []);
           byValue.get(key).push(p.metric_value);
         }
-        const keys = [...byValue.keys()].sort();
+        const byCount = [...byValue.keys()].sort((a, b) => byValue.get(b).length - byValue.get(a).length);
+        const keys = byCount.slice(0, MAX_BOXES).sort();
+        if (byCount.length > MAX_BOXES) {
+          subNode.textContent = `Showing the ${MAX_BOXES} most frequent of ${dom.fmtInt(byCount.length)} values; the table lists all of them.`;
+        }
         const traces = keys.map((k, i) => ({
           type: "box", name: k, y: byValue.get(k), boxpoints: "outliers",
           marker: { color: plot.palette[i % plot.palette.length] },

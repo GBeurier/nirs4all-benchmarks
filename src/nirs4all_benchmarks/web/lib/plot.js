@@ -49,6 +49,9 @@ const CONFIG = {
 
 export function draw(node, traces, layout = {}) {
   if (!window.Plotly) { node.textContent = "Plotly failed to load."; return; }
+  // Drop placeholders (empty/loading messages) mounted into the node; an existing plot
+  // (its .plot-container) is updated in place, which keeps its WebGL context.
+  for (const child of [...node.children]) if (!child.classList.contains("plot-container")) child.remove();
   window.Plotly.react(node, traces, baseLayout(layout), CONFIG);
 }
 

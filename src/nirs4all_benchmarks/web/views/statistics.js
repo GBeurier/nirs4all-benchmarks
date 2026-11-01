@@ -39,7 +39,7 @@ export default {
       dom.el("div", { style: { marginTop: "16px" } }, tableHost));
 
     const refresh = async () => {
-      const st = await api.stats({ metric: state.metric, scope: state.scope });
+      const st = await api.stats({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
       const s = st.summary || {};
       const dirArrow = st.direction === "max" ? "↑ higher is better" : "↓ lower is better";
 

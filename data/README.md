@@ -1,9 +1,9 @@
 # Measured catalog benchmark data
 
-`catalog-history-2026-09/` contains 11,103 existing research executions on **107 datasets** from
-`nirs4all-datasets`: 156 dataset/source/target/task-kind combinations, 32 method labels, seeds 0/1/2,
-and 26,364 metric observations. There are 6,945 regression runs and 4,158 classification runs.
-Source-specific views occupy 113 dataset fingerprints; these are not 113 independent datasets.
+`catalog-history-2026-09/` contains 11,010 existing research executions on **106 datasets** from
+`nirs4all-datasets`: 155 dataset/source/target/task-kind combinations, 32 method labels, seeds 0/1/2,
+and 26,178 metric observations. There are 6,852 regression runs and 4,158 classification runs.
+Source-specific views occupy 112 dataset fingerprints; these are not 112 independent datasets.
 
 Methods include PLS, PLS-DA, Ridge, AOM-PLS, AOM-Ridge, NIRPFN, and TabPFN v2.5/v3/v3.5,
 with raw, GCU, LVSE, and combined representations. They are already measured results; importing
@@ -34,6 +34,11 @@ To keep the first static snapshot bounded while covering every available dataset
 target in lexical order **per dataset, spectral source, and task kind**, then all available methods
 and seeds for that target. Selection never uses metric values. The exact selected tasks, per-method
 counts, source table hashes, and producer protocol code hashes are in `manifest.json`.
+
+Datasets named in the manifest's `excluded_datasets` (and `EXCLUDED_DATASETS` in
+`scripts/collect_history.py`) are left out, each with its reason. The EcoSIS 3D canopy reflectance
+dataset is excluded because its lexically first target is a UTM easting coordinate, not a measured
+property; its RMSE values (4e3 to 8e5) dominated every cross-dataset aggregate.
 
 `runs.jsonl.gz` contains one standard ArenaRunExport v1 JSON object per line. Every export records
 its source CSV path relative to the workspace, SHA-256, original CSV line number (header is line 1),

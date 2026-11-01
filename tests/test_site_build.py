@@ -37,8 +37,15 @@ def test_build_site_produces_static_snapshot(tmp_path: Path):
     bundle = json.loads((out / "data" / "bundle.json").read_text())
     assert bundle["meta"]["static"] is True
     assert bundle["overview"]["pipelines"] == summary["pipelines"]
-    assert bundle["metrics"] and bundle["facets"] and bundle["pipeline_nodes"]
-    assert {"datasets", "pipelines", "operators", "parameters", "planned"} <= set(bundle)
+    tables = bundle["tables"]
+    assert tables["metrics"]["n"] and tables["facets"]["n"] and tables["pipeline_nodes"]["n"]
+    assert tables["pipelines"]["n"] == summary["pipelines"]
+    assert {"datasets", "operators", "parameters", "planned", "strings"} <= set(bundle)
+    # string columns are indices into the shared string table, each string stored once
+    assert len(bundle["strings"]) == len(set(bundle["strings"]))
+    hashes = tables["metrics"]["columns"]["execution_hash"]["s"]
+    assert all(len(bundle["strings"][i]) == 64 for i in hashes)
+    assert len(set(hashes)) == summary["executions"]
 
     # one per-run file per execution, with detail + residuals
     run_files = list((out / "data" / "runs").glob("*.json"))

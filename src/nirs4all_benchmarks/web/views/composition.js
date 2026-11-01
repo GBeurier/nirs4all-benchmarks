@@ -45,7 +45,7 @@ export default {
       titleNode.textContent = `Composition by ${pretty(state.metric)}`;
       dom.mount(tableHost, dom.loading());
 
-      const comp = await api.composition({ metric: state.metric, scope: state.scope });
+      const comp = await api.composition({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
       const rows = comp.rows || [];
       if (!rows.length) {
         plot.purge(plotNode);

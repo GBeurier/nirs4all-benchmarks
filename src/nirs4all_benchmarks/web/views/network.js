@@ -2,7 +2,7 @@
 // Pipelines are linked by shared operators (Jaccard); operators by co-occurrence.
 // Same reactive pattern as leaderboard.js / parallel.js: page-head + controls + refresh().
 
-import { renderGraph, clusterColors } from "../lib/graph.js";
+import { renderGraph, clusterColors, strongestEdges } from "../lib/graph.js";
 
 // Friendly label for a facet/dimension key: strip a "param:" prefix, underscores -> spaces.
 function pretty(facetKey) {
@@ -36,7 +36,7 @@ export default {
     const card = dom.el("div", { class: "card" },
       dom.el("h3", { id: "net-head" }, "Network"),
       dom.el("div", { class: "sub" },
-        "node size = usage · color = cluster · hover to focus a neighbourhood · click a pipeline node to see its runs."),
+        "node size = usage · color = cluster · hover to focus a neighbourhood and show its labels · click a pipeline node to see its runs."),
       dom.el("div", { id: "net-legend", class: "controls", style: { marginBottom: "14px" } }),
       dom.el("div", { id: "net-body" }));
     dom.mount(root, head, bar.element, card);
@@ -53,11 +53,12 @@ export default {
       dom.mount(bodyNode, dom.loading());
 
       const g = await api.graph({
-        kind, metric: state.metric, scope: state.scope,
+        kind, metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
         min_jaccard: kind === "pipelines" ? minJaccard : undefined,
       });
       const nodes = g.nodes || [];
-      const edges = g.edges || [];
+      const allEdges = g.edges || [];
+      const edges = strongestEdges(allEdges);
       if (!nodes.length) {
         dom.clear(legendNode);
         dom.mount(bodyNode, dom.empty("No graph for these filters."));
@@ -65,7 +66,10 @@ export default {
       }
 
       const clusters = [...new Set(nodes.map((n) => String(n.cluster)))];
-      headNode.textContent = `${dom.fmtInt(nodes.length)} nodes · ${dom.fmtInt(edges.length)} edges · ${dom.fmtInt(clusters.length)} clusters`;
+      const edgeCount = edges.length < allEdges.length
+        ? `${dom.fmtInt(edges.length)} of ${dom.fmtInt(allEdges.length)} edges (strongest per node)`
+        : `${dom.fmtInt(edges.length)} edges`;
+      headNode.textContent = `${dom.fmtInt(nodes.length)} nodes · ${edgeCount} · ${dom.fmtInt(clusters.length)} clusters`;
 
       // Legend: one chip per cluster, colored to match the graph.
       const colorOf = clusterColors(clusters);

@@ -14,7 +14,7 @@ Layout produced::
       CNAME                     # the custom domain
       robots.txt / sitemap.xml  # crawl discovery for the public domain
       data/
-        bundle.json             # aggregation backbone (loaded on boot)
+        bundle.json             # aggregation backbone (loaded on boot; columnar, see _columnar)
         runs/<execution_hash>.json   # per-run detail + residuals (loaded on demand)
 """
 
@@ -77,8 +77,8 @@ def build_site(
             )
 
     return {"out": str(out), "executions": len(execs), "pipelines": bundle["overview"]["pipelines"],
-            "datasets": bundle["overview"]["datasets"], "metric_rows": len(bundle["metrics"]),
-            "facet_rows": len(bundle["facets"]), "domain": domain}
+            "datasets": bundle["overview"]["datasets"], "metric_rows": bundle["tables"]["metrics"]["n"],
+            "facet_rows": bundle["tables"]["facets"]["n"], "domain": domain}
 
 
 def _write_seo(out: Path, domain: str) -> None:
@@ -101,30 +101,49 @@ def _write_seo(out: Path, domain: str) -> None:
     )
 
 
+def _columnar(rows: list[dict[str, Any]], strings: dict[str, int]) -> dict[str, Any]:
+    """Encode rows column by column; string columns hold indices into the shared string table.
+
+    The large tables repeat the same 64-character hashes thousands of times; storing each
+    string once keeps the bundle small enough to download and parse quickly.
+    """
+    columns: dict[str, Any] = {}
+    for name in rows[0] if rows else []:
+        values = [r[name] for r in rows]
+        if all(v is None or isinstance(v, str) for v in values):
+            columns[name] = {"s": [None if v is None else strings.setdefault(v, len(strings)) for v in values]}
+        else:
+            columns[name] = {"v": values}
+    return {"n": len(rows), "columns": columns}
+
+
 def _build_bundle(store: ArenaStore, q: Queries) -> dict[str, Any]:
     overview = q.overview()
-    # The v_run_metrics backbone — every aggregation query runs off these rows.
+    # The v_run_metrics backbone — every aggregation query runs off these rows. Only the
+    # columns the static engine (web/lib/static-engine.js) reads are exported.
     metrics = store.query(
         """SELECT execution_hash, run_condition_hash, execution_validity, execution_status, producer_capsule,
-                  time_ms, pipeline_dag_hash, dataset_fingerprint, task_hash, main_model,
-                  pipeline_label, score_set_id, score_scope, score_validity, score_computation_hash,
-                  metric_name, metric_value, direction, fold_id, partition, aggregation_level, n_samples
+                  time_ms, pipeline_dag_hash, dataset_fingerprint, main_model, pipeline_label,
+                  score_scope, score_validity, metric_name, metric_value, partition
            FROM v_run_metrics"""
     )
     facets = store.query("SELECT run_condition_hash, facet_key, facet_value, facet_num, role FROM run_facets")
-    pipeline_nodes = store.query(
-        "SELECT pipeline_dag_hash, node_id, role, operator, operator_version FROM pipeline_nodes"
-    )
+    pipeline_nodes = store.query("SELECT pipeline_dag_hash, role, operator FROM pipeline_nodes")
+    strings: dict[str, int] = {}
+    tables = {
+        "pipelines": _columnar(q.pipelines(), strings),
+        "metrics": _columnar(metrics, strings),
+        "facets": _columnar(facets, strings),
+        "pipeline_nodes": _columnar(pipeline_nodes, strings),
+    }
     return {
         "meta": {"version": __version__, "static": True},
         "overview": overview,
         "datasets": q.datasets(),
-        "pipelines": q.pipelines(),
         "operators": q.operators(),
         "parameters": q.sweepable_parameters(),
         "collections": q.collections(),
         "planned": q.planned(),
-        "metrics": metrics,
-        "facets": facets,
-        "pipeline_nodes": pipeline_nodes,
+        "strings": list(strings),
+        "tables": tables,
     }
