@@ -26,6 +26,14 @@ EXCLUDED_DATASETS = {
         "The selected target is the UTM easting coordinate (metres), not a measured property; "
         "its RMSE of 4e3-8e5 dominated every cross-dataset aggregate."
     ),
+    "malaria_anopheles_gambiae_sporozoite_nir": (
+        "The target is a raw, heavily skewed sporozoite count (0 to 2.4e5); "
+        "its unnormalized RMSE of 1e4-4e4 dominated every cross-dataset aggregate."
+    ),
+    "malaria_anopheles_gambiae_oocyst_nir": (
+        "The target is a raw, heavily skewed oocyst count (0 to 6.1e4); "
+        "its unnormalized RMSE of 4e3-1e4 dominated every cross-dataset aggregate."
+    ),
 }
 
 

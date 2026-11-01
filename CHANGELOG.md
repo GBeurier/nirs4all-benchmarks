@@ -23,9 +23,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
   engine; previously only Leaderboard, Playground, Runs and Compare honoured it.
 
 ### Removed
-- The EcoSIS 3D canopy reflectance dataset from the catalog data pack (now 11,010 runs on 106
-  datasets): its selected target is a UTM easting coordinate, whose RMSE (4e3–8e5) dominated every
-  cross-dataset chart. Exclusions are recorded in `manifest.json` (`excluded_datasets`).
+- Three datasets from the catalog data pack (now 10,824 runs on 104 datasets), whose unnormalized
+  RMSE dominated every cross-dataset chart: EcoSIS 3D canopy reflectance (its selected target is a
+  UTM easting coordinate; RMSE 4e3–8e5) and the malaria *Anopheles gambiae* sporozoite and oocyst
+  datasets (raw, heavily skewed parasite counts; RMSE 4e3–4e4). Exclusions are recorded in
+  `manifest.json` (`excluded_datasets`).
 
 ## [0.1.7] — 2026-10-07
 
