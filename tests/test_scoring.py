@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import statistics
 
 import pytest
 
@@ -27,10 +28,13 @@ def test_regression_known_values():
     assert m["mae"] == pytest.approx((0.5 + 0 + 0.5) / 3)
     assert m["rmse"] == pytest.approx(math.sqrt((0.25 + 0 + 0.25) / 3))
     assert m["bias"] == pytest.approx(0.0)
+    assert m["nrmse"] == pytest.approx(m["rmse"] / statistics.pstdev([1.0, 2.0, 3.0]))
+    assert m["nrmse"] == pytest.approx(1 / m["rpd"])
 
 
 def test_directions():
     assert direction_of("rmse") == "min"
+    assert direction_of("nrmse") == "min"
     assert direction_of("r2") == "max"
     assert direction_of("accuracy") == "max"
     assert direction_of("f1_weighted") == "max"

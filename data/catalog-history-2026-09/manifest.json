@@ -3,11 +3,11 @@
   "collection_id": "catalog_history_2026_09",
   "name": "Catalog research runs (September 2026)",
   "description": "Measured held-out test scores from existing NIRPFN, TabPFN, PLS and AOM research runs. Producer-reported scores; no raw spectra, targets, residuals or model weights included.",
-  "archive_sha256": "212125dd5b0d6fa36e049eb5d51527a3212e13495e76a9d89df3bde832ba4407",
+  "archive_sha256": "e04427694d39d9815c41fefc87a5d20d425b0b28a78bfcdb2f7edb29b709abe7",
   "executions": 10824,
   "datasets": 104,
   "tasks": 153,
-  "metric_observations": 25806,
+  "metric_observations": 32286,
   "by_method": {
     "AOM_PLS": 222,
     "AOM_PLS_default": 222,
@@ -56,6 +56,9 @@
     "ecosis_3d_canopy_level_spectra_reflectance_nirs": "The selected target is the UTM easting coordinate (metres), not a measured property; its RMSE of 4e3-8e5 dominated every cross-dataset aggregate.",
     "malaria_anopheles_gambiae_sporozoite_nir": "The target is a raw, heavily skewed sporozoite count (0 to 2.4e5); its unnormalized RMSE of 1e4-4e4 dominated every cross-dataset aggregate.",
     "malaria_anopheles_gambiae_oocyst_nir": "The target is a raw, heavily skewed oocyst count (0 to 6.1e4); its unnormalized RMSE of 4e3-1e4 dominated every cross-dataset aggregate."
+  },
+  "derived_metrics": {
+    "nrmse": "RMSE divided by the standard deviation of the target over the whole catalog dataset (nirs4all-datasets card statistics, recorded in dataset_card.target_scale), so scores of targets with different units and scales are comparable. Targets whose card statistics include the undeclared -9999 missing-value sentinel have no reliable scale and get no nRMSE."
   },
   "sources": {
     "nirs4all-lab/RamanPFN/results/score_matrix.csv": {

@@ -36,7 +36,8 @@ const BY_ID = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
 const NO_LENS = new Set(["datasets", "pipelines", "planned", "upload", "run", "overview"]);
 
 // Shared, persisted lens — set ONCE in the context bar, read by every analysis view.
-const STATE_KEY = "arena.state.v1";
+// v2: the default metric became the scale-free nRMSE; a v1 lens would keep raw RMSE.
+const STATE_KEY = "arena.state.v2";
 function readStorage(key) {
   try { return localStorage.getItem(key); } catch { return null; }
 }
@@ -55,7 +56,7 @@ function savedLens() {
   } catch { return {}; }
 }
 const state = {
-  metric: "rmse", scope: "test", dataset: "", _overview: null, _datasets: null,
+  metric: "nrmse", scope: "test", dataset: "", _overview: null, _datasets: null,
   ...savedLens(),
   save() { writeStorage(STATE_KEY, JSON.stringify({ metric: this.metric, scope: this.scope, dataset: this.dataset })); },
 };
@@ -128,7 +129,7 @@ async function refreshHeader() {
     // A new snapshot may replace the metrics, score levels, and dataset identities
     // stored in an earlier visit. Restore usable filters before rendering charts.
     if (ov.metrics?.length && !ov.metrics.includes(state.metric)) {
-      state.metric = ov.metrics.includes("rmse") ? "rmse" : ov.metrics[0];
+      state.metric = ["nrmse", "rmse"].find((m) => ov.metrics.includes(m)) || ov.metrics[0];
     }
     if (ov.score_scopes?.length && !ov.score_scopes.includes(state.scope)) {
       state.scope = ov.score_scopes.includes("test") ? "test" : ov.score_scopes[0];

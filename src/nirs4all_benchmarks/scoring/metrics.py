@@ -18,6 +18,7 @@ import numpy as np
 METRIC_DIRECTION: dict[str, str] = {
     "mse": "min",
     "rmse": "min",
+    "nrmse": "min",
     "mae": "min",
     "medae": "min",
     "bias": "min",
@@ -65,6 +66,8 @@ def compute_regression_metrics(y_true: Sequence[float], y_pred: Sequence[float])
     if var > 0:
         out["r2"] = float(1.0 - mse / var)
         std = float(np.std(yt))
+        # RMSE in units of the target's standard deviation: comparable across targets.
+        out["nrmse"] = out["rmse"] / std
         if out["rmse"] > 0:
             out["rpd"] = std / out["rmse"]
             iqr = float(np.subtract(*np.percentile(yt, [75, 25])))
