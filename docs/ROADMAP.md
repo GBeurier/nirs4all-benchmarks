@@ -20,9 +20,10 @@ The public page is a **fully static, client-side snapshot** deployed on **GitHub
 - The full **FastAPI service** (`n4a-benchmarks serve`) runs locally for ingestion, real stores, and
   the live `/api` + upload state machine.
 
-What is *not* in the static demo: ingestion / upload (those need the local service), and the data is
-the synthetic demo fixtures (a factorial over preprocessing × augmentation × model × params × split ×
-dataset) — enough to exercise every view, not a real benchmark yet.
+What is *not* on the static site: ingestion / upload (those need the local service). The published
+data is the checked-in [measured catalog pack](../data/README.md) (10,824 producer-reported held-out
+test runs on 104 catalog datasets) — a research snapshot, not yet a continuously updated or
+independently qualified benchmark.
 
 ## Next — a live meta-analysis server (medium term)
 
@@ -38,7 +39,7 @@ pipelines and meta-analyses** and interacts with the rest of the ecosystem:
   JSON-YAML / dag-ml bundle / `ArenaRunExport`), runs the run/store/display state machine, schedules
   or ingests runs, and serves the same dataviz over live data.
 
-This turns the current static demo into a continuously-updated public benchmark, with the SPA
+This turns the current static snapshot into a continuously-updated public benchmark, with the SPA
 unchanged (it already speaks the same query API, whether backed by the static snapshot or the live
 service).
 
