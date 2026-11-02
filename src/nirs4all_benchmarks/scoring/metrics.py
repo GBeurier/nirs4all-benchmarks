@@ -66,8 +66,9 @@ def compute_regression_metrics(y_true: Sequence[float], y_pred: Sequence[float])
     if var > 0:
         out["r2"] = float(1.0 - mse / var)
         std = float(np.std(yt))
-        # RMSE in units of the target's standard deviation: comparable across targets.
-        out["nrmse"] = out["rmse"] / std
+        # No ``nrmse`` here: that metric is RMSE over the whole catalog dataset's target SD
+        # (a fixed per-dataset scale supplied with the dataset card); ``rpd`` below uses the
+        # SD of these held-out targets, so the two must not share a name or be pooled.
         if out["rmse"] > 0:
             out["rpd"] = std / out["rmse"]
             iqr = float(np.subtract(*np.percentile(yt, [75, 25])))

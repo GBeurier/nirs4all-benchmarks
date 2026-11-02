@@ -124,6 +124,21 @@ def test_invalid_history_pack_does_not_write_facts(tmp_path: Path, failure: str)
         assert store.count("executions") == store.count("collections") == 0
 
 
+def test_history_pack_with_duplicate_executions_is_rejected(tmp_path: Path) -> None:
+    manifest = _small_pack(tmp_path)
+    archive = tmp_path / "runs.jsonl.gz"
+    with gzip.open(archive, "wt") as stream:
+        stream.write((json.dumps(manifest) + "\n") * 2)
+    metadata_path = tmp_path / "manifest.json"
+    metadata = json.loads(metadata_path.read_text())
+    metadata.update(executions=2, archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest())
+    metadata_path.write_text(json.dumps(metadata))
+    with ArenaStore(tmp_path / "store") as store:
+        with pytest.raises(ValueError, match="duplicate executions"):
+            ingest_history(store, tmp_path)
+        assert store.count("executions") == store.count("collections") == 0
+
+
 def test_real_charts_recover_from_saved_demo_filters(tmp_path: Path) -> None:
     chrome = next((shutil.which(name) for name in ("google-chrome", "chromium", "chromium-browser")
                    if shutil.which(name)), None)

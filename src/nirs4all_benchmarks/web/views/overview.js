@@ -99,10 +99,15 @@ export default {
           + "Do not tune splits on held-out test results.", "playground"));
       }
 
-      if (rob?.length) {
-        const stable = rob.slice().sort((a, b) => a.stdev - b.stdev)[0];
+      // A standard deviation needs at least two runs; a single run is not evidence of stability.
+      const replicated = (rob || []).filter((r) => r.n > 1);
+      if (replicated.length) {
+        const stable = replicated.slice().sort((a, b) => a.stdev - b.stdev)[0];
         findings.push(card("🛡", "Most robust", fmt(stable.stdev),
-          `${stable.label} (std across runs)`, "robustness"));
+          `${stable.label} (std across ${stable.n} runs; pipelines with a single run are not ranked)`, "robustness"));
+      } else if (rob?.length) {
+        findings.push(card("🛡", "Most robust", "n/a",
+          "Every pipeline has a single run per dataset, so run-to-run variance cannot be measured.", "robustness"));
       }
 
       dom.mount(findingsHost, ...(findings.length ? findings : [dom.empty("Seed some runs to see findings.")]));

@@ -36,6 +36,7 @@ function classifyRole(operator, kind) {
 
 // ── stats helpers ──
 const mean = (a) => a.reduce((x, y) => x + y, 0) / (a.length || 1);
+const sum = (a) => a.reduce((x, y) => x + y, 0);
 const pstdev = (a) => { if (a.length < 2) return 0; const m = mean(a); return Math.sqrt(mean(a.map((x) => (x - m) ** 2))); };
 function quantile(sorted, p) { if (!sorted.length) return null; const i = (sorted.length - 1) * p; const lo = Math.floor(i), hi = Math.ceil(i); return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo); }
 function median(a) { const s = a.slice().sort((x, y) => x - y); return quantile(s, 0.5); }
@@ -252,11 +253,11 @@ export async function createStaticApi(base = "/data") {
       const rows = sel(metric, scope, { dataset });
       const pipeAgg = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash)) {
-        const vals = g.map((r) => r.metric_value); pipeAgg.set(g[0].pipeline_dag_hash, { label: g[0].pipeline_label, main_model: g[0].main_model, score: mean(vals), execs: new Set(g.map((r) => r.execution_hash)) });
+        const vals = g.map((r) => r.metric_value); pipeAgg.set(g[0].pipeline_dag_hash, { label: g[0].pipeline_label, main_model: g[0].main_model, score: mean(vals), sum: sum(vals), n: vals.length, execs: new Set(g.map((r) => r.execution_hash)) });
       }
       if (kind === "operators") {
         const stat = new Map();
-        for (const [pdh, a] of pipeAgg) for (const o of (opsByPipe.get(pdh) || [])) { if (!stat.has(o.leaf)) stat.set(o.leaf, { operator: o.operator, role: o.role, pipes: new Set(), runs: 0, scoreSum: 0, scoreN: 0 }); const s = stat.get(o.leaf); s.pipes.add(pdh); s.runs += a.execs.size; s.scoreSum += a.score; s.scoreN++; }
+        for (const [pdh, a] of pipeAgg) for (const o of (opsByPipe.get(pdh) || [])) { if (!stat.has(o.leaf)) stat.set(o.leaf, { operator: o.operator, role: o.role, pipes: new Set(), runs: 0, scoreSum: 0, scoreN: 0 }); const s = stat.get(o.leaf); if (!s.pipes.has(pdh)) { s.pipes.add(pdh); s.runs += a.execs.size; } s.scoreSum += a.sum; s.scoreN += a.n; }
         const nodes = [...stat].map(([leaf, s]) => ({ id: leaf, operator: s.operator, cluster: classifyRole(s.operator, s.role), size: s.pipes.size, score: s.scoreN ? s.scoreSum / s.scoreN : null, n_runs: s.runs }));
         const keep = new Set(nodes.map((n) => n.id)); const pair = new Map();
         for (const [pdh] of pipeAgg) { const present = [...new Set((opsByPipe.get(pdh) || []).map((o) => o.leaf))].filter((l) => keep.has(l)).sort(); for (let i = 0; i < present.length; i++) for (let j = i + 1; j < present.length; j++) { const k = present[i] + "||" + present[j]; pair.set(k, (pair.get(k) || 0) + 1); } }
@@ -273,10 +274,11 @@ export async function createStaticApi(base = "/data") {
 
     composition: async ({ metric = "rmse", scope = "cv", dataset } = {}) => {
       const rows = sel(metric, scope, { dataset });
-      const byPipeScore = new Map(); const byPipeExecs = new Map();
-      for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash)) { byPipeScore.set(g[0].pipeline_dag_hash, mean(g.map((r) => r.metric_value))); byPipeExecs.set(g[0].pipeline_dag_hash, new Set(g.map((r) => r.execution_hash)).size); }
+      // Like the SQL join, weight every metric observation equally (not every pipeline's mean).
+      const byPipe = new Map();
+      for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash)) { const vals = g.map((r) => r.metric_value); byPipe.set(g[0].pipeline_dag_hash, { sum: sum(vals), n: vals.length, execs: new Set(g.map((r) => r.execution_hash)).size }); }
       const agg = new Map();
-      for (const [pdh, ops] of opsByPipe) { if (!byPipeScore.has(pdh)) continue; for (const o of ops) { if (!agg.has(o.operator)) agg.set(o.operator, { role: o.role, pipes: new Set(), runs: 0, scoreSum: 0, scoreN: 0 }); const a = agg.get(o.operator); a.pipes.add(pdh); a.runs += byPipeExecs.get(pdh); a.scoreSum += byPipeScore.get(pdh); a.scoreN++; } }
+      for (const [pdh, ops] of opsByPipe) { const p = byPipe.get(pdh); if (!p) continue; for (const o of ops) { if (!agg.has(o.operator)) agg.set(o.operator, { role: o.role, pipes: new Set(), runs: 0, scoreSum: 0, scoreN: 0 }); const a = agg.get(o.operator); if (!a.pipes.has(pdh)) { a.pipes.add(pdh); a.runs += p.execs; } a.scoreSum += p.sum; a.scoreN += p.n; } }
       const out = [...agg].map(([operator, a]) => ({ operator, role: classifyRole(operator, a.role), operator_short: operator.split(".").pop(), n_pipes: a.pipes.size, n_runs: a.runs, score: a.scoreN ? a.scoreSum / a.scoreN : null }));
       out.sort((a, b) => a.role.localeCompare(b.role) || b.n_runs - a.n_runs);
       return { metric, scope, direction: dir(metric), rows: out };
