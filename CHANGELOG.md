@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-11-03
+
+Packaging fix: the results database no longer ships on PyPI.
+
+### Fixed
+- The measured catalog data pack (`data/`, 1.9 MB `runs.jsonl.gz` plus its manifest and README) feeds
+  the public website only, but 0.1.8 included it in the source distribution. It is now excluded from the
+  sdist (together with `scripts/collect_history.py` and the two tests that need the pack,
+  `tests/test_history.py` and `tests/test_static_engine_parity.py`); the wheel never contained it. The
+  repository keeps all of it: the Pages build still imports `data/`, and the Docker image still copies it
+  for manual ingestion. The publish workflow now fails the build if a distribution contains the pack.
+
 ## [0.1.8] — 2026-11-02
 
 Replace the synthetic demo snapshot on the public site with measured catalog runs, and make the

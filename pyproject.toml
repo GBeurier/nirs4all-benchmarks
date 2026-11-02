@@ -97,6 +97,17 @@ path = "src/nirs4all_benchmarks/version.py"
 packages = ["src/nirs4all_benchmarks"]
 artifacts = ["src/nirs4all_benchmarks/web/**/*"]
 
+# The measured results pack under data/ feeds the public website only (Pages/Docker build it from the
+# repository); it must not ship in any PyPI distribution. The harvester and the tests that need the pack
+# stay in the repository with it.
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/data",
+    "/scripts/collect_history.py",
+    "/tests/test_history.py",
+    "/tests/test_static_engine_parity.py",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py310"

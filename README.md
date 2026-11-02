@@ -41,7 +41,8 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 
 The checked-in [real-data pack](data/README.md) contains **10,824 measured runs on 104 catalog datasets**,
 covering 153 source/target tasks, 32 method labels, three seeds, and 32,286 score observations (including derived nRMSE).
-The Pages build imports this pack instead of synthetic fixtures. Scores retain their original held-out
+The Pages build imports this pack instead of synthetic fixtures. The pack lives in the Git repository for
+the website only; it is not part of the PyPI package (sdist or wheel). Scores retain their original held-out
 **test** scope and source provenance; the existing charts use test scores by default.
 
 Full plan: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
