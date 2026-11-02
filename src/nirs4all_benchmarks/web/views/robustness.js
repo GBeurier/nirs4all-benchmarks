@@ -1,16 +1,18 @@
 // Robustness — score vs. variance across folds, seeds and splits.
-// Bottom-left of the scatter (low score + low variance) is the robust corner.
+// The robust corner is low variance with the better score: bottom-left for a metric where lower is
+// better (rmse), bottom-right where higher is better (accuracy).
 
 export default {
   id: "robustness",
   title: "Robustness",
-  subtitle: "Score vs. variance across folds, seeds and splits — bottom-left is best.",
+  subtitle: "Score vs. variance across folds, seeds and splits.",
   icon: "📉",
   async render(ctx) {
     const { root, api, dom, plot, state } = ctx;
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
+    const subtitle = head.querySelector("p");
 
     const chartCard = dom.el("div", { class: "card" },
       dom.el("h3", {}, "Stability landscape"),
@@ -22,7 +24,10 @@ export default {
     const refresh = async () => {
       const plotNode = document.getElementById("rb-plot");
       dom.mount(tableHost, dom.loading());
-      const all = await api.robustness({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
+      const lens = { metric: state.metric, scope: state.scope, dataset: state.dataset || undefined };
+      const [all, lb] = await Promise.all([api.robustness(lens), api.leaderboard({ ...lens, limit: 1 })]);
+      const higherIsBetter = lb.direction === "max";
+      subtitle.textContent = `${this.subtitle} ${higherIsBetter ? "Bottom-right (high score, low variance)" : "Bottom-left (low score, low variance)"} is best.`;
       // A variance needs at least two runs: a single run would sit at zero and look perfectly stable.
       const rows = all.filter((r) => r.n > 1);
       if (!rows.length) {
@@ -58,9 +63,9 @@ export default {
         xaxis: { title: `${state.metric} (mean)` },
         yaxis: { title: `${state.metric} (stdev)` },
         annotations: [{
-          x: Math.min(...rows.map((r) => r.mean)), y: Math.min(...rows.map((r) => r.stdev)),
-          xref: "x", yref: "y", xanchor: "left", yanchor: "bottom",
-          text: "low score + low variance = robust",
+          x: (higherIsBetter ? Math.max : Math.min)(...rows.map((r) => r.mean)), y: Math.min(...rows.map((r) => r.stdev)),
+          xref: "x", yref: "y", xanchor: higherIsBetter ? "right" : "left", yanchor: "bottom",
+          text: higherIsBetter ? "high score + low variance = robust" : "low score + low variance = robust",
           showarrow: false, font: { size: 11, color: "#00704A" },
         }],
       });
