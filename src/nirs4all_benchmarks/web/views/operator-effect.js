@@ -1,5 +1,7 @@
 // Operator-effect explorer — score distribution by which operator appears in the pipeline.
 
+import { uniqueLabels } from "../lib/labels.js";
+
 export default {
   id: "operator-effect",
   title: "Operator effect",
@@ -25,7 +27,8 @@ export default {
       const series = oe.series || [];
       if (!series.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No operators match these filters.")); return; }
 
-      // Sort by mean, best first per direction (max → high first, else low first).
+      // Worst first per direction (max → low first, else high first): Plotly stacks the first
+      // category lowest, so the best operator ends up at the top of the chart.
       const better = oe.direction === "max" ? 1 : -1;
       const sorted = series.slice().sort((a, b) => (a.mean - b.mean) * better);
 
@@ -33,12 +36,11 @@ export default {
       const roles = [...new Set(sorted.map((s) => s.role))];
       const roleColor = new Map(roles.map((r, i) => [r, plot.palette[i % plot.palette.length]]));
 
-      // Box plot, best at top: Plotly stacks the first category lowest, so reverse.
-      const ordered = sorted.slice().reverse();
-      const traces = ordered.map((s) => ({
+      const names = uniqueLabels(sorted, (s) => s.operator.split(".").pop(), (s) => s.operator);
+      const traces = sorted.map((s, i) => ({
         type: "box",
         orientation: "h",
-        name: s.operator.split(".").pop(),
+        name: names[i],
         x: s.values,
         boxpoints: "outliers",
         marker: { color: roleColor.get(s.role) },

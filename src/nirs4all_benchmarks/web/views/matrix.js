@@ -1,12 +1,6 @@
 // Pipeline × Dataset score matrix — every pipeline's score on every dataset (heatmap).
 
-// Plotly merges rows and columns whose category labels are equal, so equal labels (many pipelines
-// share a method label; several dataset views share a name) get a short hash to stay distinct.
-function uniqueLabels(items, label, id) {
-  const count = new Map();
-  for (const it of items) count.set(label(it), (count.get(label(it)) || 0) + 1);
-  return items.map((it) => (count.get(label(it)) > 1 ? `${label(it)} · ${id(it).slice(0, 8)}` : label(it)));
-}
+import { uniqueLabels } from "../lib/labels.js";
 
 export default {
   id: "matrix",
@@ -61,8 +55,8 @@ export default {
         ? plot.sequential.map(([s, col]) => [1 - s, col]).reverse()
         : plot.sequential;
 
-      const xLabels = uniqueLabels(datasets, (d) => d.label, (d) => d.dataset_fingerprint);
-      const yLabels = uniqueLabels(pipelines, (p) => p.label, (p) => p.pipeline_dag_hash);
+      const xLabels = uniqueLabels(datasets, (d) => d.label, (d) => d.dataset_fingerprint.slice(0, 8));
+      const yLabels = uniqueLabels(pipelines, (p) => p.label, (p) => p.pipeline_dag_hash.slice(0, 8));
 
       plot.draw(plotNode, [{
         type: "heatmap",

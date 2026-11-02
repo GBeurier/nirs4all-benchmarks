@@ -4,7 +4,6 @@
 // analysis views.
 
 const METRIC = "rmse";
-const SCOPE = "test";
 
 function bestOf(rows, direction) {
   if (!rows || !rows.length) return null;
@@ -22,6 +21,8 @@ export default {
     const ov = await api.overview();
     state._overview = ov;
     const FIND = ov.metrics?.includes("nrmse") ? "nrmse" : METRIC;
+    // Held-out test scores when the store has them, else its first score level (a CV-only store).
+    const SCOPE = ov.score_scopes?.includes("test") ? "test" : (ov.score_scopes?.[0] || "test");
 
     const head = dom.el("div", { class: "page-head" },
       dom.el("div", { class: "eyebrow" }, dom.el("span", { class: "pulse-dot" }), "NIRS pipeline meta-analysis"),
@@ -45,7 +46,7 @@ export default {
       findingsHost, stats,
       dom.el("div", { class: "card", style: { marginTop: "16px" } },
         dom.el("h3", {}, "Best pipeline per dataset"),
-        dom.el("div", { class: "sub" }, "Lowest mean test RMSE on each dataset — click to focus."),
+        dom.el("div", { class: "sub" }, `Lowest mean ${SCOPE} RMSE on each dataset — click to focus.`),
         dom.el("div", { id: "ov-best" }, dom.loading())));
 
     // ── findings (computed from the analysis endpoints) ──
@@ -126,7 +127,7 @@ export default {
     }
     dom.mount(document.getElementById("ov-best"), dom.table([
       { key: "dataset", label: "Dataset" },
-      { key: "pipeline", label: "Best pipeline (test rmse)" },
+      { key: "pipeline", label: `Best pipeline (${SCOPE} rmse)` },
       { key: "rmse", label: "rmse", num: true, render: (r) => dom.fmt(r.rmse, 4) },
       { key: "n", label: "runs", num: true },
     ], bestRows, { onRow: (r) => { state.dataset = r.df; state.save(); ctx.navigate("leaderboard"); } }));

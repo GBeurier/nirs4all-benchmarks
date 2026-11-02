@@ -242,22 +242,20 @@ class Queries:
         if operator:
             op_join = "JOIN pipeline_nodes pn ON pn.pipeline_dag_hash = mo.pipeline_dag_hash AND pn.operator = ?"
             params = [operator, *params]
+        # Best first by the metric's direction (so the table opens on winners), unscored runs last;
+        # the limit applies after this ordering, so it keeps the best runs rather than an arbitrary prefix.
+        order = "DESC" if direction_of(metric) == "max" else "ASC"
         sql = f"""
             SELECT mo.execution_hash, mo.run_condition_hash, mo.pipeline_dag_hash, mo.pipeline_label,
                    mo.main_model, mo.dataset_fingerprint, mo.execution_validity, mo.execution_status,
                    mo.producer_capsule, mo.time_ms, AVG(mo.metric_value) AS metric_value
             FROM v_run_metrics mo {op_join}
             WHERE {' AND '.join(where)}
-            GROUP BY mo.execution_hash LIMIT ?
+            GROUP BY mo.execution_hash
+            ORDER BY AVG(mo.metric_value) IS NULL, AVG(mo.metric_value) {order}, mo.execution_hash
+            LIMIT ?
         """
-        rows = self.store.query(sql, [*params, limit])
-        # Sort best-first by the metric's direction (so the table opens on winners).
-        worst = float("-inf") if direction_of(metric) == "max" else float("inf")
-        rows.sort(
-            key=lambda r: (r["metric_value"] if r["metric_value"] is not None else worst),
-            reverse=(direction_of(metric) == "max"),
-        )
-        return rows
+        return self.store.query(sql, [*params, limit])
 
     # ── operator / parameter effects ──────────────────────────────────
     def operator_effect(
@@ -304,25 +302,24 @@ class Queries:
         """Metric vs a (numeric or categorical) parameter — e.g. PLS n_components."""
         _safe_scope(scope)
         ds_sql, ds_params = _dataset_filter(dataset_fingerprint)
+        # Read the ``param:<name>`` run facets, like Playground and Parallel and like the static engine:
+        # a run contributes once per distinct value of the parameter across its stages.
         rows = self.store.query(
             f"""
-            SELECT pv.numeric_value AS num, pv.value_json AS raw, pv.is_numeric AS is_numeric,
+            SELECT rf.facet_num AS num, rf.facet_value AS raw,
                    mo.metric_value AS value, mo.dataset_fingerprint AS df, mo.pipeline_label AS label
-            FROM pipeline_node_params pnp
-            JOIN parameter_values pv ON pv.param_value_hash = pnp.param_value_hash
-            JOIN v_run_metrics mo ON mo.pipeline_dag_hash = pnp.pipeline_dag_hash
-            WHERE pv.name = ? AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql}
+            FROM run_facets rf
+            JOIN v_run_metrics mo ON mo.run_condition_hash = rf.run_condition_hash
+            WHERE rf.facet_key = ? AND mo.metric_name = ? AND mo.score_scope = ?{ds_sql}
                   AND mo.execution_validity = 'valid'
             """,
-            [param_name, metric, scope, *ds_params],
+            [f"param:{param_name}", metric, scope, *ds_params],
         )
-        points = []
-        for r in rows:
-            value_label = r["num"] if r["is_numeric"] else json.loads(r["raw"])
-            points.append(
-                {"param": value_label, "numeric": r["num"], "metric_value": r["value"],
-                 "dataset_fingerprint": r["df"], "pipeline_label": r["label"]}
-            )
+        points = [
+            {"param": r["num"] if r["num"] is not None else r["raw"], "numeric": r["num"], "metric_value": r["value"],
+             "dataset_fingerprint": r["df"], "pipeline_label": r["label"]}
+            for r in rows
+        ]
         return {"param_name": param_name, "metric": metric, "scope": scope,
                 "direction": direction_of(metric), "points": points}
 

@@ -164,10 +164,12 @@ export async function createStaticApi(base = "/data") {
       const rows = sel(metric, scope, { dataset });
       const points = [];
       for (const r of rows) {
-        const f = (facByRc.get(r.run_condition_hash) || []).find((x) => x.facet_key === `param:${param}`);
-        if (!f) continue;
-        points.push({ param: f.facet_num != null ? f.facet_num : f.facet_value, numeric: f.facet_num,
-          metric_value: r.metric_value, dataset_fingerprint: r.dataset_fingerprint, pipeline_label: r.pipeline_label });
+        // A run contributes once per distinct value of the parameter across its stages (as in Python).
+        for (const f of (facByRc.get(r.run_condition_hash) || [])) {
+          if (f.facet_key !== `param:${param}`) continue;
+          points.push({ param: f.facet_num != null ? f.facet_num : f.facet_value, numeric: f.facet_num,
+            metric_value: r.metric_value, dataset_fingerprint: r.dataset_fingerprint, pipeline_label: r.pipeline_label });
+        }
       }
       return { param_name: param, metric, scope, direction: dir(metric), points };
     },

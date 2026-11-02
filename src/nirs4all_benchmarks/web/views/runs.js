@@ -1,5 +1,8 @@
 // Run explorer — filterable table of every individual run, with a metric histogram.
 
+// The histogram and the table must cover every matching run, not a prefix of them.
+const MAX_RUNS = 100000;
+
 export default {
   id: "runs",
   title: "Run explorer",
@@ -39,7 +42,7 @@ export default {
       const runs = await api.runs({
         metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
         pipeline: pipelineFilter || undefined, operator: operatorSearch || undefined,
-        include_quarantined: bar.get("quar"), limit: 1000,
+        include_quarantined: bar.get("quar"), limit: MAX_RUNS,
       });
       if (!runs.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No runs match these filters.")); return; }
 

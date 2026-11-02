@@ -50,10 +50,19 @@ dataviz scale to them.
   the real pack with uneven pipeline coverage.
 - Robustness and the Overview "Most robust" finding ignore pipelines with a single run on a dataset,
   whose zero deviation was read as perfect stability.
-- The Pipeline × Dataset matrix no longer merges pipelines (or datasets) that share a label: the pack has
-  3,695 pipelines but 31 labels, so equal labels now carry a short hash.
+- The Pipeline × Dataset matrix, the Leaderboard chart, the Statistics violins and the Operator-effect boxes
+  no longer merge rows that share a label: the pack has 3,695 pipelines but 31 labels, so equal labels now
+  carry a short hash. The Operator-effect chart puts the best operator at the top, and the Leaderboard's
+  extrema columns name best and worst observation by metric direction.
 - The Robustness view reads the metric direction: for a higher-is-better metric (accuracy, F1, R²) the
   robust corner is bottom-right, not bottom-left.
+- The Run explorer builds its histogram and table from every matching run instead of the first 1,000; the
+  Python run listing orders best-first before applying its limit.
+- The Overview queries the score level the store has (test when present, else its first level), so a
+  CV-only store still shows findings.
+- The static Parameter effect and the Python one both read the `param:<name>` run facets: a run contributes
+  once per distinct value of the parameter across its stages (the static engine took only the first
+  value). A test compares both engines.
 - The Landscape surface hover names the categories of each cell (axes with more than 20 values show no
   tick labels), and datasets that share a name show a short fingerprint.
 - The static site recovers from a corrupt or blocked `localStorage`, a failed or timed-out snapshot
