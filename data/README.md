@@ -41,7 +41,8 @@ dataset is excluded because its lexically first target is a UTM easting coordina
 property; its RMSE values (4e3 to 8e5) dominated every cross-dataset aggregate. The two malaria
 *Anopheles gambiae* datasets are excluded because their target is a raw, heavily skewed parasite count
 (sporozoites 0 to 2.4e5, oocysts 0 to 6.1e4); their unnormalized RMSE (4e3 to 4e4) dominated those
-aggregates as well. The pack carries no target scale, so scores cannot be normalized per target.
+aggregates as well. They were excluded before the scale-free nRMSE below was added and remain excluded;
+pool scores across datasets on nRMSE, since the native RMSE of different targets is not comparable.
 
 `runs.jsonl.gz` contains one standard ArenaRunExport v1 JSON object per line. Every export records
 its source CSV path relative to the workspace, SHA-256, original CSV line number (header is line 1),

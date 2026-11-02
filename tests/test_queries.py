@@ -92,6 +92,18 @@ def test_parameter_effect_n_components(queries: Queries):
     assert numeric == [5.0, 8.0, 12.0, 16.0, 20.0]
 
 
+@pytest.mark.parametrize(("metric", "descending"), [("rmse", False), ("r2", True)])
+def test_runs_limit_keeps_the_best_runs(queries: Queries, metric: str, descending: bool):
+    everything = queries.run_explorer(metric=metric, scope="cv", limit=100000)
+    values = [r["metric_value"] for r in everything]
+    assert len(values) > 3
+    assert values == sorted(values, reverse=descending)
+    # The limit is applied after the best-first ordering, not to an arbitrary prefix of the runs.
+    assert [r["execution_hash"] for r in queries.run_explorer(metric=metric, scope="cv", limit=3)] == [
+        r["execution_hash"] for r in everything[:3]
+    ]
+
+
 def test_operator_effect(queries: Queries):
     oe = queries.operator_effect(metric="rmse", scope="cv")
     assert oe["series"]

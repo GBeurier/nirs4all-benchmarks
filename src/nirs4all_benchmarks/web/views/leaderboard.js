@@ -1,6 +1,8 @@
 // Leaderboard — configurable ranking, no canonical baseline (DESIGN.md §9.2).
 // This is the reference pattern for every view: page-head + controls + reactive render.
 
+import { uniqueLabels } from "../lib/labels.js";
+
 export default {
   id: "leaderboard",
   title: "Leaderboard",
@@ -33,11 +35,13 @@ export default {
 
       // Horizontal bar of the top 18, best at top, min–max as error bars.
       const top = rows.slice(0, 18).reverse();
+      const barLabels = uniqueLabels(top, (r) => r.pipeline_label || r.pipeline_dag_hash.slice(0, 10),
+        (r) => (r.run_condition_hash || r.pipeline_dag_hash).slice(0, 8));
       const best = lb.direction === "max" ? Math.max(...rows.map((r) => r.mean)) : Math.min(...rows.map((r) => r.mean));
       plot.draw(plotNode, [{
         type: "bar", orientation: "h",
         x: top.map((r) => r.mean),
-        y: top.map((r) => r.pipeline_label || r.pipeline_dag_hash.slice(0, 10)),
+        y: barLabels,
         error_x: { type: "data", symmetric: false,
           array: top.map((r) => (r.max ?? r.mean) - r.mean),
           arrayminus: top.map((r) => r.mean - (r.min ?? r.mean)), color: "rgba(15,31,26,.25)", thickness: 1 },
@@ -50,8 +54,8 @@ export default {
         { key: "pipeline_label", label: "Pipeline", render: (r) => dom.el("span", {}, r.pipeline_label || r.pipeline_dag_hash.slice(0, 12)) },
         { key: "main_model", label: "Model", render: (r) => dom.badge((r.main_model || "—").split(".").pop(), "role") },
         { key: "mean", label: `${state.metric} (mean)`, num: true, render: (r) => dom.fmt(r.mean, 4) },
-        { key: "min", label: "best fold", num: true, render: (r) => dom.fmt(r.min, 4) },
-        { key: "max", label: "worst fold", num: true, render: (r) => dom.fmt(r.max, 4) },
+        { key: "min", label: lb.direction === "max" ? "worst obs" : "best obs", num: true, render: (r) => dom.fmt(r.min, 4) },
+        { key: "max", label: lb.direction === "max" ? "best obs" : "worst obs", num: true, render: (r) => dom.fmt(r.max, 4) },
         { key: "n_obs", label: "obs", num: true },
       ], rows, { sort: { key: "rank", dir: 1 }, onRow: (r) => ctx.navigate(`runs/${r.pipeline_dag_hash}`) });
       dom.mount(tableHost, dom.el("div", { class: "card" },

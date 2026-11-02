@@ -2,6 +2,8 @@
 // the score. Metric/score level come from the shared lens; this view is a one-shot
 // (page-head + refresh) with no local controls bar.
 
+import { uniqueLabels } from "../lib/labels.js";
+
 function pretty(facetKey) {
   if (facetKey == null) return "";
   const k = String(facetKey);
@@ -72,8 +74,9 @@ export default {
       }], { margin: { l: 48, r: 12, t: 8, b: 44 }, xaxis: { title: state.metric }, yaxis: { title: "runs" }, bargap: 0.04 });
 
       // violin per dataset
+      const spreadNames = uniqueLabels(st.by_dataset || [], (d) => d.label, (d) => String(d.dataset_fingerprint).slice(0, 8));
       const spreadTraces = (st.by_dataset || []).map((d, i) => ({
-        type: "violin", y: d.values, name: d.label, box: { visible: true }, meanline: { visible: true },
+        type: "violin", y: d.values, name: spreadNames[i], box: { visible: true }, meanline: { visible: true },
         points: false, line: { color: plot.palette[i % plot.palette.length] },
         fillcolor: plot.palette[i % plot.palette.length] + "33",
       }));

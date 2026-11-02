@@ -31,7 +31,9 @@ const out = [];
 for (const q of JSON.parse(queriesJson)) {
   const { dataset, ...rest } = q.args;
   const args = { ...rest, dataset: dataset || undefined };
-  out.push(q.name === "composition" ? await api.composition(args) : await api.graph({ ...args, kind: "operators" }));
+  if (q.name === "composition") out.push(await api.composition(args));
+  else if (q.name === "graph") out.push(await api.graph({ ...args, kind: "operators" }));
+  else out.push(await api.parameterEffect({ ...args, param: q.param }));
 }
 console.log(JSON.stringify(out));
 """
@@ -81,17 +83,37 @@ def test_composition_and_operator_graph_match_python(tmp_path: Path) -> None:
         expected_graph = [
             queries.operator_graph(metric=c["metric"], scope=c["scope"], dataset_fingerprint=c["dataset"] or None)["nodes"] for c in cases
         ]
+        # Parameters that take several distinct values within one run are where the engines could differ.
+        multivalued = [
+            r["facet_key"].removeprefix("param:")
+            for r in store.query(
+                """SELECT DISTINCT facet_key FROM (
+                       SELECT facet_key, run_condition_hash, COUNT(*) AS n FROM run_facets
+                       WHERE facet_key LIKE 'param:%' GROUP BY facet_key, run_condition_hash HAVING n > 1)"""
+            )
+        ]
+        assert multivalued
+        params = [*multivalued, *[f["facet_key"].removeprefix("param:") for f in queries.facets() if f["facet_key"].startswith("param:")][:3]]
+        expected_parameter = [
+            queries.parameter_effect(p, metric=c["metric"], scope=c["scope"], dataset_fingerprint=c["dataset"] or None)["points"]
+            for p in params
+            for c in cases
+        ]
     build_site(tmp_path / "store", tmp_path / "site", domain=None)
 
     (tmp_path / "engine.mjs").write_text(ENGINE.read_text(encoding="utf-8"), encoding="utf-8")
     (tmp_path / "driver.mjs").write_text(DRIVER, encoding="utf-8")
-    queries_json = json.dumps([{"name": name, "args": c} for name in ("composition", "graph") for c in cases])
+    queries_json = json.dumps(
+        [{"name": name, "args": c} for name in ("composition", "graph") for c in cases]
+        + [{"name": "parameter", "param": param, "args": c} for param in params for c in cases]
+    )
     result = subprocess.run(
         [node, "driver.mjs", str(tmp_path / "site" / "data" / "bundle.json"), queries_json],
         cwd=tmp_path, capture_output=True, text=True, check=True, timeout=120,
     )
     answers = json.loads(result.stdout)
-    composition, graph = answers[: len(cases)], answers[len(cases):]
+    composition, graph = answers[: len(cases)], answers[len(cases): 2 * len(cases)]
+    parameter = answers[2 * len(cases):]
 
     for case, expected, actual in zip(cases, expected_composition, composition, strict=True):
         got = {r["operator"]: r for r in actual["rows"]}
@@ -107,3 +129,9 @@ def test_composition_and_operator_graph_match_python(tmp_path: Path) -> None:
             assert got[node_["id"]]["score"] == pytest.approx(node_["score"], rel=1e-9), (case, node_["id"])
             assert got[node_["id"]]["n_runs"] == node_["n_runs"], (case, node_["id"])
             assert got[node_["id"]]["size"] == node_["size"], (case, node_["id"])
+    def point(p: dict) -> tuple:
+        value = ("n", float(p["numeric"])) if p["numeric"] is not None else ("s", str(p["param"]))
+        return (*value, round(p["metric_value"], 9), p["dataset_fingerprint"], p["pipeline_label"])
+
+    for expected, actual in zip(expected_parameter, parameter, strict=True):
+        assert sorted(map(point, actual["points"])) == sorted(map(point, expected))
