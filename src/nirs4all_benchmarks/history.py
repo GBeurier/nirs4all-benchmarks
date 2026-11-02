@@ -35,6 +35,9 @@ def ingest_history(
         exports = [json.loads(line) for line in stream if line.strip()]
     if len(exports) != metadata["executions"]:
         raise ValueError("Historical data archive execution count mismatch")
+    experiments = {tuple(export["provenance"]["historical_source"]["experiment_key"]) for export in exports}
+    if len(experiments) != len(exports):
+        raise ValueError("Historical data archive contains duplicate executions")
     collection = metadata["collection_id"]
     policy = IngestionPolicy(collection_id=collection, collection_kind="user_run_collection")
     store.ensure_collection(collection, name=metadata["name"], description=metadata["description"])

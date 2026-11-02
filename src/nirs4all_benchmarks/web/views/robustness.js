@@ -22,8 +22,16 @@ export default {
     const refresh = async () => {
       const plotNode = document.getElementById("rb-plot");
       dom.mount(tableHost, dom.loading());
-      const rows = await api.robustness({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
-      if (!rows.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No runs match these filters.")); return; }
+      const all = await api.robustness({ metric: state.metric, scope: state.scope, dataset: state.dataset || undefined });
+      // A variance needs at least two runs: a single run would sit at zero and look perfectly stable.
+      const rows = all.filter((r) => r.n > 1);
+      if (!rows.length) {
+        plot.purge(plotNode);
+        dom.mount(tableHost, dom.empty(all.length
+          ? "Every pipeline has a single run per dataset, so run-to-run variance cannot be measured."
+          : "No runs match these filters."));
+        return;
+      }
 
       // One trace per dataset, colored from the brand palette. Marker size ~ n.
       const fps = [...new Set(rows.map((r) => r.dataset_fingerprint))];
@@ -66,7 +74,8 @@ export default {
         { key: "cv_pct", label: "CV %", num: true, render: (r) => dom.fmt(r.cv_pct, 1) + "%" },
       ], rows, { sort: { key: "stdev", dir: 1 }, onRow: (r) => ctx.navigate(`runs/${r.pipeline_dag_hash}`) });
       dom.mount(tableHost, dom.el("div", { class: "card" },
-        dom.el("h3", {}, `${rows.length} pipeline × dataset pairs`),
+        dom.el("h3", {}, `${rows.length} pipeline × dataset pairs`
+          + (all.length > rows.length ? ` (${all.length - rows.length} with a single run not shown)` : "")),
         dom.el("div", { class: "sub" }, "Sorted by variance — most stable first. Click a row to see every run of that pipeline."), tbl));
     };
     await refresh();

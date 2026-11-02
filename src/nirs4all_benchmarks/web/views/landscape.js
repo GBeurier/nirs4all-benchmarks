@@ -157,7 +157,12 @@ export default {
 
       const dir = pc.direction;
       const dirArrow = dir === "max" ? "↑ higher is better" : "↓ lower is better";
-      const dsName = new Map((state._datasets || []).map((d) => [d.dataset_fingerprint, d.name || d.dataset_fingerprint]));
+      // One catalog dataset can have several source/target views; keep their labels distinct.
+      const datasets = state._datasets || [];
+      const nameOf = (d) => d.name || d.dataset_fingerprint;
+      const nameCount = datasets.reduce((m, d) => m.set(nameOf(d), (m.get(nameOf(d)) || 0) + 1), new Map());
+      const dsName = new Map(datasets.map((d) => [d.dataset_fingerprint,
+        nameCount.get(nameOf(d)) > 1 ? `${nameOf(d)} (${d.dataset_fingerprint.slice(0, 8)})` : nameOf(d)]));
       const displayFor = (key) => (key === "dataset" ? (v) => dsName.get(v) || v : (v) => v);
       const xSort = parseSort(bar.get("x_sort"));
       const ySort = parseSort(bar.get("y_sort"));
@@ -221,6 +226,12 @@ export default {
           cnt[yi][xi] += 1;
         });
         const zGrid = sum.map((srow, yi) => srow.map((s, xi) => (cnt[yi][xi] ? s / cnt[yi][xi] : null)));
+        // Axes with many categories show no tick labels, so each cell carries its full labels. They go
+        // in `text` shown with hoverinfo "text": Plotly indexes surface arrays as [x][y] inside a
+        // hovertemplate, which breaks on a grid that is not square.
+        const label = (d, code) => (d.categorical ? d.names[code] : String(code));
+        const cellText = yUnique.map((yv, yi) => xUnique.map((xv, xi) => (zGrid[yi][xi] == null ? "" :
+          `${pretty(x)} = ${label(dx, xv)}<br>${pretty(y)} = ${label(dy, yv)}<br>${state.metric} = ${zGrid[yi][xi].toFixed(4)}`)));
 
         // sequential is green(low)->paper(high). For "max" higher is better, so reverse
         // to keep better=greener; for "min" keep green at the low (better) end.
@@ -233,13 +244,11 @@ export default {
           x: xUnique,
           y: yUnique,
           z: zGrid,
+          text: cellText,
+          hoverinfo: "text",
           colorscale,
           connectgaps: false,
           colorbar: { title: state.metric, titleside: "right", thickness: 14, len: 0.85 },
-          hovertemplate:
-            `${pretty(x)} = %{x}<br>` +
-            `${pretty(y)} = %{y}<br>` +
-            `${state.metric} = %{z:.4f}<extra></extra>`,
         }], {
           margin: { l: 0, r: 0, t: 10, b: 0 },
           scene: {

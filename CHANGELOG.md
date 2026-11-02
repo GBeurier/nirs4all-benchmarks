@@ -24,10 +24,11 @@ dataviz scale to them.
   target is a UTM easting coordinate; RMSE 4e3–8e5) and the malaria *Anopheles gambiae* sporozoite and
   oocyst datasets (raw, heavily skewed parasite counts; RMSE 4e3–4e4); the reasons are recorded in
   `manifest.json` (`excluded_datasets`).
-- nRMSE, RMSE divided by the target's standard deviation, as a scale-free regression metric. The
-  catalog data pack derives it from the `nirs4all-datasets` card statistics (recorded per export in
-  `dataset_card.target_scale`), Arena scoring computes it from the test targets, and it is the
-  default lens metric and the metric of the Overview findings.
+- nRMSE, RMSE divided by the standard deviation of the target over the whole catalog dataset, as a
+  scale-free regression metric. The catalog data pack derives it from the `nirs4all-datasets` card
+  statistics (recorded per export in `dataset_card.target_scale`); it is the default lens metric and the
+  metric of the Overview findings. Residual-based scoring does not emit it, since its denominator would
+  be the standard deviation of the held-out targets, a different quantity; `rpd` is that per-split form.
 - Landscape (3D) sorting: X and Y each sort independently by mean score or by axis value, ascending or
   descending (a numeric axis sorted by value is reversed; sorted by score it becomes ranked).
 
@@ -43,6 +44,14 @@ dataviz scale to them.
   frequent values of larger categorical parameters.
 
 ### Fixed
+- `n4a-benchmarks ingest-history` rejects an archive that contains the same execution twice.
+- The static Composition and operator-network views weight every metric observation equally, like the
+  Python queries, instead of averaging per-pipeline means; a test compares both engines on a slice of
+  the real pack with uneven pipeline coverage.
+- Robustness and the Overview "Most robust" finding ignore pipelines with a single run on a dataset,
+  whose zero deviation was read as perfect stability.
+- The Landscape surface hover names the categories of each cell (axes with more than 20 values show no
+  tick labels), and datasets that share a name show a short fingerprint.
 - The static site recovers from a corrupt or blocked `localStorage`, a failed or timed-out snapshot
   download (with a Retry button), and filters saved against an earlier dataset; the Overview split
   finding now states lower and higher RMSE and warns about easier or less independent splits instead
