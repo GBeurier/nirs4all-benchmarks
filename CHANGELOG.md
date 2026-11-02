@@ -50,6 +50,10 @@ dataviz scale to them.
   the real pack with uneven pipeline coverage.
 - Robustness and the Overview "Most robust" finding ignore pipelines with a single run on a dataset,
   whose zero deviation was read as perfect stability.
+- The Pipeline × Dataset matrix no longer merges pipelines (or datasets) that share a label: the pack has
+  3,695 pipelines but 31 labels, so equal labels now carry a short hash.
+- The Robustness view reads the metric direction: for a higher-is-better metric (accuracy, F1, R²) the
+  robust corner is bottom-right, not bottom-left.
 - The Landscape surface hover names the categories of each cell (axes with more than 20 values show no
   tick labels), and datasets that share a name show a short fingerprint.
 - The static site recovers from a corrupt or blocked `localStorage`, a failed or timed-out snapshot
