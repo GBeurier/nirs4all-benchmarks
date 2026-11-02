@@ -206,16 +206,21 @@ def upload(
     target_datasets: list[str] | None = None,
     as_release: bool = False,
     filename: str | None = None,
+    allow_paths: bool = True,
 ) -> UploadResult:
     """Auto-detect ``payload`` and route it through the run/store/display machine.
 
     ``payload`` may be: an ``ArenaRunExport``/dict manifest, a dag-ml bundle dict, a
     pipeline list/dict, a path to a ``.n4a``/``.json``/``.yaml`` file, or raw JSON/YAML
     text. ``filename`` disambiguates raw text (e.g. ``.n4a`` bytes are not text).
+
+    ``allow_paths`` lets a string or ``Path`` name a file on this machine; pass ``False`` for
+    content that comes from a client (an HTTP request), so it can never make the server read
+    its own files. Content parsed out of a file or of raw text is never read as a path.
     """
     # A path on disk → a zip is a .n4a; anything else is read as text and sniffed
     # (JSON or YAML), so an extension-less upload of a manifest/recipe still works.
-    if isinstance(payload, (str, Path)) and _looks_like_path(payload):
+    if allow_paths and isinstance(payload, (str, Path)) and _looks_like_path(payload):
         path = Path(payload)
         if zipfile.is_zipfile(path):
             recipe = extract_n4a_recipe(path)
@@ -229,13 +234,13 @@ def upload(
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError) as exc:
             raise ValueError(f"unsupported upload file '{path.name}': not a .n4a zip or a text recipe") from exc
-        return upload(store, _load_text_recipe(text), collection_id=collection_id,
-                      target_datasets=target_datasets, as_release=as_release, filename=path.name)
+        return upload(store, _parse_text_payload(text), collection_id=collection_id,
+                      target_datasets=target_datasets, as_release=as_release, filename=path.name, allow_paths=False)
 
     # Raw text → parse, then recurse.
     if isinstance(payload, str):
-        return upload(store, _load_text_recipe(payload), collection_id=collection_id,
-                      target_datasets=target_datasets, as_release=as_release, filename=filename)
+        return upload(store, _parse_text_payload(payload), collection_id=collection_id,
+                      target_datasets=target_datasets, as_release=as_release, filename=filename, allow_paths=False)
 
     # A results-bearing ArenaRunExport.
     if isinstance(payload, ArenaRunExport) or (isinstance(payload, dict) and "arena_export_schema_version" in payload):
@@ -269,6 +274,14 @@ def upload(
                                  target_datasets=target_datasets, source="upload")
 
     raise ValueError(f"unrecognized upload payload of type {type(payload).__name__}")
+
+
+def _parse_text_payload(text: str) -> Any:
+    """Parse upload text; only a JSON/YAML object or list is a payload (a scalar could pose as a path)."""
+    parsed = _load_text_recipe(text)
+    if not isinstance(parsed, (dict, list)):
+        raise ValueError("upload text must be a JSON or YAML object or list")
+    return parsed
 
 
 def _looks_like_path(value: str | Path) -> bool:

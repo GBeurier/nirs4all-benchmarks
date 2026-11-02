@@ -176,3 +176,27 @@ def test_upload_text_arena_export(client: TestClient):
     r = client.post("/api/upload", data={"text": manifest, "collection": "fixtures"})
     assert r.status_code == 200
     assert r.json()["kind"] == "arena_export"
+
+
+def test_runs_accepts_the_limit_the_run_explorer_requests(client: TestClient):
+    r = client.get("/api/runs", params={"metric": "rmse", "scope": "cv", "limit": 100000})
+    assert r.status_code == 200
+    assert r.json()
+
+
+def test_upload_text_never_reads_a_file_on_the_server(client: TestClient, tmp_path: Path):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("first line\nTOP-SECRET-SECOND-LINE: [unterminated\n")
+    for text in (str(secret), json.dumps(str(secret))):
+        r = client.post("/api/upload", data={"text": text, "collection": "uploads"})
+        assert r.status_code == 400
+        assert "TOP-SECRET" not in r.text
+
+
+def test_uploaded_file_naming_a_server_path_is_not_followed(client: TestClient, tmp_path: Path):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("first line\nTOP-SECRET-SECOND-LINE: [unterminated\n")
+    r = client.post("/api/upload", files={"file": ("pointer.txt", str(secret), "text/plain")},
+                    data={"collection": "uploads", "target_datasets": ""})
+    assert r.status_code == 400
+    assert "TOP-SECRET" not in r.text

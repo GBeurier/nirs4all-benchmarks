@@ -56,8 +56,13 @@ dataviz scale to them.
   extrema columns name best and worst observation by metric direction.
 - The Robustness view reads the metric direction: for a higher-is-better metric (accuracy, F1, R²) the
   robust corner is bottom-right, not bottom-left.
-- The Run explorer builds its histogram and table from every matching run instead of the first 1,000; the
-  Python run listing orders best-first before applying its limit.
+- The Run explorer builds its histogram and table from every matching run instead of the first 1,000 (the
+  service accepts up to 100,000 rows per request); the Python run listing orders best-first before applying
+  its limit.
+- Security: the service's `/api/upload` no longer reads files on the server. Text sent in a request, and text
+  parsed out of an uploaded file, is content and never a path; before, a request naming an existing server
+  path made the service read that file and could echo an excerpt in a parse error. Paths still work for the
+  local CLI (`allow_paths` in `ingestion.upload`).
 - The Overview queries the score level the store has (test when present, else its first level), so a
   CV-only store still shows findings.
 - The static Parameter effect and the Python one both read the `param:<name>` run facets: a run contributes

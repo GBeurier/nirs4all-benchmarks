@@ -128,7 +128,7 @@ def create_app(store_root: str | Path | None = None) -> Any:
         pipeline: str | None = None,
         operator: str | None = None,
         include_quarantined: bool = True,
-        limit: int = Query(500, le=5000),
+        limit: int = Query(500, le=100000),  # the Run explorer asks for every run (web/views/runs.js MAX_RUNS)
     ) -> list[dict[str, Any]]:
         with queries() as q:
             return q.run_explorer(
@@ -289,8 +289,9 @@ def create_app(store_root: str | Path | None = None) -> Any:
                 finally:
                     os.unlink(tmp_path)
             elif text:
+                # Request text is content, never a path on this server.
                 result = do_upload(store, text, collection_id=collection,
-                                   target_datasets=targets, as_release=as_release)
+                                   target_datasets=targets, as_release=as_release, allow_paths=False)
             else:
                 raise HTTPException(status_code=400, detail="provide a file or text")
             return result.to_json()
