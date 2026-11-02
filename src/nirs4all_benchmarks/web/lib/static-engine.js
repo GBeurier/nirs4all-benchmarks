@@ -294,7 +294,7 @@ export async function createStaticApi(base = "/data") {
       return { n_common: paired.length, n_paired: paired.length, residual_correlation: xa.length > 1 ? pearson(xa, xb) : null, rmse_a: rmse(xa), rmse_b: rmse(xb), paired };
     },
 
-    ingest: async () => { throw new Error("ingestion is disabled in the static demo — run the service locally to ingest"); },
-    upload: async () => { throw new Error("upload is disabled in the static demo — run the service locally to upload"); },
+    ingest: async () => { throw new Error("ingestion is disabled on the static site — run the service locally to ingest"); },
+    upload: async () => { throw new Error("upload is disabled on the static site — run the service locally to upload"); },
   };
 }

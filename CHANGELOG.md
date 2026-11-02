@@ -6,7 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-11-02
+
+Replace the synthetic demo snapshot on the public site with measured catalog runs, and make the
+dataviz scale to them.
+
 ### Added
+- Measured catalog data pack (`data/catalog-history-2026-09/`): 10,824 producer-reported held-out
+  test executions on 104 `nirs4all-datasets` catalog datasets (153 dataset/source/target tasks, 32 method
+  labels, seeds 0/1/2, 32,286 metric observations), each an `ArenaRunExport` v1 with its source CSV
+  line and SHA-256. `n4a-benchmarks ingest-history <dir>` verifies the archive checksum and execution
+  count, then ingests it idempotently through the normal ingestion gate as a user run collection; no
+  fitted weights, residuals, spectra or target vectors are included. `scripts/collect_history.py`
+  regenerates the pack from the local lab sources. The Pages workflow and the Docker image now build
+  from this pack instead of the synthetic fixtures. Three datasets are excluded because their
+  unnormalized RMSE dominated every cross-dataset chart: EcoSIS 3D canopy reflectance (its selected
+  target is a UTM easting coordinate; RMSE 4e3–8e5) and the malaria *Anopheles gambiae* sporozoite and
+  oocyst datasets (raw, heavily skewed parasite counts; RMSE 4e3–4e4); the reasons are recorded in
+  `manifest.json` (`excluded_datasets`).
 - nRMSE, RMSE divided by the target's standard deviation, as a scale-free regression metric. The
   catalog data pack derives it from the `nirs4all-datasets` card statistics (recorded per export in
   `dataset_card.target_scale`), Arena scoring computes it from the test targets, and it is the
@@ -26,16 +43,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
   frequent values of larger categorical parameters.
 
 ### Fixed
+- The static site recovers from a corrupt or blocked `localStorage`, a failed or timed-out snapshot
+  download (with a Retry button), and filters saved against an earlier dataset; the Overview split
+  finding now states lower and higher RMSE and warns about easier or less independent splits instead
+  of calling a split best or worst.
 - The lens Dataset filter now applies to every analysis view (Matrix, Parameter/Operator effect,
   Statistics, Parallel, Landscape, Composition, Network, Robustness), in both the API and the static
   engine; previously only Leaderboard, Playground, Runs and Compare honoured it.
 
-### Removed
-- Three datasets from the catalog data pack (now 10,824 runs on 104 datasets), whose unnormalized
-  RMSE dominated every cross-dataset chart: EcoSIS 3D canopy reflectance (its selected target is a
-  UTM easting coordinate; RMSE 4e3–8e5) and the malaria *Anopheles gambiae* sporozoite and oocyst
-  datasets (raw, heavily skewed parasite counts; RMSE 4e3–4e4). Exclusions are recorded in
-  `manifest.json` (`excluded_datasets`).
+### CI
+- Update `astral-sh/setup-uv` to 10.3.3 (SHA-pinned) in the CI and Pages workflows.
 
 ## [0.1.7] — 2026-10-07
 
