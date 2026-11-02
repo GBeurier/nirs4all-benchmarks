@@ -26,6 +26,24 @@ jobs:
           python -m pip install --upgrade build twine
           python -m build
           twine check dist/*
+      - name: Refuse the results data pack in any distribution
+        run: |
+          python - <<'EOF'
+          import glob, tarfile, zipfile
+          bad = []
+          for path in glob.glob("dist/*.tar.gz"):
+              with tarfile.open(path) as archive:
+                  for name in archive.getnames():
+                      relative = name.split("/", 1)[-1]  # drop the "<project>-<version>/" root
+                      if relative.startswith("data/") or name.endswith("runs.jsonl.gz"):
+                          bad.append(f"{path}: {name}")
+          for path in glob.glob("dist/*.whl"):
+              with zipfile.ZipFile(path) as archive:
+                  bad += [f"{path}: {n}" for n in archive.namelist() if "catalog-history" in n or n.endswith("runs.jsonl.gz")]
+          assert glob.glob("dist/*.tar.gz") and glob.glob("dist/*.whl"), "expected one sdist and one wheel"
+          if bad:
+              raise SystemExit("results data pack must not ship on PyPI:\n" + "\n".join(bad))
+          EOF
       - name: Smoke-check the wheel
         run: |
           python -m pip install dist/*.whl
