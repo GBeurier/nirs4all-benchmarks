@@ -166,3 +166,11 @@ for each project, without merging or editing the original working checkouts.
 
 Native R/MATLAB wrappers and full multiplayer/team inference are not claimed by
 this batch. No scientific algorithm is duplicated in benchmark Python or UI.
+
+### Project review requests
+
+- [Methods PR #49](https://github.com/GBeurier/nirs4all-methods/pull/49)
+- [Benchmarks PR #20](https://github.com/GBeurier/nirs4all-benchmarks/pull/20)
+- [UI PR #2](https://github.com/GBeurier/nirs4all-ui/pull/2)
+
+All three requests target main from isolated feature branches. None is merged.
