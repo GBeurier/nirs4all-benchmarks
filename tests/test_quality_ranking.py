@@ -336,7 +336,8 @@ const api = await createStaticApi();
 console.log(JSON.stringify(await Promise.all([
   api.qualityRanking(), api.qualityRanking({dataset: "different"}),
   api.qualityRanking({options: {k_factor: 4}}), api.qualityRanking({method: "elo"}),
-  api.qualityRanking({partition: "test"}), api.qualityRanking({scope: "test"})])));
+  api.qualityRanking({partition: "test"}), api.qualityRanking({scope: "test"}),
+  api.qualityRanking({direction: null})])));
 """)
     result = subprocess.run(
         [node, str(tmp_path / "driver.mjs"), str(tmp_path / "site/data/bundle.json")],
@@ -347,7 +348,8 @@ console.log(JSON.stringify(await Promise.all([
     results = json.loads(result.stdout)
     expected = json.loads((tmp_path / "site/data/bundle.json").read_text())["quality_rankings"][0]
     assert results[0] == expected
-    assert all(r["reason"] == "static_ranking_request_not_precomputed" and not r["candidates"] for r in results[1:])
+    assert results[-1] == expected
+    assert all(r["reason"] == "static_ranking_request_not_precomputed" and not r["candidates"] for r in results[1:-1])
 
 
 def test_matched_parameter_holds_remaining_configuration_fixed(tmp_path):
