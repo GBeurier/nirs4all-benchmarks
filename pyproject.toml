@@ -102,6 +102,7 @@ artifacts = ["src/nirs4all_benchmarks/web/**/*"]
 # repository); it must not ship in any PyPI distribution. The harvester and the tests that need the pack
 # stay in the repository with it.
 [tool.hatch.build.targets.sdist]
+artifacts = ["/src/nirs4all_benchmarks/web/generated/**"]
 exclude = [
     "/data",
     "/scripts/collect_history.py",

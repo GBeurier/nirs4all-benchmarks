@@ -37,10 +37,10 @@ DIMENSIONS = [
 CAPABILITIES: dict[str, Any] = {
     "methods": METHODS,
     "dimensions": DIMENSIONS,
+    "analyses": ["ranking", "relative_gain"],
     "deferred": {
         "mixed_effects": "mixed_effects_backend_not_qualified",
         "fanova": "fanova_backend_not_qualified",
-        "matched_contribution": "matched_contribution_not_implemented",
         "interaction": "interaction_backend_not_qualified",
     },
 }
@@ -49,7 +49,7 @@ CAPABILITIES: dict[str, Any] = {
 class RankingRequest(BaseModel):
     """Complete, versioned identity of a ranking request and static cache entry."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     metric: str = "rmse"
     scope: Literal["fold", "cv", "refit", "test", "view"] = "cv"
     partition: Literal["train", "validation", "test", "final"] = "validation"
@@ -67,6 +67,7 @@ class RankingRequest(BaseModel):
     options: dict[str, float | int] = Field(default_factory=dict)
     aggregation: Literal["method_default"] = "method_default"
     order: Literal["dataset_candidate_lexical"] = "dataset_candidate_lexical"
+    comparison_mode: Literal["observed", "matched"] = "observed"
 
     @model_validator(mode="after")
     def resolve_direction(self) -> RankingRequest:
@@ -89,7 +90,10 @@ def _artifact(req: RankingRequest) -> dict[str, Any]:
         "state": "unavailable",
         "reason": None,
         **{key: identity[key] for key in ("dimension", "method", "metric", "scope", "partition", "direction")},
-        "config": {**{key: identity[key] for key in ("tie_tolerance", "options", "order")}, "aggregation": aggregation},
+        "config": {
+            **{key: identity[key] for key in ("tie_tolerance", "options", "order", "comparison_mode")},
+            "aggregation": aggregation,
+        },
         "interpretation": "observed_performance" if req.dimension == "pipeline" else "observed_component_performance",
         "candidates": [],
         "coverage": None,
@@ -172,12 +176,19 @@ def _labels(store: ArenaStore, req: RankingRequest) -> tuple[dict[str, list[tupl
         }
         selected = [n for n in group if classify_role(n["operator"], n["role"]) in roles.get(req.dimension, set())]
         if req.dimension == "preprocessing_operator":
+            if req.comparison_mode == "matched":
+                selected = [n for n in selected if n["operator"] == req.operator]
             operators = sorted(
                 {f"{n['operator']}@{n['operator_version'] or 'unreported'}" for n in selected if n["operator"]}
             )
             result[key] = [(op, op) for op in operators]
             if not selected:
                 result[key] = [("none", "None")]
+            if req.comparison_mode == "matched":
+                result[key] = [
+                    (candidate, f"With {label}" if candidate != "none" else f"Without {req.operator}")
+                    for candidate, label in result[key]
+                ]
             continue
         if req.dimension == "preprocessing_sequence":
             if not pipe["is_linear"]:
@@ -214,15 +225,12 @@ def _labels(store: ArenaStore, req: RankingRequest) -> tuple[dict[str, list[tupl
     return result, ambiguous
 
 
-def quality_ranking(
+def _assemble_cohort(
     store: ArenaStore,
     request: RankingRequest | dict[str, Any] | None = None,
-    *,
-    ranker: Callable[..., dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build masked, transitive comparison evidence and call the native kernel.
 
-    ``ranker`` is injectable for host-contract tests, never a production fallback.
     A single task/variant/protocol per dataset is required after filtering.
     """
     req = request if isinstance(request, RankingRequest) else RankingRequest(**(request or {}))
@@ -235,6 +243,10 @@ def quality_ranking(
         return _unavailable(artifact, "custom_metric_direction_required")
     if req.dimension == "parameter" and (not req.operator or not req.parameter):
         return _unavailable(artifact, "operator_qualified_parameter_required")
+    if req.comparison_mode == "matched" and req.dimension in {"pipeline", "split"}:
+        return _unavailable(artifact, "matched_mode_requires_component_dimension")
+    if req.comparison_mode == "matched" and req.dimension == "preprocessing_operator" and not req.operator:
+        return _unavailable(artifact, "matched_preprocessing_operator_requires_operator")
     if req.dimension == "split" and (
         req.split_criterion != "external_error"
         or req.scope not in {"test", "refit"}
@@ -340,6 +352,27 @@ def quality_ranking(
     if any(len(context) > 1 for context in contexts.values()):
         return _unavailable(artifact, "ambiguous_dataset_context_requires_filter")
     labels, ambiguous = _labels(store, req)
+    component_contexts = {}
+    if req.comparison_mode == "matched":
+        from .contexts import build_component_contexts
+
+        pipeline_nodes: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        pipeline_edges: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for node in store.query("SELECT * FROM pipeline_nodes"):
+            pipeline_nodes[node["pipeline_dag_hash"]].append(node)
+        for edge in store.query("SELECT * FROM pipeline_edges"):
+            pipeline_edges[edge["pipeline_dag_hash"]].append(edge)
+        pipelines = [
+            {
+                **row,
+                "nodes": pipeline_nodes[row["pipeline_dag_hash"]],
+                "edges": pipeline_edges[row["pipeline_dag_hash"]],
+            }
+            for row in store.query("SELECT * FROM pipeline_dags")
+        ]
+        component_contexts = build_component_contexts(
+            pipelines, req.dimension, parameter_operator=req.operator, parameter_name=req.parameter
+        )
     if req.dimension == "split":
         # Rank CV selection strategies on an identical external holdout. Their
         # internal folds vary intentionally; the outer split indices must match.
@@ -358,6 +391,12 @@ def quality_ranking(
     seen = set()
     for row in accepted:
         pipe = row["pipeline_dag_hash"]
+        if req.comparison_mode == "matched" and not component_contexts.get(pipe, {}).get("fingerprint"):
+            context_reason = (
+                component_contexts.get(pipe, {}).get("excluded_reason") or "missing_matched_component_context"
+            )
+            excluded[context_reason] += 1
+            continue
         if pipe in ambiguous:
             excluded["ambiguous_component_identity"] += 1
             continue
@@ -376,6 +415,8 @@ def quality_ranking(
             )
         }
         meta["cv_identity"] = row["engine_fold_set_fingerprint"] if req.scope in {"cv", "fold"} else None
+        if req.comparison_mode == "matched":
+            meta["rest_of_pipeline_fingerprint"] = component_contexts[pipe]["fingerprint"]
         # For splitter comparisons match the rest of the complete pipeline too.
         if req.dimension == "split":
             meta["pipeline_dag_hash"] = pipe
@@ -391,6 +432,8 @@ def quality_ranking(
             candidate_labels[candidate] = label
             candidate_pipelines[candidate].add(pipe)
             blocks[block_id][candidate].append((row["metric_value"], pipe, row["execution_hash"]))
+    if len(candidate_labels) > 500:
+        return _unavailable(artifact, "cohort_size_limit_requires_filter")
     pair_values: dict[tuple[str, str, str], list[tuple[float, float]]] = defaultdict(list)
     pair_blocks: dict[tuple[str, str, str], list[str]] = defaultdict(list)
     for block_id, values in sorted(blocks.items()):
@@ -403,6 +446,8 @@ def quality_ranking(
             key = (block_meta[block_id]["dataset_fingerprint"], a, b)
             pair_values[key].append((_mean_component(values[a]), _mean_component(values[b])))
             pair_blocks[key].append(block_id)
+            if len(pair_values) * len(candidate_labels) > 2_000_000:
+                return _unavailable(artifact, "cohort_size_limit_requires_filter")
     provenance = artifact["provenance"]
     provenance.update(
         {
@@ -462,6 +507,11 @@ def quality_ranking(
         "Dataset domains must support a stable common rating; indirect comparisons rely on that modeling assumption.",
         "Mean ranks on different candidate subsets are descriptive and may not be comparable.",
     ]
+    if req.comparison_mode == "matched":
+        artifact["warnings"].append(
+            "Matched component comparisons hold the rest of the strict linear pipeline fixed; "
+            "they remain descriptive and do not establish causal effects."
+        )
     if req.method == "average_rank":
         artifact["warnings"] += [
             "Each dataset contributes one genuine candidate panel; all its matched blocks use that panel.",
@@ -472,6 +522,24 @@ def quality_ranking(
             "Each dataset contributes once per candidate pair; candidate-rich datasets contribute more distinct pairs.",
             "Pair rows within a dataset are dependent; uncertainty does not establish independent study effects.",
         ]
+    artifact["_cohort"] = {"scores": scores, "present": present, "candidates": candidates, "labels": candidate_labels}
+    return artifact
+
+
+def quality_ranking(
+    store: ArenaStore,
+    request: RankingRequest | dict[str, Any] | None = None,
+    *,
+    ranker: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Assemble controlled evidence and rank it through the native methods ABI."""
+    req = request if isinstance(request, RankingRequest) else RankingRequest(**(request or {}))
+    artifact = _assemble_cohort(store, req)
+    evidence = artifact.pop("_cohort", None)
+    if evidence is None:
+        return artifact
+    scores, present = evidence["scores"], evidence["present"]
+    candidates, candidate_labels = evidence["candidates"], evidence["labels"]
     try:
         compute = ranker or _native_rank()
     except (ImportError, OSError, AttributeError, RuntimeError):

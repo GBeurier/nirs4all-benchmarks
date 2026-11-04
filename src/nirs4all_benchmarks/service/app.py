@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from nirs4all_benchmarks import __version__
-from nirs4all_benchmarks.ranking import RankingRequest, quality_ranking
+from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest, quality_ranking, quality_relative_gain
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
 # UploadFile must be importable at MODULE scope: with `from __future__ import
@@ -97,6 +97,15 @@ def create_app(store_root: str | Path | None = None) -> Any:
             return q.sweepable_parameters()
 
     # ── dataviz queries ────────────────────────────────────────────────
+    @app.post("/api/quality-relative-gain")
+    def quality_relative_gain_post(payload: RelativeGainRequest) -> dict[str, Any]:
+        with ArenaStore(root) as store:
+            return quality_relative_gain(store, payload)
+
+    @app.get("/api/quality-relative-gain/requests")
+    def quality_relative_gain_requests() -> dict[str, Any]:
+        return {"mode": "service", "requests": []}
+
     @app.get("/api/quality-ranking/requests")
     def quality_ranking_requests() -> dict[str, Any]:
         from nirs4all_benchmarks.ranking.quality import CAPABILITIES
@@ -115,6 +124,7 @@ def create_app(store_root: str | Path | None = None) -> Any:
         dataset: str | None = None, task: str | None = None, collection: str | None = None,
         protocol: str | None = None, operator: str | None = None, parameter: str | None = None,
         split_criterion: str | None = None, tie_tolerance: float = 0.0,
+        comparison_mode: str = "observed",
     ) -> dict[str, Any]:
         from pydantic import ValidationError
 
@@ -122,7 +132,8 @@ def create_app(store_root: str | Path | None = None) -> Any:
             request = RankingRequest(metric=metric, scope=scope, partition=partition, dimension=dimension,
                                      method=method, direction=direction, dataset=dataset, task=task,
                                      collection=collection, protocol=protocol, operator=operator, parameter=parameter,
-                                     split_criterion=split_criterion, tie_tolerance=tie_tolerance)
+                                     split_criterion=split_criterion, tie_tolerance=tie_tolerance,
+                                     comparison_mode=comparison_mode)
         except ValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         with ArenaStore(root) as store:

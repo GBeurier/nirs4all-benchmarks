@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from itertools import pairwise
 
 import pytest
 from fastapi.testclient import TestClient
@@ -347,3 +348,95 @@ console.log(JSON.stringify(await Promise.all([
     expected = json.loads((tmp_path / "site/data/bundle.json").read_text())["quality_rankings"][0]
     assert results[0] == expected
     assert all(r["reason"] == "static_ranking_request_not_precomputed" and not r["candidates"] for r in results[1:])
+
+
+def test_matched_parameter_holds_remaining_configuration_fixed(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        for pipe, components, extra in (("A", 5, {}), ("B", 10, {}), ("C", 20, {"scale": False})):
+            params = {"n_components": components, **extra}
+            add(store, "D", pipe, components, operator="models.PLS", params=params)
+            graph = {
+                "nodes": [
+                    {
+                        "node_id": "m",
+                        "kind": "model",
+                        "operator": "models.PLS",
+                        "operator_version": "1",
+                        "params": params,
+                    }
+                ],
+                "edges": [],
+            }
+            store.conn.execute(
+                "UPDATE pipeline_dags SET graph_json=? WHERE pipeline_dag_hash=?", (json.dumps(graph), pipe)
+            )
+        capture = Capture()
+        result = quality_ranking(
+            store,
+            {
+                "dimension": "parameter",
+                "operator": "models.PLS",
+                "parameter": "n_components",
+                "comparison_mode": "matched",
+            },
+            ranker=capture,
+        )
+        assert result["state"] == "ready", result
+        assert result["config"]["comparison_mode"] == "matched"
+        assert len(capture.scores) == 1 and sum(capture.kwargs["present"][0]) == 2
+        assert len(result["provenance"]["comparisons"]) == 1
+        assert all("rest_of_pipeline_fingerprint" in b for b in result["provenance"]["blocks"])
+        assert "causal" in " ".join(result["warnings"])
+        bad = quality_ranking(store, {"comparison_mode": "matched"}, ranker=capture)
+        assert bad["reason"] == "matched_mode_requires_component_dimension"
+
+
+def test_matched_operator_compares_selected_presence_with_absence(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        for pipe, snv, msc_params in (("A", True, {}), ("B", False, {}), ("C", False, {"reference": "changed"})):
+            add(store, "D", pipe, 1 if snv else 2, operator="models.PLS")
+            graph_nodes = []
+            if snv:
+                graph_nodes.append(
+                    {"node_id": "s", "kind": "transform", "operator": "prep.SNV", "operator_version": "1", "params": {}}
+                )
+            graph_nodes += [
+                {
+                    "node_id": "p",
+                    "kind": "transform",
+                    "operator": "prep.MSC",
+                    "operator_version": "1",
+                    "params": msc_params,
+                },
+                {"node_id": "m", "kind": "model", "operator": "models.PLS", "operator_version": "1", "params": {}},
+            ]
+            edges = [{"src": a["node_id"], "dst": b["node_id"]} for a, b in pairwise(graph_nodes)]
+            for node in graph_nodes[:-1]:
+                store.upsert(
+                    "pipeline_nodes",
+                    {
+                        "pipeline_dag_hash": pipe,
+                        "node_id": node["node_id"],
+                        "node_signature": pipe + node["node_id"],
+                        "role": "transform",
+                        "operator": node["operator"],
+                        "operator_version": "1",
+                        "params_json": json.dumps(node["params"]),
+                    },
+                )
+            for edge in edges:
+                store.upsert("pipeline_edges", {"pipeline_dag_hash": pipe, **edge})
+            store.conn.execute(
+                "UPDATE pipeline_dags SET graph_json=? WHERE pipeline_dag_hash=?",
+                (json.dumps({"nodes": graph_nodes, "edges": edges}), pipe),
+            )
+        capture = Capture()
+        req = {"dimension": "preprocessing_operator", "operator": "prep.SNV", "comparison_mode": "matched"}
+        result = quality_ranking(store, req, ranker=capture)
+        assert result["state"] == "ready", result
+        assert len(capture.scores) == 1
+        comparison = result["provenance"]["comparisons"][0]
+        source_block = next(b for b in result["provenance"]["blocks"] if b["id"] == comparison["matched_blocks"][0])
+        assert source_block["rest_of_pipeline_fingerprint"]
+        assert {c["label"] for c in result["candidates"]} == {"With prep.SNV@1", "Without prep.SNV"}
+        assert capture.scores[0] == [2, 1]

@@ -26,6 +26,8 @@ export const api = {
   parameters: () => request("GET", "/api/parameters"),
   qualityRanking: (params = {}) => request("POST", "/api/quality-ranking", { body: params }),
   qualityRankingRequests: () => request("GET", "/api/quality-ranking/requests"),
+  qualityRelativeGain: (params) => request("POST", "/api/quality-relative-gain", { body: params }),
+  qualityRelativeGainRequests: () => request("GET", "/api/quality-relative-gain/requests"),
   leaderboard: (params) => request("GET", "/api/leaderboard", { params }),
   matrix: (params) => request("GET", "/api/matrix", { params }),
   runs: (params) => request("GET", "/api/runs", { params }),

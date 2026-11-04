@@ -62,7 +62,7 @@ function qualityRequest(params = {}) {
     method: "bradley_terry", direction: DIRECTION[String(params.metric || "rmse").toLowerCase()] || null,
     dataset: null, task: null, collection: null,
     protocol: null, operator: null, parameter: null, split_criterion: null, tie_tolerance: 0,
-    options: {}, aggregation: "method_default", order: "dataset_candidate_lexical", ...params };
+    options: {}, aggregation: "method_default", order: "dataset_candidate_lexical", comparison_mode: "observed", ...params };
 }
 function canonicalRequest(value) {
   if (Array.isArray(value)) return value.map(canonicalRequest);
@@ -115,21 +115,42 @@ export async function createStaticApi(base = "/data") {
     parameters: async () => bundle.parameters,
     qualityRankingRequests: async () => ({ mode: "static", requests: (bundle.quality_rankings || []).map(
       ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    qualityRelativeGainRequests: async () => ({ mode: "static", requests: (bundle.quality_relative_gains || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    qualityRelativeGain: async (params = {}) => {
+      const request = { ...qualityRequest(params), method: "relative_gain", effect_variances: null, ...params };
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.quality_relative_gains || []).find((entry) =>
+        JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.quality-relative-gain/1", request_id: `static-unavailable:${identity}`, request,
+        state: "unavailable", reason: "static_relative_gain_request_not_precomputed", candidates: [], studies: [],
+        result: null, provenance: { datasets: [], blocks: [], comparisons: [], source_observations: 0,
+          accepted_observations: 0, excluded: {}, matched_blocks: 0, comparison_rows: 0,
+          aggregation: "dataset_pair_mean", dataset_weighting: "one comparison per dataset and candidate pair" },
+        dimension: request.dimension, metric: request.metric, scope: request.scope, partition: request.partition,
+        direction: request.direction, baseline_id: request.baseline_id, candidate_id: request.candidate_id,
+        warnings: ["This exact comparison and variance configuration was not precomputed."], capabilities: {} };
+    },
     qualityRanking: async (params = {}) => {
       const request = qualityRequest(params);
       const identity = JSON.stringify(canonicalRequest(request));
       const artifact = (bundle.quality_rankings || []).find((entry) =>
         JSON.stringify(canonicalRequest(entry.request)) === identity);
       if (artifact) return artifact;
-      return { schema_version: "n4a.quality-ranking/1", request_id: null, request,
+      return { schema_version: "n4a.quality-ranking/1", request_id: `static-unavailable:${identity}`, request,
         state: "unavailable", reason: "static_ranking_request_not_precomputed",
         dimension: request.dimension, method: request.method, metric: request.metric,
         scope: request.scope, partition: request.partition, direction: request.direction,
         config: { tie_tolerance: request.tie_tolerance, options: request.options,
+          comparison_mode: request.comparison_mode,
           aggregation: request.method === "average_rank" ? "dataset_panel_mean" : "dataset_pair_mean", order: request.order },
         interpretation: request.dimension === "pipeline" ? "observed_performance" : "observed_component_performance",
         candidates: [], coverage: null, inference: null, convergence: null, uncertainty_kind: null,
-        score_direction: null, native_schema_version: null, provenance: { datasets: [], blocks: [], comparisons: [] },
+        score_direction: null, native_schema_version: null, provenance: { datasets: [], blocks: [], comparisons: [],
+          source_observations: 0, accepted_observations: 0, excluded: {}, matched_blocks: 0, comparison_rows: 0,
+          aggregation: request.method === "average_rank" ? "dataset_panel_mean" : "dataset_pair_mean",
+          dataset_weighting: request.method === "average_rank" ? "one row per dataset" : "one comparison per dataset and candidate pair" },
         warnings: ["This exact filter and method configuration was not precomputed for this static snapshot."],
         capabilities: { methods: ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"],
           dimensions: ["pipeline", "model", "preprocessing_sequence", "preprocessing_operator", "feature_selection", "augmentation", "parameter", "split"],
