@@ -236,6 +236,23 @@ def test_parameters_qualified_and_models_pool_configs(tmp_path):
         assert capture.scores == [[3.0, 1.5]]
 
 
+def test_parameter_repeated_operator_is_ambiguous_even_with_one_explicit_value(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        add(store, "D", "A", 1, operator="models.PLS", params={"alpha": 1})
+        add(store, "D", "B", 2, operator="models.PLS", params={"alpha": 2})
+        store.upsert("pipeline_nodes", {
+            "pipeline_dag_hash": "A", "node_id": "second", "node_signature": "second",
+            "operator": "models.PLS", "operator_version": "1", "role": "model", "params_json": "{}",
+        })
+        result = quality_ranking(
+            store, {"dimension": "parameter", "operator": "models.PLS", "parameter": "alpha"},
+            ranker=Capture(),
+        )
+        assert result["state"] == "unavailable"
+        assert result["reason"] == "no_matched_comparisons"
+        assert result["provenance"]["excluded"]["ambiguous_component_identity"] == 1
+
+
 def test_native_unavailable_rejected_deferred_and_direction(tmp_path, monkeypatch):
     import nirs4all_benchmarks.ranking.quality as quality
 

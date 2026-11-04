@@ -156,10 +156,8 @@ def _labels(store: ArenaStore, req: RankingRequest) -> tuple[dict[str, list[tupl
             result[key] = [(key, pipe["human_label"] or key)]
             continue
         if req.dimension == "parameter":
-            selected = [
-                n for n in group if n["operator"] == req.operator and req.parameter in json.loads(n["params_json"])
-            ]
-            if len(selected) != 1:
+            selected = [n for n in group if n["operator"] == req.operator]
+            if len(selected) != 1 or req.parameter not in json.loads(selected[0]["params_json"]):
                 ambiguous.add(key)
                 continue
             value = json.loads(selected[0]["params_json"])[req.parameter]
