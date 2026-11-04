@@ -34,6 +34,13 @@ Meta-analysis needs supplied paired effect variances; fold independence must
 never be invented. Repeated observations within a dataset are not independent
 datasets. Unsupported analyses must return explicit reasons, never fake results.
 
+Maintainer clarification: incomplete connected comparisons across datasets are a
+primary use case. A/B on dataset D1 and B/C on dataset D2 must permit indirect
+A/C rating. Direct pairwise overlap or a complete candidate-by-dataset matrix is
+not required by TrueSkill, OpenSkill, Bradley–Terry or Elo. Only disconnected
+comparison components lack an evidence-identified global order. Domain stability
+remains a modeling assumption; Friedman alone uses complete blocks.
+
 ## Scientific contract
 
 1. Partition by metric, direction, target/task, score scope, partition and
