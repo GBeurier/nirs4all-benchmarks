@@ -146,6 +146,27 @@ feature selection and augmentation mask at most one selected node. Matched
 contrasts remain descriptive, with no randomization or causal identification
 claim. Adjusted mixed effects and interaction importance remain unqualified.
 
+The ingestion normalizer preserves arbitrary graph, node and edge scientific
+extensions, including the declared node `source_id`. These fields participate in
+the canonical pipeline hash and remain in stored `graph_json`; edge-table rows
+remain a structural indexing projection. Only consumed syntax aliases, derived
+identities and the descriptive `human_label`, `label`, `title` and `description`
+fields are discarded. Node `model_family` is descriptive and excluded as well.
+The nested operator shorthand accepts only `class`/`operator`/`name` and `params`;
+additional nested fields are rejected with an explicit normalization error.
+Place execution settings on the node or in its parameter mapping.
+
+Canonical graphs carry `arena_normalization_version: 2`, which records source
+preservation of the provided producer input, not an independent scientific
+attestation, and does not change semantic hashes. Existing hashes without
+scientific extensions remain stable. Stored graphs without this marker cannot
+establish matched component evidence: observations receive the exclusion reason
+`matched_graph_source_requires_reingestion`. Earlier normalizers discarded
+extensions, so qualification cannot be recovered from their normalized graphs.
+Rebuild a fresh store from the retained original producer exports to qualify
+historical evidence; ordinary idempotent reingestion into an existing store does
+not upgrade its records. Observed rankings remain available for historical data.
+
 ## Paired relative gains and meta-analysis
 
 `POST /api/quality-relative-gain` accepts the flat ranking cohort fields with

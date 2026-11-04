@@ -28,6 +28,7 @@ through the *same* normalizer, so a pipeline and its DAG-equivalent converge.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +52,65 @@ _ORDER_INSENSITIVE_KINDS = frozenset(
         "ensemble",
     }
 )
+
+# Only aliases consumed below, derived identities and explicitly descriptive
+# labels are discarded. Unrecognized fields may change scientific execution;
+# retain them through hashing and persistence rather than guessing their meaning.
+_DISPLAY_FIELDS = {"human_label", "label", "title", "description"}
+_NODE_ALIASES = {
+    "id",
+    "node_id",
+    "kind",
+    "role",
+    "type",
+    "operator",
+    "class",
+    "op",
+    "model",
+    "operator_version",
+    "version",
+    "params",
+    "fit_scope",
+    "branch_path",
+    "signature",
+    "node_signature",
+    "operator_spec_hash",
+    "params_hash",
+    "pipeline_dag_hash",
+    "model_family",
+} | _DISPLAY_FIELDS
+_EDGE_ALIASES = {
+    "id",
+    "edge_id",
+    "src",
+    "from",
+    "source",
+    "from_node",
+    "dst",
+    "to",
+    "target",
+    "to_node",
+    "src_port",
+    "from_port",
+    "dst_port",
+    "to_port",
+    "signature",
+    "fingerprint",
+} | _DISPLAY_FIELDS
+_GRAPH_ALIASES = {
+    "id",
+    "graph_id",
+    "nodes",
+    "edges",
+    "pipeline",
+    "steps",
+    "signature",
+    "fingerprint",
+    "graph_fingerprint",
+    "pipeline_dag_hash",
+    "arena_normalization_version",
+} | _DISPLAY_FIELDS
+GRAPH_NORMALIZATION_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -80,6 +140,7 @@ class PipelineDagIdentity:
 # nirs4all linear identity (the recorded secondary id / v0 fallback)
 # ---------------------------------------------------------------------------
 
+
 def nirs4all_identity_hash(steps: list[Any]) -> str:
     """Reproduce nirs4all ``get_hash``: ``sha256(sorted-JSON step list)[:16]``.
 
@@ -94,8 +155,9 @@ def nirs4all_identity_hash(steps: list[Any]) -> str:
 # Graph extraction (accept GraphSpec, Arena projection, or linear step list)
 # ---------------------------------------------------------------------------
 
+
 def _coerce_node(raw: Any, index: int) -> dict[str, Any]:
-    """Project any node-ish object onto the fields that define its identity."""
+    """Normalize node aliases while preserving scientific extension fields."""
     if not isinstance(raw, dict):
         # A bare operator (dotted path or string) — common in nirs4all step lists.
         return {
@@ -117,9 +179,16 @@ def _coerce_node(raw: Any, index: int) -> dict[str, Any]:
     # An operator may itself be a dict ``{"class": ..., "params": ...}``.
     params = raw.get("params")
     if isinstance(operator, dict):
+        # The supported shorthand is purely an operator/params alias. Refuse
+        # extra nested execution settings rather than silently losing them or
+        # inventing a second namespace that could collide with graph fields.
+        unknown = set(operator) - {"class", "operator", "name", "params"}
+        if unknown:
+            raise ValueError(f"unsupported nested operator fields: {', '.join(sorted(unknown))}")
         params = params if params is not None else operator.get("params")
         operator = operator.get("class") or operator.get("operator") or operator.get("name")
     return {
+        **{k: deepcopy(v) for k, v in raw.items() if k not in _NODE_ALIASES and not (k == "source_id" and v is None)},
         "node_id": node_id,
         "kind": kind,
         "operator": str(operator) if operator is not None else None,
@@ -166,6 +235,7 @@ def _extract_graph(source: Any) -> tuple[list[dict[str, Any]], list[dict[str, An
                 continue
             edges.append(
                 {
+                    **{k: deepcopy(v) for k, v in e.items() if k not in _EDGE_ALIASES},
                     "src": str(src),
                     "src_port": str(e.get("src_port") or e.get("from_port") or "out"),
                     "dst": str(dst),
@@ -186,6 +256,7 @@ def _extract_graph(source: Any) -> tuple[list[dict[str, Any]], list[dict[str, An
 # ---------------------------------------------------------------------------
 # Merkle-DAG canonicalization
 # ---------------------------------------------------------------------------
+
 
 def _topo_order(node_ids: list[str], edges: list[dict[str, Any]]) -> list[str]:
     """Kahn topological sort with deterministic tie-breaking by node id.
@@ -218,11 +289,17 @@ def _topo_order(node_ids: list[str], edges: list[dict[str, Any]]) -> list[str]:
 def _node_content(node: dict[str, Any]) -> dict[str, Any]:
     """The intrinsic, position-independent content of a node."""
     return {
+        **{
+            k: deepcopy(v)
+            for k, v in node.items()
+            if k not in {"node_id", "kind", "operator", "operator_version", "params", "fit_scope", "branch_path"}
+        },
         "kind": node["kind"],
         "operator": node["operator"],
         "operator_version": node["operator_version"],
         "params": node["params"],
         "fit_scope": node["fit_scope"],
+        **({"branch_path": deepcopy(node["branch_path"])} if node["branch_path"] else {}),
     }
 
 
@@ -264,7 +341,9 @@ def normalize_graph_spec(source: Any) -> tuple[dict[str, Any], dict[str, str], b
 
     Returns ``(normalized_graph, node_signatures, is_linear)``. Node ids are
     rewritten to ``g{topo_index}`` so the output is byte-stable regardless of the
-    producer's id naming, and edges are rewritten/sorted accordingly.
+    producer's id naming, and edges are rewritten/sorted accordingly. Scientific
+    extensions survive at graph, node and edge levels. A provenance marker
+    distinguishes this source-preserving normalizer from earlier lossy output.
     """
     nodes, edges, is_linear = _extract_graph(source)
     sigs = _merkle_signatures(nodes, edges)
@@ -286,6 +365,7 @@ def normalize_graph_spec(source: Any) -> tuple[dict[str, Any], dict[str, str], b
     norm_edges = sorted(
         (
             {
+                **{k: deepcopy(v) for k, v in e.items() if k not in {"src", "dst", "src_port", "dst_port"}},
                 "src": rename[e["src"]],
                 "src_port": e["src_port"],
                 "dst": rename[e["dst"]],
@@ -296,7 +376,16 @@ def normalize_graph_spec(source: Any) -> tuple[dict[str, Any], dict[str, str], b
         ),
         key=lambda e: (e["dst"], e["dst_port"], e["src"], e["src_port"]),
     )
-    normalized = {"schema": "arena.graph/1", "nodes": norm_nodes, "edges": norm_edges}
+    graph_metadata: dict[str, Any] = {}
+    if isinstance(source, dict):
+        graph_metadata = {k: deepcopy(v) for k, v in source.items() if k not in _GRAPH_ALIASES}
+    normalized = {
+        "schema": "arena.graph/1",
+        **graph_metadata,
+        "nodes": norm_nodes,
+        "edges": norm_edges,
+        "arena_normalization_version": GRAPH_NORMALIZATION_VERSION,
+    }
     # Re-key signatures by the *normalized* node id so downstream tables align.
     norm_sigs = {rename[nid]: sigs[nid] for nid in order}
     return normalized, norm_sigs, is_linear
@@ -328,6 +417,11 @@ def compute_pipeline_dag_hash(
             "schema": normalized["schema"],
             "nodes": sorted(n["signature"] for n in normalized["nodes"]),
             "edges": normalized["edges"],
+            **{
+                k: v
+                for k, v in normalized.items()
+                if k not in {"schema", "nodes", "edges", "arena_normalization_version"}
+            },
         }
     )
     n4a_hash = None

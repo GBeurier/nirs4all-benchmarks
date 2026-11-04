@@ -105,9 +105,15 @@ def _resolve_pipeline(export: ArenaRunExport) -> PipelineDagIdentity:
     )
 
 
-def _extract_pipeline_rows(pid: PipelineDagIdentity) -> tuple[
-    list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]],
-    list[dict[str, Any]], list[dict[str, Any]], str | None,
+def _extract_pipeline_rows(
+    pid: PipelineDagIdentity,
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    str | None,
 ]:
     operators: dict[str, dict[str, Any]] = {}
     param_values: dict[str, dict[str, Any]] = {}
@@ -123,9 +129,7 @@ def _extract_pipeline_rows(pid: PipelineDagIdentity) -> tuple[
         params = node.get("params") or {}
         op_hash = None
         if operator:
-            op_hash = fingerprint(
-                {"entrypoint": operator, "version": operator_version, "role": role}
-            )
+            op_hash = fingerprint({"entrypoint": operator, "version": operator_version, "role": role})
             operators.setdefault(
                 op_hash,
                 {
@@ -173,11 +177,11 @@ def _extract_pipeline_rows(pid: PipelineDagIdentity) -> tuple[
                     "is_sweepable": int(kind in ("numeric", "categorical", "bool")),
                 },
             )
-            node_params.append(
-                {"node_id": node_id, "param_name": pname, "param_value_hash": pv_hash}
-            )
+            node_params.append({"node_id": node_id, "param_name": pname, "param_value_hash": pv_hash})
 
-    edges = [dict(e) for e in pid.normalized_graph["edges"]]
+    # The edge table is an indexing projection. Scientific extensions stay in
+    # the full canonical graph_json, which is authoritative for matching.
+    edges = [{key: e[key] for key in ("src", "src_port", "dst", "dst_port")} for e in pid.normalized_graph["edges"]]
     return list(operators.values()), list(param_values.values()), nodes, node_params, edges, main_model
 
 
@@ -257,8 +261,7 @@ def resolve_identities(export: ArenaRunExport) -> ResolvedExport:
     score_level = "cv" if "cv" in scopes or not scopes else sorted(scopes)[0]
     score_spec = ScoreComputationSpec(
         score_version=export.scores.score_version,
-        metric_implementation=export.scores.metric_implementation
-        or "nirs4all_benchmarks.scoring.metrics/1",
+        metric_implementation=export.scores.metric_implementation or "nirs4all_benchmarks.scoring.metrics/1",
         score_level=score_level,
         aggregation_policy=export.scores.aggregation_policy or "macro_mean",
     )
