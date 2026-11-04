@@ -21,6 +21,7 @@ from nirs4all_benchmarks.scoring.metrics import METRIC_DIRECTION
 from nirs4all_benchmarks.store import ArenaStore
 
 from .contexts import _chain
+from .observations import original_observations
 from .relative_gain import POSITIVE_LOSSES
 
 SCALE_FREE_METRICS = {
@@ -192,45 +193,28 @@ def _unavailable(artifact: dict[str, Any], reason: str) -> dict[str, Any]:
 
 
 def _observations(store: ArenaStore, req: ComponentAnalysisRequest, artifact: dict[str, Any]) -> list[dict[str, Any]]:
-    where = [
-        "v.metric_name=?",
-        "v.score_scope=?",
-        "v.partition=?",
-        "v.aggregation_level=?",
-        "NOT EXISTS (SELECT 1 FROM score_sets newer WHERE newer.supersedes_score_set_id=v.score_set_id "
-        "AND newer.validity_status='valid')",
-    ]
-    args: list[Any] = [req.metric, req.scope, req.partition, req.aggregation_level]
-    for column, value in (
-        ("dataset_fingerprint", req.dataset),
-        ("task_hash", req.task),
-        ("collection_id", req.collection),
-        ("score_computation_hash", req.protocol),
-    ):
-        if value:
-            where.append(f"v.{column}=?")
-            args.append(value)
-    rows = store.query(
-        """SELECT v.*, mo.metric_observation_id, e.unsafe_flags_json, si.split_indices_hash,
-                  ci.engine_fold_set_fingerprint, ts.task_type, pd.graph_json
-           FROM v_run_metrics v JOIN executions e ON e.execution_hash=v.execution_hash
-           JOIN metric_observations mo ON mo.score_set_id=v.score_set_id AND mo.metric_name=v.metric_name
-             AND mo.metric_value IS v.metric_value AND mo.fold_id IS v.fold_id AND mo.partition IS v.partition
-             AND mo.aggregation_level IS v.aggregation_level AND mo.direction IS v.direction
-           LEFT JOIN split_instances si ON si.split_instance_hash=v.split_instance_hash
-           LEFT JOIN cv_instances ci ON ci.cv_instance_hash=v.cv_instance_hash
-           LEFT JOIN task_specs ts ON ts.task_hash=v.task_hash
-           LEFT JOIN pipeline_dags pd ON pd.pipeline_dag_hash=v.pipeline_dag_hash
-           WHERE """
-        + " AND ".join(where)
-        + " ORDER BY mo.metric_observation_id",
-        args,
+    batch = original_observations(
+        store,
+        metric=req.metric,
+        scope=req.scope,
+        partition=req.partition,
+        dataset=req.dataset,
+        task=req.task,
+        collection=req.collection,
+        protocol=req.protocol,
+        aggregation_level=req.aggregation_level,
     )
-    rows = list({row["metric_observation_id"]: row for row in rows}.values())
-    artifact["provenance"]["source_observations"] = len(rows)
+    artifact["provenance"]["source_observations"] = batch.source_count
+    artifact["provenance"]["source_scan"] = batch.scan
+    if batch.limit_exceeded:
+        artifact["reason"] = "source_observation_limit_requires_filter"
+        artifact["warnings"].append(batch.limit_warning)
+        return []
+    rows = batch.rows
     excluded: Counter[str] = Counter()
     accepted = []
     seen = set()
+    chains: dict[str, tuple[Any, str | None]] = {}
     for row in rows:
         reason = None
         if (
@@ -265,14 +249,23 @@ def _observations(store: ArenaStore, req: ComponentAnalysisRequest, artifact: di
         elif req.scope in {"refit", "test"} and not row["refit_strategy_hash"]:
             reason = "missing_refit_identity"
         if reason is None:
-            try:
-                graph = json.loads(row["graph_json"])
-                if graph.get("arena_normalization_version") != GRAPH_NORMALIZATION_VERSION:
-                    reason = "analysis_graph_source_requires_reingestion"
-                else:
-                    row["_chain"] = _chain(graph)[0]
-            except (TypeError, ValueError, KeyError, AttributeError):
-                reason = "analysis_requires_qualified_linear_graph"
+            pipeline_id = row["pipeline_dag_hash"]
+            if pipeline_id not in chains:
+                try:
+                    pipeline = store.get("pipeline_dags", "pipeline_dag_hash", pipeline_id) or {}
+                    raw_graph = pipeline.get("graph_json")
+                    if not isinstance(raw_graph, str):
+                        raise ValueError("missing serialized graph source")
+                    graph = json.loads(raw_graph)
+                    if graph.get("arena_normalization_version") != GRAPH_NORMALIZATION_VERSION:
+                        chains[pipeline_id] = (None, "analysis_graph_source_requires_reingestion")
+                    else:
+                        chains[pipeline_id] = (_chain(graph)[0], None)
+                except (TypeError, ValueError, KeyError, AttributeError):
+                    chains[pipeline_id] = (None, "analysis_requires_qualified_linear_graph")
+            chain, reason = chains[pipeline_id]
+            if reason is None:
+                row["_chain"] = chain
         if reason:
             excluded[reason] += 1
             continue
@@ -389,6 +382,8 @@ def component_analysis(
     if any(factor.dimension == "parameter" for factor in req.factors) and not req.model_slice:
         return _unavailable(artifact, "parameter_analysis_requires_model_slice")
     rows = _observations(store, req, artifact)
+    if artifact["reason"] is not None:
+        return artifact
     if not rows:
         return _unavailable(artifact, "no_eligible_original_observations")
     if len(rows) > 8192:
