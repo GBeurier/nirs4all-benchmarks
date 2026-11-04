@@ -37,7 +37,15 @@ _NODE_DERIVED = {
     "branch_path_json",
     "model_family",
 }
-_GRAPH_DERIVED = {"id", "graph_id", "signature", "fingerprint", "graph_fingerprint", "pipeline_dag_hash"}
+_GRAPH_DERIVED = {
+    "id",
+    "graph_id",
+    "signature",
+    "fingerprint",
+    "graph_fingerprint",
+    "pipeline_dag_hash",
+    "arena_normalization_version",
+}
 
 
 class _Excluded(ValueError):

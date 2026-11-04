@@ -9,6 +9,7 @@ from itertools import pairwise
 import pytest
 from fastapi.testclient import TestClient
 
+from nirs4all_benchmarks.identity.pipeline_dag import normalize_graph_spec
 from nirs4all_benchmarks.ranking import RankingRequest, quality_ranking
 from nirs4all_benchmarks.service import create_app
 from nirs4all_benchmarks.site_build import build_site
@@ -240,12 +241,21 @@ def test_parameter_repeated_operator_is_ambiguous_even_with_one_explicit_value(t
     with ArenaStore(tmp_path) as store:
         add(store, "D", "A", 1, operator="models.PLS", params={"alpha": 1})
         add(store, "D", "B", 2, operator="models.PLS", params={"alpha": 2})
-        store.upsert("pipeline_nodes", {
-            "pipeline_dag_hash": "A", "node_id": "second", "node_signature": "second",
-            "operator": "models.PLS", "operator_version": "1", "role": "model", "params_json": "{}",
-        })
+        store.upsert(
+            "pipeline_nodes",
+            {
+                "pipeline_dag_hash": "A",
+                "node_id": "second",
+                "node_signature": "second",
+                "operator": "models.PLS",
+                "operator_version": "1",
+                "role": "model",
+                "params_json": "{}",
+            },
+        )
         result = quality_ranking(
-            store, {"dimension": "parameter", "operator": "models.PLS", "parameter": "alpha"},
+            store,
+            {"dimension": "parameter", "operator": "models.PLS", "parameter": "alpha"},
             ranker=Capture(),
         )
         assert result["state"] == "unavailable"
@@ -387,7 +397,8 @@ def test_matched_parameter_holds_remaining_configuration_fixed(tmp_path):
                 "edges": [],
             }
             store.conn.execute(
-                "UPDATE pipeline_dags SET graph_json=? WHERE pipeline_dag_hash=?", (json.dumps(graph), pipe)
+                "UPDATE pipeline_dags SET graph_json=? WHERE pipeline_dag_hash=?",
+                (json.dumps(normalize_graph_spec(graph)[0]), pipe),
             )
         capture = Capture()
         result = quality_ranking(
@@ -447,7 +458,7 @@ def test_matched_operator_compares_selected_presence_with_absence(tmp_path):
                 store.upsert("pipeline_edges", {"pipeline_dag_hash": pipe, **edge})
             store.conn.execute(
                 "UPDATE pipeline_dags SET graph_json=? WHERE pipeline_dag_hash=?",
-                (json.dumps({"nodes": graph_nodes, "edges": edges}), pipe),
+                (json.dumps(normalize_graph_spec({"nodes": graph_nodes, "edges": edges})[0]), pipe),
             )
         capture = Capture()
         req = {"dimension": "preprocessing_operator", "operator": "prep.SNV", "comparison_mode": "matched"}

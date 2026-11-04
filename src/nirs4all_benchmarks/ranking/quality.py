@@ -352,6 +352,8 @@ def _assemble_cohort(
     labels, ambiguous = _labels(store, req)
     component_contexts = {}
     if req.comparison_mode == "matched":
+        from nirs4all_benchmarks.identity.pipeline_dag import GRAPH_NORMALIZATION_VERSION
+
         from .contexts import build_component_contexts
 
         pipeline_nodes: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -371,6 +373,16 @@ def _assemble_cohort(
         component_contexts = build_component_contexts(
             pipelines, req.dimension, parameter_operator=req.operator, parameter_name=req.parameter
         )
+        for pipeline in pipelines:
+            try:
+                source = json.loads(pipeline["graph_json"])
+            except (TypeError, ValueError):
+                source = None
+            if not isinstance(source, dict) or source.get("arena_normalization_version") != GRAPH_NORMALIZATION_VERSION:
+                component_contexts[pipeline["pipeline_dag_hash"]] = {
+                    "fingerprint": None,
+                    "excluded_reason": "matched_graph_source_requires_reingestion",
+                }
     if req.dimension == "split":
         # Rank CV selection strategies on an identical external holdout. Their
         # internal folds vary intentionally; the outer split indices must match.
