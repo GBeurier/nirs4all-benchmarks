@@ -23,6 +23,8 @@ from nirs4all_benchmarks.scoring import direction_of
 from nirs4all_benchmarks.scoring.metrics import METRIC_DIRECTION
 from nirs4all_benchmarks.store import ArenaStore
 
+from .observations import original_observations, pipeline_rows
+
 METHODS = ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"]
 DIMENSIONS = [
     "pipeline",
@@ -137,17 +139,19 @@ def _mean_component(observations: list[tuple[float, str, str]]) -> float:
     return sum(means) / len(means)
 
 
-def _labels(store: ArenaStore, req: RankingRequest) -> tuple[dict[str, list[tuple[str, str]]], set[str]]:
+def _labels(
+    store: ArenaStore, req: RankingRequest, pipeline_ids: set[str]
+) -> tuple[dict[str, list[tuple[str, str]]], set[str]]:
     """Extract identities from normalized nodes, preserving operator qualification."""
     nodes: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for node in store.query("SELECT * FROM pipeline_nodes ORDER BY pipeline_dag_hash, node_id"):
+    for node in pipeline_rows(store, "pipeline_nodes", pipeline_ids):
         nodes[node["pipeline_dag_hash"]].append(node)
     edges: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for edge in store.query("SELECT * FROM pipeline_edges"):
+    for edge in pipeline_rows(store, "pipeline_edges", pipeline_ids):
         edges[edge["pipeline_dag_hash"]].append(edge)
     result: dict[str, list[tuple[str, str]]] = {}
     ambiguous: set[str] = set()
-    for pipe in store.query("SELECT * FROM pipeline_dags"):
+    for pipe in pipeline_rows(store, "pipeline_dags", pipeline_ids):
         key = pipe["pipeline_dag_hash"]
         group = nodes[key]
         if req.dimension == "pipeline":
@@ -255,46 +259,22 @@ def _assemble_cohort(
     expected_direction = direction_of(req.metric) if req.metric.lower() in METRIC_DIRECTION else req.direction
     if expected_direction != req.direction:
         return _unavailable(artifact, "metric_direction_mismatch")
-    where, args = (
-        [
-            "v.metric_name = ?",
-            "v.score_scope = ?",
-            "v.partition = ?",
-            "NOT EXISTS (SELECT 1 FROM score_sets newer WHERE newer.supersedes_score_set_id=v.score_set_id "
-            "AND newer.validity_status='valid')",
-        ],
-        [req.metric, req.scope, req.partition],
+    batch = original_observations(
+        store,
+        metric=req.metric,
+        scope=req.scope,
+        partition=req.partition,
+        dataset=req.dataset,
+        task=req.task,
+        collection=req.collection,
+        protocol=req.protocol,
     )
-    for column, value in (
-        ("dataset_fingerprint", req.dataset),
-        ("task_hash", req.task),
-        ("collection_id", req.collection),
-        ("score_computation_hash", req.protocol),
-    ):
-        if value:
-            where.append(f"v.{column} = ?")
-            args.append(value)
-    rows = store.query(
-        """SELECT v.*, mo.metric_observation_id, e.unsafe_flags_json,
-                  si.split_indices_hash, ci.engine_fold_set_fingerprint, si.split_spec_hash,
-                  ci.cv_spec_hash, ts.task_type
-           FROM v_run_metrics v JOIN executions e ON e.execution_hash=v.execution_hash
-           JOIN metric_observations mo ON mo.score_set_id=v.score_set_id
-             AND mo.metric_name=v.metric_name AND mo.metric_value IS v.metric_value
-             AND mo.fold_id IS v.fold_id AND mo.partition IS v.partition
-             AND mo.aggregation_level IS v.aggregation_level AND mo.direction IS v.direction
-           LEFT JOIN split_instances si ON si.split_instance_hash=v.split_instance_hash
-           LEFT JOIN cv_instances ci ON ci.cv_instance_hash=v.cv_instance_hash
-           LEFT JOIN task_specs ts ON ts.task_hash=v.task_hash
-           WHERE """
-        + " AND ".join(where)
-        + " ORDER BY mo.metric_observation_id",
-        args,
-    )
-    # The view does not expose observation IDs. SQL may duplicate indistinguishable
-    # observations when joining back; identity deduplication removes that fanout.
-    rows = list({r["metric_observation_id"]: r for r in rows}.values())
-    artifact["provenance"]["source_observations"] = len(rows)
+    artifact["provenance"]["source_observations"] = batch.source_count
+    artifact["provenance"]["source_scan"] = batch.scan
+    if batch.limit_exceeded:
+        artifact["warnings"].append(batch.limit_warning)
+        return _unavailable(artifact, "source_observation_limit_requires_filter")
+    rows = batch.rows
     excluded: Counter[str] = Counter()
     accepted = []
     for row in rows:
@@ -349,7 +329,8 @@ def _assemble_cohort(
         )
     if any(len(context) > 1 for context in contexts.values()):
         return _unavailable(artifact, "ambiguous_dataset_context_requires_filter")
-    labels, ambiguous = _labels(store, req)
+    pipeline_ids = {row["pipeline_dag_hash"] for row in accepted}
+    labels, ambiguous = _labels(store, req, pipeline_ids)
     component_contexts = {}
     if req.comparison_mode == "matched":
         from nirs4all_benchmarks.identity.pipeline_dag import GRAPH_NORMALIZATION_VERSION
@@ -358,9 +339,9 @@ def _assemble_cohort(
 
         pipeline_nodes: dict[str, list[dict[str, Any]]] = defaultdict(list)
         pipeline_edges: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for node in store.query("SELECT * FROM pipeline_nodes"):
+        for node in pipeline_rows(store, "pipeline_nodes", pipeline_ids):
             pipeline_nodes[node["pipeline_dag_hash"]].append(node)
-        for edge in store.query("SELECT * FROM pipeline_edges"):
+        for edge in pipeline_rows(store, "pipeline_edges", pipeline_ids):
             pipeline_edges[edge["pipeline_dag_hash"]].append(edge)
         pipelines = [
             {
@@ -368,7 +349,7 @@ def _assemble_cohort(
                 "nodes": pipeline_nodes[row["pipeline_dag_hash"]],
                 "edges": pipeline_edges[row["pipeline_dag_hash"]],
             }
-            for row in store.query("SELECT * FROM pipeline_dags")
+            for row in pipeline_rows(store, "pipeline_dags", pipeline_ids)
         ]
         component_contexts = build_component_contexts(
             pipelines, req.dimension, parameter_operator=req.operator, parameter_name=req.parameter

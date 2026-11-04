@@ -70,6 +70,8 @@ def quality_relative_gain(
     if req.baseline_id == req.candidate_id:
         return unavailable("distinct_baseline_and_candidate_required")
     if evidence is None:
+        if assembled["reason"] == "source_observation_limit_requires_filter":
+            artifact["warnings"].extend(assembled["warnings"])
         return unavailable(assembled["reason"])
     candidate_ids = evidence["candidates"]
     if req.baseline_id not in candidate_ids or req.candidate_id not in candidate_ids:

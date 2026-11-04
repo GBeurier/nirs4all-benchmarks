@@ -126,6 +126,20 @@ operator, parameter, protocol, method or option returns
 `static_ranking_request_not_precomputed`; it never reuses a global ranking for a
 filtered cohort. No independent ranking algorithm exists in JavaScript.
 
+All ranking, relative-gain and component-analysis requests share a bounded
+original-observation reader. It joins observations by their primary/foreign
+identities once; identical score values never create a quadratic self-join.
+A narrow ID scan refuses source cohorts above 100,000 observations before wide
+records are materialized, and the wide query repeats the bound to protect
+against concurrent ingestion. The refusal reason is
+`source_observation_limit_requires_filter`; no truncated cohort is fitted.
+`provenance.source_scan` records the limit, whether it was exceeded and whether
+`source_observations` is only a lower bound. Refusals also state that lower bound
+in visible warnings. This source cap precedes eligibility exclusions and is
+distinct from each estimator's stricter candidate/design limits. Pipeline
+metadata reads are scoped to the selected evidence; component graph structures
+are parsed once per pipeline rather than repeated for every score row.
+
 ## Matched descriptive component comparisons
 
 `comparison_mode: matched` adds a strict rest-of-pipeline fingerprint to each
