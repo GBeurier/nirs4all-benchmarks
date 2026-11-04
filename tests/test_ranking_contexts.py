@@ -246,3 +246,11 @@ def test_masked_model_preserves_training_scope_and_unknown_constraints():
     changed = deepcopy(base)
     changed["nodes"][-1].update(operator="sklearn.svm.SVR", operator_version="2", params={"C": 12})
     assert _value(a) == _value({"pipeline_dag_hash": "b", "graph_json": json.dumps(changed)})
+
+
+def test_masked_model_keeps_its_position_in_the_pipeline():
+    preprocessing = _node("nirs4all.SNV")
+    model = _node("sklearn.linear_model.Ridge", "model")
+    before = _pipe("before", [preprocessing, model])
+    after = _pipe("after", [model, preprocessing])
+    assert _value(before) != _value(after)

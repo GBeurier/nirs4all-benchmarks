@@ -202,9 +202,12 @@ def _context(
         # changing who was fitted must not masquerade as changing only a model.
         "selected_model_constraints": [
             {
-                key: value
-                for key, value in nodes[i]["content"].items()
-                if key not in {"kind", "operator", "operator_version", "params"}
+                "position": i,
+                "metadata": {
+                    key: value
+                    for key, value in nodes[i]["content"].items()
+                    if key not in {"kind", "operator", "operator_version", "params"}
+                },
             }
             for i in sorted(selected)
         ]
