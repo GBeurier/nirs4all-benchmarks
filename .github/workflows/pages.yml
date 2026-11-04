@@ -1,7 +1,7 @@
 name: pages
 
 # Build the static, client-side Arena (a JSON snapshot of real research runs + the
-# no-build SPA) and deploy it to GitHub Pages at benchmarks.nirs4all.org.
+# SPA and optional ranking bundle) and deploy it to GitHub Pages at benchmarks.nirs4all.org.
 # The published site needs NO backend — see DESIGN/ROADMAP (static now; a live
 # server managing runs/pipelines/meta-analyses with nirs4all-repository &
 # nirs4all-datasets is the medium-term plan).
@@ -15,6 +15,10 @@ on:
       - "VERSION"
       - "src/nirs4all_benchmarks/**"
       - "data/**"
+      - "frontend/**"
+      - "scripts/build-frontend.mjs"
+      - "package.json"
+      - "package-lock.json"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Build shared ranking frontend
+        run: npm ci && npm run build:frontend
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv python install 3.11
       - name: Install
