@@ -4,6 +4,7 @@ import { QualityRankingPanel, ComponentRankingView, RelativeGainView } from "nir
 import type { QualityRanking, QualityRelativeGain, RankingPlotProps } from "nirs4all-ui/ranking";
 import { validateQualityRanking, validateRelativeGain } from "./artifact.js";
 import css from "./quality-ranking.css";
+import { ComponentAnalysisApp } from "./component-analysis.js";
 
 const dimensions = [
   ["pipeline", "Pipelines"], ["model", "Models"], ["preprocessing_sequence", "Preprocessing sequences"],
@@ -115,12 +116,17 @@ function RankingApp({ api, state, signal }: any) {
   const snapshots = Array.isArray(metadata.requests) ? [...metadata.requests, ...(metadata.gainRequests || [])].filter(item => item.request && item.request.metric === state.metric && item.request.scope === state.scope && (item.request.dataset || "") === (state.dataset || "")) : [];
   const select = (label, value, setter, choices) => <label>{label}<select value={value} onChange={e => setter(e.target.value)}>{choices.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>;
   const text = (label, value, setter, list?) => <label>{label}<input value={value} list={list} onChange={e => setter(e.target.value)} /></label>;
+  const analysisChoices = [["ranking", "Ranking"], ["gain", "Paired relative gain"], ["mixed_effects", "Adjusted mixed effects"], ["fanova", "Surrogate functional ANOVA"]];
+  if (analysis === "mixed_effects" || analysis === "fanova") return <div className="quality-ranking"><header className="page-head"><h1>Quality ranking</h1><p>Adjusted observed effects and surrogate importance from qualified original observations.</p></header>
+    {select("Analysis", analysis, setAnalysis, analysisChoices)}
+    <ComponentAnalysisApp key={analysis} api={api} state={state} signal={signal} method={analysis} Plot={Plot} />
+  </div>;
   return <div className="quality-ranking"><header className="page-head"><h1>Quality ranking</h1><p>Compare observed pipelines and their components across matched datasets.</p></header>
     <p>Metric: {state.metric}. Score level: {state.scope}. Dataset: {state.dataset || "All datasets"}.</p>
     <p>Component rankings describe observed performance; they do not establish causal contributions.</p>
     {metadata.mode === "static" && snapshots.length ? <label>Available snapshot<select value="" onChange={e => { const item = snapshots[Number(e.target.value)]; if (item) useSnapshot(item.request); }}><option value="" disabled>Choose a matching configuration</option>{snapshots.map((item, i) => <option key={i} value={i}>{item.request.dimension} · {item.request.method} · {item.request.partition} · {item.request.comparison_mode || "observed"}{item.request.parameter ? ` · ${item.request.operator}::${item.request.parameter}` : ""}{item.request.method === "relative_gain" ? ` · ${item.request.baseline_id} → ${item.request.candidate_id} · ${item.request.effect_variances ? "supplied variances" : "descriptive"}` : ""}</option>)}</select></label> : null}
     <form onSubmit={e => { e.preventDefault(); void refresh(); }}>
-      <div className="ranking-controls">{select("Analysis", analysis, setAnalysis, [["ranking", "Ranking"], ["gain", "Paired relative gain"]])}{select("Compare", dimension, setDimension, dimensions)}{analysis === "ranking" ? select("Ranking method", method, setMethod, methods) : null}
+      <div className="ranking-controls">{select("Analysis", analysis, setAnalysis, analysisChoices)}{select("Compare", dimension, setDimension, dimensions)}{analysis === "ranking" ? select("Ranking method", method, setMethod, methods) : null}
         {select("Partition", partition, setPartition, [["train", "Training"], ["validation", "Validation"], ["test", "Test"], ["final", "Final"]])}
         {!["pipeline", "split"].includes(dimension) ? select("Comparison mode", comparisonMode, setComparisonMode, [["observed", "Observed configurations"], ["matched", "Matched rest of pipeline"]]) : null}
         {select("Metric direction", direction, setDirection, [["", "Use metric definition"], ["min", "Lower is better"], ["max", "Higher is better"]])}</div>

@@ -169,3 +169,29 @@ The tables provide the same values and explain the different uncertainty types.
 ![TrueSkill ranking with native values and an accessible table](images/quality-ranking.png)
 
 ![Paired gains with supplied-variance meta-analysis and matching table](images/quality-relative-gain.png)
+
+## Adjusted effects and surrogate importance
+
+The Analysis selector also mounts `ComponentAnalysisApp`, which offers native
+Gaussian mixed effects and random-forest fANOVA through `/api/component-analysis`.
+The controls declare a simple design preset, explicit categorical references or
+numeric/category domains, an optional qualified model slice, scale-free or native
+paired-baseline outcomes, and disjoint training/held-out dataset identities.
+Original-observation previews precede fitting; missing conditional parameters
+are never converted into numeric defaults. Static users can select an exact
+precomputed request, including its full domain and estimator configuration.
+
+`validateComponentAnalysis` checks the entire normalized nested request before
+rendering, validates coefficient and covariance dimensions and native fANOVA
+factor indices, and rejects nonfinite data. Changing controls clears previous
+results and invalidates pending responses. Navigating away unmounts the analysis
+and purges its Plotly figures.
+
+Shared `MixedEffectsView` and `FanovaView` display supplied numerical values only.
+Coefficient error bars show one conditional plug-in SE; importance tree SD is
+descriptive tree dispersion. Neither is presented as a confidence interval.
+Exact native values, reference levels, domain assumptions, original source
+counts, fit/refusal diagnostics and held-out prediction diagnostics remain in
+visible HTML tables or details. `tests/test_component_analysis_ui.py` exercises
+both real native artifacts in Chrome, changed-response identity rejection,
+absence of stale tables and cleanup of delayed requests during navigation.

@@ -275,7 +275,7 @@ def test_native_unavailable_rejected_deferred_and_direction(tmp_path, monkeypatc
 
         monkeypatch.setattr(quality, "_native_rank", unavailable)
         assert quality_ranking(store)["reason"] == "native_ranking_runtime_unavailable"
-        assert quality_ranking(store, {"method": "mixed_effects"})["reason"] == "mixed_effects_backend_not_qualified"
+        assert quality_ranking(store, {"method": "mixed_effects"})["reason"] == "mixed_effects_requires_component_analysis_request"
         assert quality_ranking(store, {"direction": "max"})["reason"] == "metric_direction_mismatch"
         assert quality_ranking(store, {"dimension": "split"})["reason"] == "split_requires_matched_external_error"
 

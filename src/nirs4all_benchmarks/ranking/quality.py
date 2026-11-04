@@ -37,11 +37,9 @@ DIMENSIONS = [
 CAPABILITIES: dict[str, Any] = {
     "methods": METHODS,
     "dimensions": DIMENSIONS,
-    "analyses": ["ranking", "relative_gain"],
+    "analyses": ["ranking", "relative_gain", "mixed_effects", "fanova"],
     "deferred": {
-        "mixed_effects": "mixed_effects_backend_not_qualified",
-        "fanova": "fanova_backend_not_qualified",
-        "interaction": "interaction_backend_not_qualified",
+        "adjusted_interaction": "adjusted_interaction_backend_not_qualified",
     },
 }
 
@@ -233,6 +231,8 @@ def _assemble_cohort(
     """
     req = request if isinstance(request, RankingRequest) else RankingRequest(**(request or {}))
     artifact = _artifact(req)
+    if req.method in {"mixed_effects", "fanova"}:
+        return _unavailable(artifact, f"{req.method}_requires_component_analysis_request")
     if req.method in CAPABILITIES["deferred"]:
         return _unavailable(artifact, CAPABILITIES["deferred"][req.method])
     if req.method not in METHODS or req.dimension not in DIMENSIONS:

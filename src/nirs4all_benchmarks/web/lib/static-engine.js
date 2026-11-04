@@ -73,6 +73,17 @@ function canonicalRequest(value) {
   return value;
 }
 
+function componentRequest(params = {}) {
+  const request = { method: "mixed_effects", metric: "nrmse", scope: "cv", partition: "validation", direction: null,
+    dataset: null, task: null, collection: null, protocol: null, aggregation_level: "sample", model_slice: null,
+    factors: [{ name: "model", dimension: "model" }], outcome_policy: "scale_free", baseline_pipeline_id: null,
+    missing_policy: "reject", training_datasets: [], validation_datasets: [], options: {}, preview_only: false, ...params };
+  request.direction ??= DIRECTION[String(request.metric).toLowerCase()] || null;
+  request.factors = request.factors.map(factor => ({ kind: "categorical", operator: null, operator_version: null,
+    parameter: null, reference: null, levels: null, bounds: null, ...factor }));
+  return request;
+}
+
 export async function createStaticApi(base = "/data") {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -119,6 +130,22 @@ export async function createStaticApi(base = "/data") {
       ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
     qualityRelativeGainRequests: async () => ({ mode: "static", requests: (bundle.quality_relative_gains || []).map(
       ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    componentAnalysisRequests: async () => ({ mode: "static", requests: (bundle.component_analyses || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    componentAnalysis: async (params = {}) => {
+      const request = componentRequest(params);
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.component_analyses || []).find(entry => JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.component-analysis/1", state: "unavailable", reason: "static_component_analysis_request_not_precomputed",
+        request_id: `static-unavailable:${identity}`, request, method: request.method, metric: request.metric,
+        scope: request.scope, partition: request.partition, direction: request.direction,
+        design: { factors: [], columns: [], references: {}, domains: [], model_slice: request.model_slice,
+          outcome_policy: request.outcome_policy, group_names: ["dataset", "dataset_evaluation_block"] },
+        provenance: { source_observations: 0, accepted_observations: 0, excluded: {}, datasets: [], observations: [],
+          baseline_observations: [], training_datasets: request.training_datasets, validation_datasets: request.validation_datasets },
+        result: null, warnings: ["This exact design, domain, dataset assignment and native configuration was not precomputed."] };
+    },
     qualityRelativeGain: async (params = {}) => {
       const request = { ...qualityRequest(params), method: params.method || "relative_gain",
         effect_variances: params.effect_variances ?? null };
@@ -157,7 +184,8 @@ export async function createStaticApi(base = "/data") {
         warnings: ["This exact filter and method configuration was not precomputed for this static snapshot."],
         capabilities: { methods: ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"],
           dimensions: ["pipeline", "model", "preprocessing_sequence", "preprocessing_operator", "feature_selection", "augmentation", "parameter", "split"],
-          deferred: { mixed_effects: "mixed_effects_backend_not_qualified", fanova: "fanova_backend_not_qualified" } } };
+          analyses: ["ranking", "relative_gain", "mixed_effects", "fanova"],
+          deferred: { adjusted_interaction: "adjusted_interaction_backend_not_qualified" } } };
     },
     planned: async () => bundle.planned,
 

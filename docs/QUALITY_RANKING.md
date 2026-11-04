@@ -89,8 +89,8 @@ unavailable one, contains:
 - `provenance`: source and accepted counts, exclusion reason counts, datasets,
   matched block identities, comparison rows with their source block IDs,
   candidate universe with supporting pipeline IDs, aggregation and weighting.
-- `warnings` and `capabilities`, including explicit unqualified mixed-effects,
-  fANOVA, matched-contribution and interaction reasons.
+- `warnings` and `capabilities`, including the distinct component-analysis
+  endpoint and the remaining unqualified adjusted-interaction analysis.
 
 The methods package also provides paired positive-loss relative gains and
 caller-variance meta-analysis. This observed-ranking endpoint does not manufacture
@@ -144,7 +144,8 @@ roles, multiple target occurrences, branches, merges and unsafe edge contraction
 receive explicit exclusion reasons. Preprocessing sequences must be contiguous;
 feature selection and augmentation mask at most one selected node. Matched
 contrasts remain descriptive, with no randomization or causal identification
-claim. Adjusted mixed effects and interaction importance remain unqualified.
+claim. Adjusted effects and surrogate importance use the separate native
+component-analysis contract below.
 
 The ingestion normalizer preserves arbitrary graph, node and edge scientific
 extensions, including the declared node `source_id`. These fields participate in
@@ -201,3 +202,149 @@ The API clients expose `qualityRelativeGain(request)` and
 same total limit of 64 snapshots. Static retrieval matches the entire request,
 including variance map, and otherwise returns
 `static_relative_gain_request_not_precomputed` without numerical execution.
+
+## Native adjusted effects and surrogate importance
+
+`POST /api/component-analysis` accepts `ComponentAnalysisRequest`, with
+`method: mixed_effects` or `fanova`. The optional full methods runtime must export
+`n4m.component_analysis` and ABI 2.22 with the requested backend compiled in.
+Missing runtimes and backend-disabled builds produce explicit unavailable
+artifacts. The ranking endpoint directs these methods to the component-analysis
+endpoint; they are not alternative rating algorithms.
+
+Both analyses use qualified **original score observations**, including distinct
+executions, rather than synthetic pair rows or cross-dataset raw-loss means.
+Exact duplicate observations add no weight; conflicting values for the same
+execution/score/fold are refused. Original trial imbalance can affect these fits.
+Metric, direction, scope, partition, aggregation level, dataset/task/variant,
+protocol, actual outer split and actual CV identities follow the same evidence
+requirements as rankings. Graphs must carry source-preserving normalization
+version 2. Strict linear graph qualification applies before factor extraction.
+Rows have deterministic dataset/block/pipeline/execution order, and the artifact
+records an input fingerprint and each original observation's execution, pipeline,
+task and evaluation block.
+
+`outcome_policy: scale_free` accepts known dimensionless metrics such as NRMSE,
+R², CCC, accuracy and F1. Raw RMSE, MSE, MAE and log-loss values cannot be pooled
+across tasks in this mode. For positive-loss metrics,
+`outcome_policy: native_baseline_ratio` requires `baseline_pipeline_id`. Each
+original observation must have one unambiguous baseline loss on its exact
+actual evaluation block; several distinct baseline values are refused. Native
+`normalize_loss` computes `loss / baseline_loss`, with a strictly positive
+baseline and nonnegative numerator. Zero loss is supported without adding an
+epsilon. Baselines are treated as fixed normalizers; their sampling uncertainty
+is not propagated. Lower ratios are better.
+
+A request declares up to 16 named `factors`. Supported dimensions are model,
+preprocessing sequence/operator, feature selection, augmentation, and an exact
+operator-qualified parameter. Model values are `operator@version` strings;
+sequence/configuration values are canonical configuration strings; operator
+presence uses its qualified version and `none` for absence. Parameter factors
+require an explicit `model_slice` and a single operator occurrence. Multiple
+implementation versions need an exact `operator_version` filter. No missing
+conditional parameter is filled with zero, a category code or a default value.
+Categorical parameter levels use the preview's canonical type-tagged string IDs;
+this preserves distinctions such as integer `1` versus floating `1.0` in browser
+JSON. Declare those exact IDs as levels/references. Integer native option values
+(including seeds) must be exact JSON-safe integers, so static clients cannot
+silently round a different request into the same cache entry.
+The default `missing_policy: reject` refuses incomplete designs;
+`exclude_complete_case` explicitly records omitted observations. Effects remain
+conditional associations in the declared design, not causal contributions or
+controls for every unmodeled pipeline setting.
+
+Use `preview_only: true` to obtain observed factor values and source provenance
+without fitting. The artifact is unavailable with reason `design_preview_only`,
+and its design can be used to declare references and domains. This preview runs
+without the numerical runtime. It does not attest the suitability of a design.
+
+### Gaussian mixed effects
+
+Categorical factors require an explicit `reference` drawn from the declared or
+observed levels. The host constructs an intercept and treatment-coded columns;
+numeric parameter factors contribute an uncentered slope. Columns are never
+silently dropped. Native Gaussian ML/REML fits two random intercept terms:
+dataset and dataset × complete actual evaluation-block identity. Multiple
+datasets and multiple blocks are required; native rank deficiency, variance
+confounding, nonconvergence and numerical refusal remain explicit statistical
+states with no provisional estimates. Boundary fits retain their native flags.
+
+The native result (`n4m.mixed_effects/1`) supplies beta, coefficient standard
+errors, the full covariance matrix and variance components in exact design order
+(residual first, then dataset and dataset/block). Standard errors are conditional
+plug-in values; they omit variance-parameter uncertainty and do not establish
+independent folds. No confidence interval, significance test or p-value is
+manufactured by the host or UI. With loss-ratio outcomes, a negative coefficient
+means a lower fitted response relative to the declared reference.
+
+```json
+{
+  "method": "mixed_effects",
+  "metric": "nrmse",
+  "factors": [{
+    "name": "model", "dimension": "model",
+    "reference": "sklearn.linear_model.Ridge@unreported"
+  }],
+  "options": {"reml": true, "max_evaluations": 1000}
+}
+```
+
+Select actual identifiers from a preview; the example does not imply those
+operators or reference levels exist in a particular store.
+
+### Random-forest fANOVA
+
+Every categorical factor requires explicit `levels`; numeric parameters require
+finite increasing `bounds`. These declarations define an independent uniform
+product domain. They assert that the modeled Cartesian combinations are
+scientifically feasible. Parameter analyses remain within one qualified model,
+so the forest never predicts another model's inapplicable parameter settings.
+Unseen categorical training levels are refused; numeric domains beyond observed
+training values produce an extrapolation warning. Unsupported conditional search
+spaces require a narrower slice rather than an invented Cartesian encoding.
+
+Assign every eligible dataset explicitly to `training_datasets` or
+`validation_datasets`. These sets must be disjoint; no split is inferred from row
+order or individual repeated folds. An empty held-out set is allowed with an
+explicit warning that surrogate generalization has not been established. Native
+training RMSE and held-out RMSE/R² are preserved, including poor or negative
+held-out R². Diagnostics describe prediction on the supplied held-out datasets;
+they do not prove a generalization guarantee.
+
+Native `n4m.fanova/1` fits a seeded regression forest and integrates first-order
+and pairwise variance components over the declared product domain. Reported
+fractions are normalized per informative tree and then averaged; they are not
+the decomposition of the forest ensemble mean. `tree_sd` describes variation
+between trees, not a standard error or confidence interval. Constant-response or
+zero-surrogate-variance fits withhold importance. Larger importance indicates
+surrogate variation, not the direction or size of an improvement and not
+causality. Native limits on forest size, feature count, depth and exact-marginal
+work are enforced without silently changing the requested domain or estimator.
+
+### Artifact, static delivery and controls
+
+`n4a.component-analysis/1` contains normalized `request`/`request_id`, explicit
+`state`/`reason`, method and metric lens, `design` (factors, observed values,
+columns, references, domains, model slice, outcome policy and group names),
+original-observation `provenance`, the authoritative native `result`, and
+warnings. Statistical refusal diagnostics remain visible when estimates are
+unavailable. Every numerical output is JSON-finite or null.
+
+The clients expose `componentAnalysis(request)` and
+`componentAnalysisRequests()`. Static builds accept
+`component_analysis_requests=[...]`, and the CLI accepts
+`--component-analysis-requests analyses.json`. The existing combined limit of 64
+snapshots includes rankings, relative gains and these analyses. Static lookup
+matches the entire normalized request, including references, domains, source
+filters, model slice, training/held-out dataset assignments, native options and
+preview mode. A mismatch returns
+`static_component_analysis_request_not_precomputed`; browsers never fit a
+substitute analysis.
+
+The browser's Analysis selector offers adjusted mixed effects and surrogate
+functional ANOVA. Its simple design presets expose reference/domain previews,
+qualified model/parameter selection, outcome normalization, explicit missing-case
+policy and native options; no formula language or browser estimator is used.
+Shared React views render native coefficients/SE/covariance and variance
+components, or main/pair importance and tree dispersion, alongside exact HTML
+tables and fit/generalization diagnostics.

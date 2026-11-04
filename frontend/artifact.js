@@ -86,3 +86,62 @@ export function validateRelativeGain(value, requested) {
   } else if (r.state === "ready") fail();
   return r;
 }
+
+const deepCanonical = (x) => JSON.stringify(canonicalObject(x));
+function canonicalObject(x) {
+  if (Array.isArray(x)) return x.map(canonicalObject);
+  return object(x) ? Object.fromEntries(Object.keys(x).sort().map(key => [key, canonicalObject(x[key])])) : x;
+}
+const metricDirections = { mse:"min",rmse:"min",nrmse:"min",mae:"min",medae:"min",bias:"min",log_loss:"min",r2:"max",rpd:"max",rpiq:"max",ccc:"max",accuracy:"max",balanced_accuracy:"max",f1_macro:"max",f1_micro:"max",f1_weighted:"max",precision_macro:"max",recall_macro:"max",roc_auc:"max",mcc:"max" };
+export function normalizeComponentRequest(params = {}) {
+  const request = { method:"mixed_effects",metric:"nrmse",scope:"cv",partition:"validation",direction:null,dataset:null,task:null,collection:null,protocol:null,
+    aggregation_level:"sample",model_slice:null,factors:[{name:"model",dimension:"model"}],outcome_policy:"scale_free",baseline_pipeline_id:null,
+    missing_policy:"reject",training_datasets:[],validation_datasets:[],options:{},preview_only:false,...params };
+  request.direction ??= metricDirections[String(request.metric).toLowerCase()] || null;
+  request.factors = request.factors.map(factor => ({kind:"categorical",operator:null,operator_version:null,parameter:null,reference:null,levels:null,bounds:null,...factor}));
+  return request;
+}
+export function validateComponentAnalysis(value, requested) {
+  const fail = () => { throw new Error("The component analysis response is incomplete, belongs to another design, or uses an unsupported format."); };
+  const r = value;
+  if (!object(r) || r.schema_version !== "n4a.component-analysis/1" || !["ready","unavailable"].includes(r.state)
+      || !string(r.request_id) || !object(r.request) || !(r.reason === null || string(r.reason)) || !strings(r.warnings)
+      || deepCanonical(r.request) !== deepCanonical(normalizeComponentRequest(requested))) fail();
+  for (const key of ["method","metric","scope","partition","direction"]) if (r[key] !== r.request[key]) fail();
+  const d = r.design, p = r.provenance;
+  if (!object(d) || !Array.isArray(d.factors) || !Array.isArray(d.columns) || !object(d.references) || !Array.isArray(d.domains)
+      || !strings(d.group_names) || !string(d.outcome_policy) || !(d.model_slice === null || string(d.model_slice))) fail();
+  if (!d.columns.every(column => object(column) && string(column.name) && (column.factor === null || string(column.factor)))) fail();
+  if (!d.factors.every(factor => object(factor) && string(factor.name) && string(factor.dimension) && ["numeric","categorical"].includes(factor.kind) && Array.isArray(factor.observed_levels))) fail();
+  if (!object(p) || !count(p.source_observations) || !count(p.accepted_observations) || !object(p.excluded)
+      || !Object.values(p.excluded).every(count) || !strings(p.datasets) || !strings(p.training_datasets)
+      || !strings(p.validation_datasets) || !Array.isArray(p.observations) || !Array.isArray(p.baseline_observations)) fail();
+  function finiteTree(x) { return typeof x === "number" ? Number.isFinite(x) : Array.isArray(x) ? x.every(finiteTree) : object(x) ? Object.values(x).every(finiteTree) : true; }
+  if (!finiteTree(r)) fail();
+  const n = r.result;
+  if (n === null) { if (r.state === "ready") fail(); return r; }
+  if (!object(n) || !["ready","unavailable"].includes(n.state) || !(n.reason === null || string(n.reason)) || !object(n.diagnostics) || !strings(n.warnings)) fail();
+  // Reject NaN/Infinity at every depth, including options, diagnostics and domains.
+  if (r.method === "mixed_effects") {
+    if (n.schema_version !== "n4m.mixed_effects/1") fail();
+    const size = d.columns.length;
+    if (r.state === "ready" && (n.state !== "ready" || !Array.isArray(n.beta) || n.beta.length !== size || !n.beta.every(x => typeof x === "number" && Number.isFinite(x))
+      || !Array.isArray(n.standard_errors) || n.standard_errors.length !== size || !n.standard_errors.every(x => typeof x === "number" && Number.isFinite(x) && x >= 0)
+      || !Array.isArray(n.covariance) || n.covariance.length !== size || !n.covariance.every(row => Array.isArray(row) && row.length === size && row.every(x => typeof x === "number" && Number.isFinite(x)))
+      || !Array.isArray(n.variances) || n.variances.length !== d.group_names.length + 1 || !n.variances.every(x => typeof x === "number" && Number.isFinite(x) && x >= 0))) fail();
+  } else if (r.method === "fanova") {
+    if (n.schema_version !== "n4m.fanova/1" || !Array.isArray(n.feature_importance) || !Array.isArray(n.interactions)
+      || n.domain_measure !== "uniform_product" || n.aggregation !== "mean_per_tree_normalized_components"
+      || n.uncertainty_kind !== "tree_dispersion_not_confidence") fail();
+    const validFraction = x => finiteOrNull(x) && (x === null || x >= 0);
+    const ids = new Set();
+    for (const row of n.feature_importance) {
+      if (!object(row) || !count(row.index) || row.index >= d.factors.length || ids.has(row.index) || !validFraction(row.fraction) || !validFraction(row.tree_sd)) fail();
+      ids.add(row.index);
+    }
+    for (const row of n.interactions) if (!object(row) || !Array.isArray(row.indices) || row.indices.length !== 2 || !row.indices.every(i => count(i) && i < d.factors.length)
+      || row.indices[0] >= row.indices[1] || !validFraction(row.fraction) || !validFraction(row.tree_sd)) fail();
+    if (r.state === "ready" && (n.state !== "ready" || ids.size !== d.factors.length)) fail();
+  } else fail();
+  return r;
+}
