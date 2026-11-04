@@ -1,0 +1,16 @@
+{
+  "name": "nirs4all-benchmarks-frontend",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build:frontend": "node scripts/build-frontend.mjs",
+    "test:frontend": "node --test frontend/*.test.mjs"
+  },
+  "dependencies": {
+    "nirs4all-ui": "git+https://github.com/GBeurier/nirs4all-ui.git#39629efdae3664630644e9fdc64c38892d2da618",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

@@ -29,3 +29,7 @@ arena-store/
 
 # os
 .DS_Store
+
+# Reproducibly built optional React island
+/node_modules/
+/src/nirs4all_benchmarks/web/generated/

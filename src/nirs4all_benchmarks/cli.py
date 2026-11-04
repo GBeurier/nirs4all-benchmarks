@@ -8,6 +8,7 @@ the service uses.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -220,11 +221,37 @@ def build_site_cmd(
     store: str = StoreOpt,
     out: Path = typer.Option(Path("site"), "--out", "-o", help="Output directory for the static site."),
     domain: str = typer.Option("benchmarks.nirs4all.org", "--domain", help="Custom domain (CNAME); empty to skip."),
+    ranking_requests: Path | None = typer.Option(
+        None, "--ranking-requests", exists=True, dir_okay=False,
+        help="JSON file containing an array of exact ranking request objects to precompute.",
+    ),
+    relative_gain_requests: Path | None = typer.Option(
+        None, "--relative-gain-requests", exists=True, dir_okay=False,
+        help="JSON file containing an array of exact paired relative gain request objects to precompute.",
+    ),
 ) -> None:
     """Build a fully static, client-side copy of the Arena (for GitHub Pages — no backend)."""
+    from pydantic import ValidationError
+
+    from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest
     from nirs4all_benchmarks.site_build import build_site
 
-    summary = build_site(store, out, domain=domain or None)
+    def read_requests(path: Path | None, model: type, option: str) -> list:
+        if path is None:
+            return []
+        try:
+            values = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(values, list) or not all(isinstance(value, dict) for value in values):
+                raise ValueError("expected a JSON array of request objects")
+            return [model(**value) for value in values]
+        except (OSError, UnicodeError, ValueError, ValidationError) as exc:
+            raise typer.BadParameter(str(exc), param_hint=option) from exc
+
+    rankings = read_requests(ranking_requests, RankingRequest, "--ranking-requests")
+    gains = read_requests(relative_gain_requests, RelativeGainRequest, "--relative-gain-requests")
+    if len(rankings) + len(gains) > 64:
+        raise typer.BadParameter("At most 64 ranking and relative gain snapshots may be requested in total")
+    summary = build_site(store, out, domain=domain or None, ranking_requests=rankings, relative_gain_requests=gains)
     console.print(f"[green]✓[/] static site built at [bold]{summary['out']}[/]: "
                   f"{summary['executions']} runs · {summary['pipelines']} pipelines · {summary['datasets']} datasets"
                   + (f" · {domain}" if domain else ""))
