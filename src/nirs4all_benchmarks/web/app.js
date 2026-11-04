@@ -1,4 +1,4 @@
-// The Arena SPA — router, shared lens, nav, view registry. No build step.
+// The Arena SPA — router, shared lens, nav, view registry; optional ranking island.
 
 import { api } from "./lib/api.js";
 import * as dom from "./lib/dom.js";
@@ -7,6 +7,7 @@ import { createStaticApi } from "./lib/static-engine.js";
 
 import overview from "./views/overview.js";
 import leaderboard from "./views/leaderboard.js";
+import qualityRanking from "./views/quality-ranking.js";
 import matrix from "./views/matrix.js";
 import playground from "./views/playground.js";
 import paramEffect from "./views/param-effect.js";
@@ -26,7 +27,7 @@ import runDetail from "./views/run-detail.js";
 import upload from "./views/upload.js";
 
 const VIEWS = [
-  overview, leaderboard, matrix, playground, paramEffect, operatorEffect, parallel,
+  overview, leaderboard, qualityRanking, matrix, playground, paramEffect, operatorEffect, parallel,
   robustness, statistics, landscape, composition, network,
   runs, compare, datasets, pipelines, planned, upload, runDetail,
 ];
@@ -64,7 +65,7 @@ const state = {
 // Meta-analysis narrative: rank → understand drivers → see structure → drill into runs.
 const GROUPS = [
   { name: "Start", ids: ["overview"] },
-  { name: "Rankings", ids: ["leaderboard", "matrix"] },
+  { name: "Rankings", ids: ["leaderboard", "quality-ranking", "matrix"] },
   { name: "Drivers", ids: ["playground", "param-effect", "operator-effect", "statistics"] },
   { name: "Structure", ids: ["parallel", "landscape", "composition", "network"] },
   { name: "Runs", ids: ["runs", "compare", "robustness"] },
@@ -189,7 +190,14 @@ function parseHash() {
   return { id: id || "overview", param: rest.join("/") };
 }
 
+let viewCleanup = null;
+let viewController = null;
 async function route() {
+  viewController?.abort();
+  viewCleanup?.();
+  viewCleanup = null;
+  const controller = new AbortController();
+  viewController = controller;
   const { id, param } = parseHash();
   const view = BY_ID[id] || BY_ID.overview;
   renderNav(view.id);
@@ -197,12 +205,15 @@ async function route() {
   const root = document.getElementById("view-root");
   dom.mount(root, dom.loading());
   const ctx = {
-    root, api, dom, plot, state, param,
+    root, api, dom, plot, state, param, signal: controller.signal,
     navigate: (to) => { location.hash = `#/${to}`; },
   };
   try {
-    await view.render(ctx);
+    const cleanup = await view.render(ctx);
+    if (controller.signal.aborted) { if (typeof cleanup === "function") cleanup(); return; }
+    viewCleanup = typeof cleanup === "function" ? cleanup : null;
   } catch (err) {
+    if (controller.signal.aborted) return;
     dom.mount(root, dom.banner(`Failed to render: ${err.message}`, "warn"));
     console.error(err);
   }

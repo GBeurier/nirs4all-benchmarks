@@ -56,6 +56,34 @@ function decodeTable(table, strings) {
   return rows;
 }
 
+// Exact artifact retrieval only. Scientific execution stays in nirs4all-methods.
+function qualityRequest(params = {}) {
+  const request = { metric: "rmse", scope: "cv", partition: "validation", dimension: "pipeline",
+    method: "bradley_terry", direction: DIRECTION[String(params.metric || "rmse").toLowerCase()] || null,
+    dataset: null, task: null, collection: null,
+    protocol: null, operator: null, parameter: null, split_criterion: null, tie_tolerance: 0,
+    options: {}, aggregation: "method_default", order: "dataset_candidate_lexical", comparison_mode: "observed", ...params };
+  request.direction ??= DIRECTION[String(request.metric).toLowerCase()] || null;
+  return request;
+}
+function canonicalRequest(value) {
+  if (Array.isArray(value)) return value.map(canonicalRequest);
+  if (value && typeof value === "object") return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, canonicalRequest(value[key])]));
+  return value;
+}
+
+function componentRequest(params = {}) {
+  const request = { method: "mixed_effects", metric: "nrmse", scope: "cv", partition: "validation", direction: null,
+    dataset: null, task: null, collection: null, protocol: null, aggregation_level: "sample", model_slice: null,
+    factors: [{ name: "model", dimension: "model" }], outcome_policy: "scale_free", baseline_pipeline_id: null,
+    missing_policy: "reject", training_datasets: [], validation_datasets: [], options: {}, preview_only: false, ...params };
+  request.direction ??= DIRECTION[String(request.metric).toLowerCase()] || null;
+  request.factors = request.factors.map(factor => ({ kind: "categorical", operator: null, operator_version: null,
+    parameter: null, reference: null, levels: null, bounds: null, ...factor }));
+  return request;
+}
+
 export async function createStaticApi(base = "/data") {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -98,6 +126,67 @@ export async function createStaticApi(base = "/data") {
     pipelines: async () => PIPELINES,
     operators: async () => bundle.operators,
     parameters: async () => bundle.parameters,
+    qualityRankingRequests: async () => ({ mode: "static", requests: (bundle.quality_rankings || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    qualityRelativeGainRequests: async () => ({ mode: "static", requests: (bundle.quality_relative_gains || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    componentAnalysisRequests: async () => ({ mode: "static", requests: (bundle.component_analyses || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    componentAnalysis: async (params = {}) => {
+      const request = componentRequest(params);
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.component_analyses || []).find(entry => JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.component-analysis/1", state: "unavailable", reason: "static_component_analysis_request_not_precomputed",
+        request_id: `static-unavailable:${identity}`, request, method: request.method, metric: request.metric,
+        scope: request.scope, partition: request.partition, direction: request.direction,
+        design: { factors: [], columns: [], references: {}, domains: [], model_slice: request.model_slice,
+          outcome_policy: request.outcome_policy, group_names: ["dataset", "dataset_evaluation_block"] },
+        provenance: { source_observations: 0, accepted_observations: 0, excluded: {}, datasets: [], observations: [],
+          baseline_observations: [], training_datasets: request.training_datasets, validation_datasets: request.validation_datasets },
+        result: null, warnings: ["This exact design, domain, dataset assignment and native configuration was not precomputed."] };
+    },
+    qualityRelativeGain: async (params = {}) => {
+      const request = { ...qualityRequest(params), method: params.method || "relative_gain",
+        effect_variances: params.effect_variances ?? null };
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.quality_relative_gains || []).find((entry) =>
+        JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.quality-relative-gain/1", request_id: `static-unavailable:${identity}`, request,
+        state: "unavailable", reason: "static_relative_gain_request_not_precomputed", candidates: [], studies: [],
+        result: null, provenance: { datasets: [], blocks: [], comparisons: [], source_observations: 0,
+          accepted_observations: 0, excluded: {}, matched_blocks: 0, comparison_rows: 0,
+          aggregation: "dataset_pair_mean", dataset_weighting: "one comparison per dataset and candidate pair" },
+        dimension: request.dimension, metric: request.metric, scope: request.scope, partition: request.partition,
+        direction: request.direction, baseline_id: request.baseline_id, candidate_id: request.candidate_id,
+        warnings: ["This exact comparison and variance configuration was not precomputed."], capabilities: {} };
+    },
+    qualityRanking: async (params = {}) => {
+      const request = qualityRequest(params);
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.quality_rankings || []).find((entry) =>
+        JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.quality-ranking/1", request_id: `static-unavailable:${identity}`, request,
+        state: "unavailable", reason: "static_ranking_request_not_precomputed",
+        dimension: request.dimension, method: request.method, metric: request.metric,
+        scope: request.scope, partition: request.partition, direction: request.direction,
+        config: { tie_tolerance: request.tie_tolerance, options: request.options,
+          comparison_mode: request.comparison_mode,
+          aggregation: request.method === "average_rank" ? "dataset_panel_mean" : "dataset_pair_mean", order: request.order },
+        interpretation: request.dimension === "pipeline" ? "observed_performance" : "observed_component_performance",
+        candidates: [], coverage: null, inference: null, convergence: null, uncertainty_kind: null,
+        score_direction: null, native_schema_version: null, provenance: { datasets: [], blocks: [], comparisons: [],
+          source_observations: 0, accepted_observations: 0, excluded: {}, matched_blocks: 0, comparison_rows: 0,
+          aggregation: request.method === "average_rank" ? "dataset_panel_mean" : "dataset_pair_mean",
+          dataset_weighting: request.method === "average_rank" ? "one row per dataset" : "one comparison per dataset and candidate pair" },
+        warnings: ["This exact filter and method configuration was not precomputed for this static snapshot."],
+        capabilities: { methods: ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"],
+          dimensions: ["pipeline", "model", "preprocessing_sequence", "preprocessing_operator", "feature_selection", "augmentation", "parameter", "split"],
+          analyses: ["ranking", "relative_gain", "mixed_effects", "fanova"],
+          deferred: { adjusted_interaction: "adjusted_interaction_backend_not_qualified" } } };
+    },
     planned: async () => bundle.planned,
 
     leaderboard: async ({ metric = "rmse", scope = "cv", partition, dataset, include_quarantined = false, limit = 200 } = {}) => {

@@ -1,0 +1,21 @@
+.quality-ranking { max-width: 1200px; }
+.quality-ranking .ranking-controls { display:flex; flex-wrap:wrap; gap:1rem; margin-block:1rem; }
+.quality-ranking label { display:flex; flex-direction:column; gap:.3rem; font-weight:600; }
+.quality-ranking select,.quality-ranking input,.quality-ranking textarea { font:inherit; padding:.5rem; max-width:100%; border:1px solid var(--border,#cbd5e1); border-radius:.3rem; background:var(--surface,#fff); color:inherit; }
+.quality-ranking button { font:inherit; padding:.6rem 1rem; cursor:pointer; }
+.quality-ranking :focus-visible { outline:3px solid #0072b2; outline-offset:2px; }
+.quality-ranking figure { margin:1.5rem 0; padding:1rem; border:1px solid var(--border,#cbd5e1); border-radius:.5rem; overflow-x:auto; }
+.quality-ranking table { border-collapse:collapse; width:100%; font-size:.9rem; }
+.quality-ranking th,.quality-ranking td { text-align:left; padding:.6rem; border-bottom:1px solid var(--border,#cbd5e1); overflow-wrap:anywhere; }
+.quality-ranking .ranking-plot { min-height:360px; min-width:280px; }
+.quality-ranking .ranking-plot-scroll { max-height:640px; overflow:auto; }
+.quality-ranking pre { white-space:pre-wrap; overflow-wrap:anywhere; }
+.quality-ranking .ranking-error { border-inline-start:4px solid #d55e00; padding:1rem; }
+.quality-ranking details { margin-block:1rem; }
+@media(max-width:600px) { .quality-ranking .ranking-controls { flex-direction:column; } .quality-ranking label { width:100%; } }
+/* Keep exact native values readable; wide tables scroll inside their figure. */
+.quality-ranking figure table { min-width:max-content; }
+.quality-ranking figure th,.quality-ranking figure td { white-space:nowrap; }
+.quality-ranking .component-analysis-controls fieldset { min-inline-size:0; max-inline-size:100%; }
+.quality-ranking .component-analysis-controls select[multiple] { min-height:8rem; }
+.quality-ranking .component-analysis-controls section,.quality-ranking .component-analysis-controls details { max-inline-size:100%; overflow-x:auto; }

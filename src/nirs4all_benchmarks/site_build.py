@@ -26,18 +26,30 @@ from pathlib import Path
 from typing import Any
 
 from nirs4all_benchmarks import __version__
+from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest, quality_ranking, quality_relative_gain
+from nirs4all_benchmarks.ranking.component_analysis import ComponentAnalysisRequest, component_analysis
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
 _WEB_DIR = Path(__file__).resolve().parent / "web"
 # Files copied verbatim into the static site (everything the SPA needs at runtime).
-_COPY = ["index.html", "app.js", "styles.css", "lib", "views", "vendor", "brand"]
+_COPY = ["index.html", "app.js", "styles.css", "lib", "views", "vendor", "brand", "generated"]
 
 
 def build_site(
-    store_root: str | Path, out_dir: str | Path, *, domain: str | None = "benchmarks.nirs4all.org"
+    store_root: str | Path, out_dir: str | Path, *, domain: str | None = "benchmarks.nirs4all.org",
+    ranking_requests: list[RankingRequest | dict[str, Any]] | None = None,
+    relative_gain_requests: list[RelativeGainRequest | dict[str, Any]] | None = None,
+    component_analysis_requests: list[ComponentAnalysisRequest | dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a fully static, client-side copy of the Arena from a store. Returns a summary."""
     out = Path(out_dir)
+    if len(ranking_requests or []) + len(relative_gain_requests or []) + len(component_analysis_requests or []) > 64:
+        raise ValueError("At most 64 explicit analysis snapshots may be requested per build")
+    ranking_configs = [r if isinstance(r, RankingRequest) else RankingRequest(**r) for r in ranking_requests or []]
+    gain_configs = [r if isinstance(r, RelativeGainRequest) else RelativeGainRequest(**r)
+                    for r in relative_gain_requests or []]
+    analysis_configs = [r if isinstance(r, ComponentAnalysisRequest) else ComponentAnalysisRequest(**r)
+                        for r in component_analysis_requests or []]
     out.mkdir(parents=True, exist_ok=True)
 
     # 1. copy the SPA
@@ -66,6 +78,11 @@ def build_site(
     with ArenaStore(store_root) as store:
         q = Queries(store)
         bundle = _build_bundle(store, q)
+        # Opt-in exact-request native snapshots; browsers retrieve rather than
+        # implement ranking. Request/config identities are stored with every entry.
+        bundle["quality_rankings"] = [quality_ranking(store, request) for request in ranking_configs]
+        bundle["quality_relative_gains"] = [quality_relative_gain(store, request) for request in gain_configs]
+        bundle["component_analyses"] = [component_analysis(store, request) for request in analysis_configs]
         (data_dir / "bundle.json").write_text(json.dumps(bundle, separators=(",", ":")), encoding="utf-8")
 
         execs = [r["execution_hash"] for r in store.query("SELECT execution_hash FROM executions")]
