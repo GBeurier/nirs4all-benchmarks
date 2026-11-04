@@ -11,6 +11,7 @@ from typing import Any
 
 from nirs4all_benchmarks import __version__
 from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest, quality_ranking, quality_relative_gain
+from nirs4all_benchmarks.ranking.component_analysis import ComponentAnalysisRequest, component_analysis
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
 # UploadFile must be importable at MODULE scope: with `from __future__ import
@@ -97,6 +98,15 @@ def create_app(store_root: str | Path | None = None) -> Any:
             return q.sweepable_parameters()
 
     # ── dataviz queries ────────────────────────────────────────────────
+    @app.post("/api/component-analysis")
+    def component_analysis_post(payload: ComponentAnalysisRequest) -> dict[str, Any]:
+        with ArenaStore(root) as store:
+            return component_analysis(store, payload)
+
+    @app.get("/api/component-analysis/requests")
+    def component_analysis_requests() -> dict[str, Any]:
+        return {"mode": "service", "requests": [], "methods": ["mixed_effects", "fanova"]}
+
     @app.post("/api/quality-relative-gain")
     def quality_relative_gain_post(payload: RelativeGainRequest) -> dict[str, Any]:
         with ArenaStore(root) as store:

@@ -229,11 +229,15 @@ def build_site_cmd(
         None, "--relative-gain-requests", exists=True, dir_okay=False,
         help="JSON file containing an array of exact paired relative gain request objects to precompute.",
     ),
+    component_analysis_requests: Path | None = typer.Option(
+        None, "--component-analysis-requests", exists=True, dir_okay=False,
+        help="JSON file containing exact mixed-effects or fANOVA analysis requests to precompute.",
+    ),
 ) -> None:
     """Build a fully static, client-side copy of the Arena (for GitHub Pages — no backend)."""
     from pydantic import ValidationError
 
-    from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest
+    from nirs4all_benchmarks.ranking import ComponentAnalysisRequest, RankingRequest, RelativeGainRequest
     from nirs4all_benchmarks.site_build import build_site
 
     def read_requests(path: Path | None, model: type, option: str) -> list:
@@ -249,9 +253,11 @@ def build_site_cmd(
 
     rankings = read_requests(ranking_requests, RankingRequest, "--ranking-requests")
     gains = read_requests(relative_gain_requests, RelativeGainRequest, "--relative-gain-requests")
-    if len(rankings) + len(gains) > 64:
-        raise typer.BadParameter("At most 64 ranking and relative gain snapshots may be requested in total")
-    summary = build_site(store, out, domain=domain or None, ranking_requests=rankings, relative_gain_requests=gains)
+    analyses = read_requests(component_analysis_requests, ComponentAnalysisRequest, "--component-analysis-requests")
+    if len(rankings) + len(gains) + len(analyses) > 64:
+        raise typer.BadParameter("At most 64 ranking, relative gain and component-analysis snapshots may be requested")
+    summary = build_site(store, out, domain=domain or None, ranking_requests=rankings, relative_gain_requests=gains,
+                         component_analysis_requests=analyses)
     console.print(f"[green]✓[/] static site built at [bold]{summary['out']}[/]: "
                   f"{summary['executions']} runs · {summary['pipelines']} pipelines · {summary['datasets']} datasets"
                   + (f" · {domain}" if domain else ""))

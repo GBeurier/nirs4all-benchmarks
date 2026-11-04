@@ -16,3 +16,6 @@
 /* Keep exact native values readable; wide tables scroll inside their figure. */
 .quality-ranking figure table { min-width:max-content; }
 .quality-ranking figure th,.quality-ranking figure td { white-space:nowrap; }
+.quality-ranking .component-analysis-controls fieldset { min-inline-size:0; max-inline-size:100%; }
+.quality-ranking .component-analysis-controls select[multiple] { min-height:8rem; }
+.quality-ranking .component-analysis-controls section,.quality-ranking .component-analysis-controls details { max-inline-size:100%; overflow-x:auto; }
