@@ -222,3 +222,23 @@ this batch. No scientific algorithm is duplicated in benchmark Python or UI.
 These links preserve the earlier review history and are not publication links
 for the expanded lot. The root agent will record replacement links after the
 combined gates. No request is merged by this work.
+
+
+## Complete replacement PRs
+
+After native, bindings, consumer and distribution qualification, the earlier PRs
+were closed without merging. The complete replacements are:
+
+- [Methods #50](https://github.com/GBeurier/nirs4all-methods/pull/50): all ranking
+  methods, native relative gains, static mixed effects/fANOVA, thin bindings and CI.
+- [Shared UI #3](https://github.com/GBeurier/nirs4all-ui/pull/3): native-result
+  ranking, gain, adjusted-effect and surrogate-importance views.
+- [Benchmarks #21](https://github.com/GBeurier/nirs4all-benchmarks/pull/21):
+  qualified evidence, original-observation designs, bounded source loading,
+  service/static/CLI orchestration and shared frontend integration.
+
+The benchmark pins UI commit `80b515e07f2241db7ba5e9239c32f3bc9e4e8d25` by
+immutable HTTPS reference. Local qualification includes all 349 benchmark cases,
+483 UI tests, 1,655 methods Python tests, 34 native targets and actual Chrome
+WASM execution. Remote CI status remains authoritative on each PR. Original
+refactor checkouts were left intact. No PR was merged.
