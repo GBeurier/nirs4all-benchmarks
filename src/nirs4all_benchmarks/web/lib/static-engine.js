@@ -58,11 +58,13 @@ function decodeTable(table, strings) {
 
 // Exact artifact retrieval only. Scientific execution stays in nirs4all-methods.
 function qualityRequest(params = {}) {
-  return { metric: "rmse", scope: "cv", partition: "validation", dimension: "pipeline",
+  const request = { metric: "rmse", scope: "cv", partition: "validation", dimension: "pipeline",
     method: "bradley_terry", direction: DIRECTION[String(params.metric || "rmse").toLowerCase()] || null,
     dataset: null, task: null, collection: null,
     protocol: null, operator: null, parameter: null, split_criterion: null, tie_tolerance: 0,
     options: {}, aggregation: "method_default", order: "dataset_candidate_lexical", comparison_mode: "observed", ...params };
+  request.direction ??= DIRECTION[String(request.metric).toLowerCase()] || null;
+  return request;
 }
 function canonicalRequest(value) {
   if (Array.isArray(value)) return value.map(canonicalRequest);
@@ -118,7 +120,8 @@ export async function createStaticApi(base = "/data") {
     qualityRelativeGainRequests: async () => ({ mode: "static", requests: (bundle.quality_relative_gains || []).map(
       ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
     qualityRelativeGain: async (params = {}) => {
-      const request = { ...qualityRequest(params), method: "relative_gain", effect_variances: null, ...params };
+      const request = { ...qualityRequest(params), method: params.method || "relative_gain",
+        effect_variances: params.effect_variances ?? null };
       const identity = JSON.stringify(canonicalRequest(request));
       const artifact = (bundle.quality_relative_gains || []).find((entry) =>
         JSON.stringify(canonicalRequest(entry.request)) === identity);
