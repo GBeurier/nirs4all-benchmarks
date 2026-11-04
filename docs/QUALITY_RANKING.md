@@ -125,3 +125,58 @@ request matching only. A different dataset, task, collection, scope, partition,
 operator, parameter, protocol, method or option returns
 `static_ranking_request_not_precomputed`; it never reuses a global ranking for a
 filtered cohort. No independent ranking algorithm exists in JavaScript.
+
+## Matched descriptive component comparisons
+
+`comparison_mode: matched` adds a strict rest-of-pipeline fingerprint to each
+comparison block. It supports model, preprocessing sequence/operator, feature
+selection, augmentation and operator-qualified parameter dimensions. A parameter
+context removes only the chosen parameter; other settings of the same operator
+remain fixed. Preprocessing-operator matching requires `operator` and compares
+its presence with absence, while preserving all other stages. Selected factor
+versions remain in candidate identities. Matched comparison requests for whole
+pipelines or split strategies are explicitly unsupported.
+
+Qualification is conservative: a full, explicit, unbranched linear graph with a
+single model is required; source graph metadata, operator versions, remaining
+parameters, fit scope, order and edge semantics stay in the context. Ambiguous
+roles, multiple target occurrences, branches, merges and unsafe edge contraction
+receive explicit exclusion reasons. Preprocessing sequences must be contiguous;
+feature selection and augmentation mask at most one selected node. Matched
+contrasts remain descriptive, with no randomization or causal identification
+claim. Adjusted mixed effects and interaction importance remain unqualified.
+
+## Paired relative gains and meta-analysis
+
+`POST /api/quality-relative-gain` accepts the flat ranking cohort fields with
+`method: relative_gain`, `baseline_id`, `candidate_id`, and optional
+`effect_variances: {dataset_id: relative_effect_sampling_variance}`. IDs must come
+from the candidate universe. The host uses exactly the same eligible matched
+cohort and its direct paired dataset means. An A/B and B/C comparison graph can
+support an indirect rating, but cannot establish an A/C loss ratio.
+
+Only strictly positive losses for known positive-loss metrics are eligible:
+RMSE, MSE, MAE, median absolute error, NRMSE and log loss. Zero/nonpositive values,
+R², accuracy and other arbitrary signed metrics are refused. The native
+`paired_relative_gain` computes `(baseline-candidate)/baseline`; positive gain
+means improvement. Without effect variances, mean gain and sample dispersion
+are descriptive and pooled gain/standard error are unavailable. Supplied
+variances must match the exact directly paired dataset IDs and be finite and
+strictly positive. They must describe the relative effect, including paired
+covariance; no fold variance or independence is inferred. The caller must assess
+independence of study dataset effects for DerSimonian–Laird random effects.
+
+The `n4a.quality-relative-gain/1` artifact contains `state`, `reason`, normalized
+`request`/`request_id`, cohort scalar fields, `baseline_id`, `candidate_id`,
+`candidates: [{id,label}]`, ordered `studies: [{dataset,baseline_loss,
+candidate_loss,effect_variance,matched_blocks}]`, native `result`
+(`n4m.relative_gain/1`, or null), the common `provenance`, warnings and capabilities.
+`provenance.study_dataset_ids` gives the exact ordering passed to the native
+kernel. `result.sample_sd` is descriptive effect dispersion, not a standard error.
+
+The API clients expose `qualityRelativeGain(request)` and
+`qualityRelativeGainRequests()`. Static builds accept opt-in
+`relative_gain_requests=[{baseline_id: ..., candidate_id: ..., ...}]` within the
+same total limit of 64 snapshots. Static retrieval matches the entire request,
+including variance map, and otherwise returns
+`static_relative_gain_request_not_precomputed` without numerical execution.
