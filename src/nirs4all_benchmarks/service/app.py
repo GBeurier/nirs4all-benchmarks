@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from nirs4all_benchmarks import __version__
+from nirs4all_benchmarks.ranking import RankingRequest, quality_ranking
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
 # UploadFile must be importable at MODULE scope: with `from __future__ import
@@ -96,6 +97,37 @@ def create_app(store_root: str | Path | None = None) -> Any:
             return q.sweepable_parameters()
 
     # ── dataviz queries ────────────────────────────────────────────────
+    @app.get("/api/quality-ranking/requests")
+    def quality_ranking_requests() -> dict[str, Any]:
+        from nirs4all_benchmarks.ranking.quality import CAPABILITIES
+
+        return {"mode": "service", "requests": [], "capabilities": CAPABILITIES}
+
+    @app.post("/api/quality-ranking")
+    def quality_ranking_post(payload: RankingRequest) -> dict[str, Any]:
+        with ArenaStore(root) as store:
+            return quality_ranking(store, payload)
+
+    @app.get("/api/quality-ranking")
+    def quality_ranking_get(
+        metric: str = "rmse", scope: str = "cv", partition: str = "validation",
+        dimension: str = "pipeline", method: str = "bradley_terry", direction: str | None = None,
+        dataset: str | None = None, task: str | None = None, collection: str | None = None,
+        protocol: str | None = None, operator: str | None = None, parameter: str | None = None,
+        split_criterion: str | None = None, tie_tolerance: float = 0.0,
+    ) -> dict[str, Any]:
+        from pydantic import ValidationError
+
+        try:
+            request = RankingRequest(metric=metric, scope=scope, partition=partition, dimension=dimension,
+                                     method=method, direction=direction, dataset=dataset, task=task,
+                                     collection=collection, protocol=protocol, operator=operator, parameter=parameter,
+                                     split_criterion=split_criterion, tie_tolerance=tie_tolerance)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        with ArenaStore(root) as store:
+            return quality_ranking(store, request)
+
     @app.get("/api/leaderboard")
     def leaderboard(
         metric: str = "rmse",
