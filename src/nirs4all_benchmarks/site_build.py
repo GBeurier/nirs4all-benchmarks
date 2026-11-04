@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from nirs4all_benchmarks import __version__
+from nirs4all_benchmarks.ranking import RankingRequest, quality_ranking
 from nirs4all_benchmarks.store import ArenaStore, Queries
 
 _WEB_DIR = Path(__file__).resolve().parent / "web"
@@ -34,10 +35,14 @@ _COPY = ["index.html", "app.js", "styles.css", "lib", "views", "vendor", "brand"
 
 
 def build_site(
-    store_root: str | Path, out_dir: str | Path, *, domain: str | None = "benchmarks.nirs4all.org"
+    store_root: str | Path, out_dir: str | Path, *, domain: str | None = "benchmarks.nirs4all.org",
+    ranking_requests: list[RankingRequest | dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a fully static, client-side copy of the Arena from a store. Returns a summary."""
     out = Path(out_dir)
+    if ranking_requests and len(ranking_requests) > 64:
+        raise ValueError("At most 64 explicit ranking snapshots may be requested per build")
+    ranking_configs = [r if isinstance(r, RankingRequest) else RankingRequest(**r) for r in ranking_requests or []]
     out.mkdir(parents=True, exist_ok=True)
 
     # 1. copy the SPA
@@ -66,6 +71,9 @@ def build_site(
     with ArenaStore(store_root) as store:
         q = Queries(store)
         bundle = _build_bundle(store, q)
+        # Opt-in exact-request native snapshots; browsers retrieve rather than
+        # implement ranking. Request/config identities are stored with every entry.
+        bundle["quality_rankings"] = [quality_ranking(store, request) for request in ranking_configs]
         (data_dir / "bundle.json").write_text(json.dumps(bundle, separators=(",", ":")), encoding="utf-8")
 
         execs = [r["execution_hash"] for r in store.query("SELECT execution_hash FROM executions")]

@@ -56,6 +56,21 @@ function decodeTable(table, strings) {
   return rows;
 }
 
+// Exact artifact retrieval only. Scientific execution stays in nirs4all-methods.
+function qualityRequest(params = {}) {
+  return { metric: "rmse", scope: "cv", partition: "validation", dimension: "pipeline",
+    method: "bradley_terry", direction: DIRECTION[String(params.metric || "rmse").toLowerCase()] || null,
+    dataset: null, task: null, collection: null,
+    protocol: null, operator: null, parameter: null, split_criterion: null, tie_tolerance: 0,
+    options: {}, aggregation: "method_default", order: "dataset_candidate_lexical", ...params };
+}
+function canonicalRequest(value) {
+  if (Array.isArray(value)) return value.map(canonicalRequest);
+  if (value && typeof value === "object") return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, canonicalRequest(value[key])]));
+  return value;
+}
+
 export async function createStaticApi(base = "/data") {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -98,6 +113,28 @@ export async function createStaticApi(base = "/data") {
     pipelines: async () => PIPELINES,
     operators: async () => bundle.operators,
     parameters: async () => bundle.parameters,
+    qualityRankingRequests: async () => ({ mode: "static", requests: (bundle.quality_rankings || []).map(
+      ({request_id, request, state, reason}) => ({request_id, request, state, reason})) }),
+    qualityRanking: async (params = {}) => {
+      const request = qualityRequest(params);
+      const identity = JSON.stringify(canonicalRequest(request));
+      const artifact = (bundle.quality_rankings || []).find((entry) =>
+        JSON.stringify(canonicalRequest(entry.request)) === identity);
+      if (artifact) return artifact;
+      return { schema_version: "n4a.quality-ranking/1", request_id: null, request,
+        state: "unavailable", reason: "static_ranking_request_not_precomputed",
+        dimension: request.dimension, method: request.method, metric: request.metric,
+        scope: request.scope, partition: request.partition, direction: request.direction,
+        config: { tie_tolerance: request.tie_tolerance, options: request.options,
+          aggregation: request.method === "average_rank" ? "dataset_panel_mean" : "dataset_pair_mean", order: request.order },
+        interpretation: request.dimension === "pipeline" ? "observed_performance" : "observed_component_performance",
+        candidates: [], coverage: null, inference: null, convergence: null, uncertainty_kind: null,
+        score_direction: null, native_schema_version: null, provenance: { datasets: [], blocks: [], comparisons: [] },
+        warnings: ["This exact filter and method configuration was not precomputed for this static snapshot."],
+        capabilities: { methods: ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"],
+          dimensions: ["pipeline", "model", "preprocessing_sequence", "preprocessing_operator", "feature_selection", "augmentation", "parameter", "split"],
+          deferred: { mixed_effects: "mixed_effects_backend_not_qualified", fanova: "fanova_backend_not_qualified" } } };
+    },
     planned: async () => bundle.planned,
 
     leaderboard: async ({ metric = "rmse", scope = "cv", partition, dataset, include_quarantined = false, limit = 200 } = {}) => {
