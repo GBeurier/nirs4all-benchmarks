@@ -11,8 +11,12 @@ simple bounded work. Each implementation block receives root review and tests.
 
 Retain Elo, Bradley–Terry, TrueSkill 1, named OpenSkill/Weng–Lin variants,
 average ranks/Friedman, and relative-gain meta-analysis. Exclude TrueSkill 2.
-Evaluate mixed effects and fANOVA through minimal static external builds with
-analysis-specific fixed configuration; defer expensive integrations with evidence.
+The maintainer subsequently approved integrating both static analysis backends,
+their bindings and measured optimized size increments before replacing the three
+project review requests. Gaussian random-intercept mixed effects and first/pair
+random-forest fANOVA are implemented with explicit analysis-specific contracts.
+Their qualified subsets, unavailable states and final package gates remain
+distinct from the initial feasibility probes.
 
 ## Questions and interpretation
 
@@ -130,10 +134,11 @@ assembly carry most risk. Deferred scope remains explicitly visible in PRs.
   randomized connected-panel counterprobes. Additional agent gates cover other
   CTest targets, catalog/ABI/generator/version checks and rebuilt WASM execution.
   Root found and required correction of a generated FFI import before approval.
-- Heavy backends: rfr native static linkage and mixeff native static fit plus an
-  Emscripten archive compilation are demonstrated. General mixed effects and
-  fANOVA remain deferred pending scientific and supported-target qualification;
-  see the methods dependency assessment and reproducible probe sources.
+- Initial heavy-backend assessment: rfr static linkage and mixeff static fit plus
+  an Emscripten archive compilation demonstrated feasibility. That assessment's
+  deferred delivery decision is superseded by the implemented, qualified subsets
+  described in the expanded-backend receipt below. General mixed-model families
+  and unsupported conditional domains are not implied by those subsets.
 - B: observed rankings, genuine average-rank panels, masked pair ratings,
   matched linear component contexts and paired gains implemented. Root reran
   52 focused native/service/static/context tests before the final automatic
@@ -155,22 +160,65 @@ assembly carry most risk. Deferred scope remains explicitly visible in PRs.
   The owning graph normalizer now preserves graph/node/edge semantics and
   `source_id`; strict matching refuses unqualified historical graphs. Rebuild
   affected stores from original exports; no automatic qualification is applied.
-- Final root benchmark regression: **320 passed, zero skipped**, with Node 24,
+- Initial ranking-only root benchmark regression: **320 passed, zero skipped**, with Node 24,
   native ranking enabled and real Chrome execution. Full Ruff and mypy checks
   pass. Final root UI regression: **480 passed**, typecheck and build pass.
   The final native DL correction also passes rebuilt WASM and direct root
   dominant-weight, wide-variance and subnormal-variance counterprobes.
 
-Implementation and review are complete. Publication consists of one pull request
-for each project, without merging or editing the original working checkouts.
+The initial ranking-only implementation and review are complete. The approved
+expanded backend and consumer lot is implemented; final combined package/pin,
+optimized size-accounting and regression receipts are owned by the root agent.
+Replacement publication follows those combined gates, one pull request per
+project, without merging or editing the original working checkouts.
 
 Native R/MATLAB wrappers and full multiplayer/team inference are not claimed by
 this batch. No scientific algorithm is duplicated in benchmark Python or UI.
 
-### Project review requests
+### Expanded backend and consumer qualification
 
-- [Methods PR #49](https://github.com/GBeurier/nirs4all-methods/pull/49)
-- [Benchmarks PR #20](https://github.com/GBeurier/nirs4all-benchmarks/pull/20)
-- [UI PR #2](https://github.com/GBeurier/nirs4all-ui/pull/2)
+- Methods ABI 2.22 exposes optional static Gaussian ML/REML random-intercept
+  fitting, native nonnegative loss/baseline normalization, and seeded rfr-backed
+  first/pair fANOVA under explicit independent uniform domains. C ABI and thin
+  Python/JS bindings preserve design order, source-supplied domains and atomic
+  statistical refusals. Backend-off builds expose unavailable states without a
+  fallback. Actual native and JS/WASM execution of both engines is demonstrated;
+  see methods `docs/MIXED_EFFECTS.md` and `docs/FANOVA.md` for contracts and limits.
+- Root's expanded native gate reports **34 CTest targets and 75 Python tests**
+  passed, along with the JS suites and actual mixed-effects/fANOVA WASM probes.
+  Analytic LMM and additive/pure-interaction forest probes check numerical
+  behavior rather than relying solely on successful linkage. Final optimized
+  installed/compressed size increments are recorded by the root measurement
+  workflow; historical unstripped feasibility archives are not size estimates.
+- Benchmarks commit `3c8b239` assembles qualified original observations, explicit
+  references/domains, model-qualified parameter slices, dataset and complete
+  evaluation-block random-intercept groups, and disjoint fANOVA training/held-out
+  identities. Raw cross-task loss pooling is refused; paired baseline ratios run
+  natively. Versioned artifacts cover service, exact static lookup and explicit
+  CLI request files. Categorical parameter IDs preserve integer/float semantics
+  through browser JSON. No scientific estimator is implemented in Python or TS.
+- Shared UI commits `ef3b7be` and `80b515e` provide native coefficient/SE/covariance,
+  variance-component and main/pair-importance tables and optional Plotly views.
+  Visible diagnostics include ML/REML, convergence, boundary flags, rank,
+  conditioning, likelihood, informative trees, variance remainder and held-out
+  RMSE/R², including negative R². Uncertainty types remain explicit.
+- Consumer qualification: **56 targeted Python tests**, including actual native
+  service/static delivery and Chrome rendering/identity/navigation probes;
+  **8 frontend boundary tests**; **11 shared ranking-domain tests**, including
+  the three new component-view cases. Typecheck/build, focused host mypy, Ruff
+  and diff checks pass. Root's final combined regression and immutable shared-UI
+  dependency pin are subsequent gates, not inferred from these targeted checks.
+- General mixed-model families, adjusted interaction coefficients, unsupported
+  conditional search spaces, R/MATLAB wrappers and causal attribution remain out
+  of scope. Split-strategy ranking retains its matched external-error contract;
+  no adjusted splitter-effect analysis is claimed.
 
-All three requests target main from isolated feature branches. None is merged.
+### Superseded project review requests — replacement pending
+
+- [Methods PR #49](https://github.com/GBeurier/nirs4all-methods/pull/49): earlier scope; superseded by the approved expanded lot. Replacement link pending.
+- [Benchmarks PR #20](https://github.com/GBeurier/nirs4all-benchmarks/pull/20): earlier scope; superseded by the approved expanded lot. Replacement link pending.
+- [UI PR #2](https://github.com/GBeurier/nirs4all-ui/pull/2): earlier scope; superseded by the approved expanded lot. Replacement link pending.
+
+These links preserve the earlier review history and are not publication links
+for the expanded lot. The root agent will record replacement links after the
+combined gates. No request is merged by this work.
