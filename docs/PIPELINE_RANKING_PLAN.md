@@ -121,3 +121,48 @@ assembly carry most risk. Deferred scope remains explicitly visible in PRs.
 - Branch in each project: `feat/pipeline-ranking-20261104`.
 - GitHub publishing identity verified as `GBeurier`; token never printed.
 - Block A implementation and heavy-library feasibility assessment started.
+
+### Reviewed implementation blocks
+
+- A: dependency-free C++ ranking and gain kernels, C ABI 2.21, Python and
+  JS/WASM bindings implemented. Root reran 22 Python parity/boundary tests,
+  eight dedicated native cases, the 456-case existing native runner, and 30
+  randomized connected-panel counterprobes. Additional agent gates cover other
+  CTest targets, catalog/ABI/generator/version checks and rebuilt WASM execution.
+  Root found and required correction of a generated FFI import before approval.
+- Heavy backends: rfr native static linkage and mixeff native static fit plus an
+  Emscripten archive compilation are demonstrated. General mixed effects and
+  fANOVA remain deferred pending scientific and supported-target qualification;
+  see the methods dependency assessment and reproducible probe sources.
+- B: observed rankings, genuine average-rank panels, masked pair ratings,
+  matched linear component contexts and paired gains implemented. Root reran
+  52 focused native/service/static/context tests before the final automatic
+  direction fix. Review required preserving residual edge positions, selected
+  model fit constraints and model position, and separating Friedman panels from
+  dependent pair replay. The helper's final 27 cases pass.
+- C: shared React ranking, comparison-count and relative-gain views implemented.
+  Root ran all 480 UI tests, typecheck and build. Review required presentation
+  ordering by native rank, grouping unranked graph components and distinguishing
+  posterior SD, descriptive effect SD and sampling standard error.
+- D: isolated React island, source-built bundle, exact static request selection,
+  runtime artifact validation and CLI snapshot files implemented. Eight real
+  Chrome cases, seven CLI cases, four frontend boundary tests, clean-cache npm
+  builds and wheel-from-sdist packaging checks pass. Root inspected the native
+  ranking and supplied-variance gain screenshots retained with provenance.
+- Independent final review demonstrated and corrected three defects: ambiguous
+  repeated parameter operators, dominant-weight cancellation in native DL
+  meta-analysis, and scientific source fields lost during pipeline ingestion.
+  The owning graph normalizer now preserves graph/node/edge semantics and
+  `source_id`; strict matching refuses unqualified historical graphs. Rebuild
+  affected stores from original exports; no automatic qualification is applied.
+- Final root benchmark regression: **320 passed, zero skipped**, with Node 24,
+  native ranking enabled and real Chrome execution. Full Ruff and mypy checks
+  pass. Final root UI regression: **480 passed**, typecheck and build pass.
+  The final native DL correction also passes rebuilt WASM and direct root
+  dominant-weight, wide-variance and subnormal-variance counterprobes.
+
+Implementation and review are complete. Publication consists of one pull request
+for each project, without merging or editing the original working checkouts.
+
+Native R/MATLAB wrappers and full multiplayer/team inference are not claimed by
+this batch. No scientific algorithm is duplicated in benchmark Python or UI.

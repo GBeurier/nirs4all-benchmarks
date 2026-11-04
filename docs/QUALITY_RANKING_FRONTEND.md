@@ -157,3 +157,15 @@ artifacts, a missing bundle, exact static cache misses, qualified component
 selectors, dataset lens changes, chart cleanup, delayed responses during
 navigation, and descriptive/supplied-variance relative gains. They skip explicitly
 when the built bundle, native ranking capability or Chrome is absent.
+
+## Review screenshots
+
+These previews use synthetic A/B/C candidates and controlled D1/D2/D3 datasets
+from the browser test fixture, not private or measured scientific datasets.
+They show actual libn4m results rendered by the pinned shared React components
+and Plotly. Captured on 2026-11-04 with Chrome DevTools after chart painting.
+The tables provide the same values and explain the different uncertainty types.
+
+![TrueSkill ranking with native values and an accessible table](images/quality-ranking.png)
+
+![Paired gains with supplied-variance meta-analysis and matching table](images/quality-relative-gain.png)
