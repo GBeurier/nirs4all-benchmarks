@@ -1,19 +1,16 @@
-"""RESOLVE IDS — recompute every Arena-owned hash; adopt engine-guaranteed ones.
+"""Resolve Arena indexing identities without claiming scientific verification.
 
-Adopted (engine-guaranteed, the Arena cannot recompute them without the data):
-``dataset_fingerprint``, ``schema/relation/plan`` fingerprints,
-``cv_instance_hash`` (= dag-ml ``fold_set_fingerprint``), ``split_instance_hash``,
-``engine_graph_fingerprint``, ``target_hash``.
-
-Recomputed (Arena-owned, for cross-producer dedup correctness): ``pipeline_dag_hash``
-(normalized Merkle graph), ``task_hash``, ``dataset_variant_hash``, ``split_spec_hash``,
-``cv_spec_hash``, ``rng_context_hash``, ``refit_strategy_hash``,
-``score_computation_hash``, and the composed ``run_condition_hash``.
+Dataset/schema/relation/plan, target, engine/controller, split/CV instance and
+sample-manifest identities remain producer-scoped and unverified. RNG/refit
+claims remain engine-scoped; absent claims use Arena metadata/spec identities.
+Arena computes pipeline/spec/score/condition hashes and preserves declared task
+and variant domains with their explicit identity basis. Execution identity always uses the computed normalized export
+hash; a submitted export-hash claim never determines execution identity.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from nirs4all_benchmarks.contract import ArenaRunExport
@@ -23,6 +20,7 @@ from nirs4all_benchmarks.identity import (
     compute_pipeline_dag_hash,
     fingerprint,
 )
+from nirs4all_benchmarks.identity.hashing import export_hash as compute_export_hash
 from nirs4all_benchmarks.identity.pipeline_dag import PipelineDagIdentity
 from nirs4all_benchmarks.scoring import ScoreComputationSpec
 
@@ -31,7 +29,10 @@ def _numeric_value(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
-        return float(value)
+        try:
+            return float(value)
+        except OverflowError:
+            return None
     return None
 
 
@@ -91,18 +92,10 @@ def _resolve_pipeline(export: ArenaRunExport) -> PipelineDagIdentity:
     elif pipe.nodes:
         source = {"nodes": [n.model_dump(mode="json", exclude_none=True) for n in pipe.nodes]}
     else:
-        # No structure at all → a single opaque node, so identity is still stable.
-        source = {"nodes": [{"node_id": "g0", "kind": "pipeline", "operator": pipe.human_label or "unknown"}]}
-    steps = None
-    if isinstance(pipe.model_extra, dict):
-        raw = pipe.model_extra.get("steps") or pipe.model_extra.get("expanded_config")
-        if isinstance(raw, list):
-            steps = raw
-    return compute_pipeline_dag_hash(
-        source,
-        engine_graph_fingerprint=pipe.engine_graph_fingerprint,
-        steps_for_identity_hash=steps,
-    )
+        raise ValueError("graph_missing")
+    identity = compute_pipeline_dag_hash(source, engine_graph_fingerprint=pipe.engine_graph_fingerprint)
+    return replace(identity, nirs4all_identity_hash=pipe.nirs4all_identity_hash)
+
 
 
 def _extract_pipeline_rows(
@@ -185,27 +178,31 @@ def _extract_pipeline_rows(
     return list(operators.values()), list(param_values.values()), nodes, node_params, edges, main_model
 
 
+def fold_set_cv_instance_hash(cv_spec_hash: str, fold_set_fingerprint: str, relation_fingerprint: str) -> str:
+    """CV instance key of an actual DAG fold set under one relation authority.
+
+    The canonical fold-set fingerprint binds the CV universe and the per-fold
+    train/validation members; the relation fingerprint binds the exclusions that
+    narrow fold-train views. Consumers recompute this key to accept a stored
+    fold-set identity, so an opaque or copied value is never trusted.
+    """
+    return fingerprint(
+        {
+            "spec": cv_spec_hash,
+            "fold_set_fingerprint": fold_set_fingerprint,
+            "relation_fingerprint": relation_fingerprint,
+        }
+    )
+
+
 def resolve_identities(export: ArenaRunExport) -> ResolvedExport:
     """Resolve all identity hashes + extracted dimension rows for an export."""
     dataset_fingerprint = export.dataset.dataset_fingerprint
 
-    task_hash = fingerprint(
-        {
-            "dataset_fingerprint": dataset_fingerprint,
-            "task_type": export.task.task_type,
-            "target_name": export.task.target_name,
-            "target_hash": export.task.target_hash,
-            "encoding": export.task.encoding,
-        }
-    )
-
-    dataset_variant_hash = fingerprint(
-        {
-            "dataset_fingerprint": dataset_fingerprint,
-            "task_hash": task_hash,
-            "variant_spec": export.dataset_variant.variant_spec,
-        }
-    )
+    # Declared identity domains are retained; Arena-derived hashes are separately
+    # verified against identity_basis.inputs by the v2 metadata validator.
+    task_hash = export.task.task_hash
+    dataset_variant_hash = export.dataset_variant.dataset_variant_hash
 
     split_spec_hash = fingerprint({"method": export.split.method, "params": export.split.params})
     split_instance_hash = export.split.split_instance_hash or fingerprint(
@@ -221,9 +218,14 @@ def resolve_identities(export: ArenaRunExport) -> ResolvedExport:
             "within_train_only": export.cv.within_train_only,
         }
     )
-    cv_instance_hash = export.cv.cv_instance_hash or fingerprint(
-        {"spec": cv_spec_hash, "summary": dict(export.cv.model_extra or {}).get("fold_summary", {})}
-    )
+    if export.cv.fold_set_fingerprint is not None and export.dataset.relation_fingerprint is not None:
+        cv_instance_hash = fold_set_cv_instance_hash(
+            cv_spec_hash, export.cv.fold_set_fingerprint, export.dataset.relation_fingerprint
+        )
+    else:
+        cv_instance_hash = export.cv.cv_instance_hash or fingerprint(
+            {"spec": cv_spec_hash, "summary": {}}
+        )
 
     rng_context_hash = export.rng.rng_context_hash or fingerprint(
         {
@@ -257,19 +259,19 @@ def resolve_identities(export: ArenaRunExport) -> ResolvedExport:
         refit_strategy_hash=refit_strategy_hash,
     )
 
-    scopes = {obs.scope for obs in export.scores.observations}
-    score_level = "cv" if "cv" in scopes or not scopes else sorted(scopes)[0]
+    scopes = {obs.scope or "unreported" for obs in export.scores.observations}
+    score_level = "cv" if "cv" in scopes else sorted(scopes)[0] if scopes else "unreported"
     score_spec = ScoreComputationSpec(
         score_version=export.scores.score_version,
-        metric_implementation=export.scores.metric_implementation or "nirs4all_benchmarks.scoring.metrics/1",
+        metric_implementation=export.scores.metric_implementation or "unreported",
         score_level=score_level,
-        aggregation_policy=export.scores.aggregation_policy or "macro_mean",
+        aggregation_policy=export.scores.aggregation_policy or "unreported",
     )
 
     # Execution identity: content hash over the condition + the export hash, so two
     # genuinely distinct runs of the same condition get distinct executions, but a
     # re-ingest of the same export collapses.
-    export_hash = export.arena_export_hash or fingerprint(export.to_manifest())
+    export_hash = compute_export_hash(export.to_manifest())
     execution_hash = fingerprint(
         {"run_condition": run_condition_hash, "export": export_hash, "execution_id": export.execution.execution_id}
     )

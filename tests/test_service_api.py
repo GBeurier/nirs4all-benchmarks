@@ -14,7 +14,7 @@ import pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
-from nirs4all_benchmarks.fixtures import generate_fixture_exports
+from conftest import rankable_fixture_exports as generate_fixture_exports
 from nirs4all_benchmarks.service import create_app
 from nirs4all_benchmarks.store import ArenaStore
 
@@ -72,7 +72,7 @@ def client(seeded_root: Path) -> TestClient:
 def test_healthz(client: TestClient):
     r = client.get("/api/healthz")
     assert r.status_code == 200
-    assert r.json()["status"] == "ok"
+    assert r.json()["status"] == "schema_3_header"
 
 
 def test_overview(client: TestClient):
@@ -145,8 +145,15 @@ def test_static_index_served(client: TestClient):
 def test_facets_and_pivot_endpoints(client: TestClient):
     keys = {f["facet_key"] for f in client.get("/api/facets").json()}
     assert "param:n_components" in keys  # always exposed (LIKE 'param:%')
-    pv = client.get("/api/pivot", params={"group_by": "param:n_components", "metric": "rmse", "scope": "cv"}).json()
+    params = {"group_by": "param:n_components", "metric": "rmse", "scope": "cv"}
+    unfiltered = client.get("/api/pivot", params=params).json()
+    assert unfiltered["rows"] == []
+    assert unfiltered["score_context"]["status"] == "withheld"
+    assert unfiltered["score_context"]["withheld"]["count"] > 0
+    dataset = client.get("/api/datasets").json()[0]["dataset_fingerprint"]
+    pv = client.get("/api/pivot", params={**params, "dataset": dataset}).json()
     assert pv["rows"]
+    assert pv["score_context"]["status"] == "single"
 
 
 def test_upload_file_multipart_does_not_500(client: TestClient):
@@ -161,16 +168,24 @@ def test_upload_file_multipart_does_not_500(client: TestClient):
 
 
 def test_stats_graph_composition_endpoints(client: TestClient):
-    st = client.get("/api/stats", params={"metric": "rmse", "scope": "cv"}).json()
+    params = {"metric": "rmse", "scope": "cv"}
+    unfiltered = client.get("/api/stats", params=params).json()
+    assert unfiltered["summary"] == {"n": 0}
+    assert unfiltered["values"] == [] and unfiltered["correlations"] == []
+    assert unfiltered["score_context"]["status"] == "withheld"
+    assert unfiltered["score_context"]["withheld"]["count"] > 0
+    dataset = client.get("/api/datasets").json()[0]["dataset_fingerprint"]
+    st = client.get("/api/stats", params={**params, "dataset": dataset}).json()
     assert st["summary"]["n"] > 0 and "values" in st
-    g = client.get("/api/graph", params={"kind": "pipelines", "metric": "rmse"}).json()
+    assert st["score_context"]["status"] == "single"
+    g = client.get("/api/graph", params={"kind": "pipelines", "metric": "rmse", "dataset": dataset}).json()
     assert "nodes" in g
-    c = client.get("/api/composition", params={"metric": "rmse"}).json()
+    c = client.get("/api/composition", params={"metric": "rmse", "dataset": dataset}).json()
     assert "rows" in c
 
 
 def test_upload_text_arena_export(client: TestClient):
-    from nirs4all_benchmarks.fixtures import generate_fixture_exports
+    from conftest import rankable_fixture_exports as generate_fixture_exports
 
     manifest = json.dumps(generate_fixture_exports()[0].to_manifest())
     r = client.post("/api/upload", data={"text": manifest, "collection": "fixtures"})
@@ -200,3 +215,53 @@ def test_uploaded_file_naming_a_server_path_is_not_followed(client: TestClient, 
                     data={"collection": "uploads", "target_datasets": ""})
     assert r.status_code == 400
     assert "TOP-SECRET" not in r.text
+
+
+@pytest.mark.parametrize("route", ["ingest", "upload-export", "upload-pipeline"])
+def test_f2_held_writer_returns_503_code_and_cleans_upload(tmp_path, monkeypatch, route):
+    import tempfile
+    from functools import partial
+
+    from test_arena_v2_work_review import residual_record
+
+    service_app = importlib.import_module("nirs4all_benchmarks.service.app")
+    monkeypatch.setattr(service_app, "ArenaStore", partial(ArenaStore, busy_timeout_ms=30))
+    root = tmp_path / "store"
+    source = residual_record()
+    payload = {"nodes": source["pipeline"]["nodes"]} if route == "upload-pipeline" else source
+    temporary = []
+    original = tempfile.mkstemp
+
+    def tracked(*args, **kwargs):
+        fd, path = original(*args, **kwargs)
+        temporary.append(Path(path))
+        return fd, path
+
+    monkeypatch.setattr(tempfile, "mkstemp", tracked)
+    with ArenaStore(root, busy_timeout_ms=30) as store, TestClient(create_app(root), raise_server_exceptions=False) as client:
+        writer = sqlite3.connect(store.db_path)
+        try:
+            writer.execute("BEGIN IMMEDIATE")
+            writer.execute("UPDATE arena_meta SET value=value")
+            if route == "ingest":
+                response = client.post("/api/ingest", json=source)
+            else:
+                response = client.post("/api/upload", files={"file": ("synthetic.json", json.dumps(payload), "application/json")})
+            assert response.status_code == 503, response.text
+            assert response.json() == {"detail": "arena_store_busy"}
+            assert not any(p.exists() for p in temporary)
+            if route != "ingest":
+                assert temporary
+            for table in ("executions", "ingestion_batches", "metadata_receipts", "pipeline_dags", "collections"):
+                assert store.count(table) == 0
+            assert list(store.arrays_dir.iterdir()) == list(store.exports_dir.iterdir()) == []
+        finally:
+            writer.rollback()
+            writer.close()
+        if route == "ingest":
+            response = client.post("/api/ingest", json=source)
+        else:
+            response = client.post("/api/upload", files={"file": ("synthetic.json", json.dumps(payload), "application/json")})
+        assert response.status_code == 200, response.text
+        assert not any(p.exists() for p in temporary)
+        assert store.count("pipeline_dags") == 1

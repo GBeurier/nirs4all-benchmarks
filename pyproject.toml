@@ -7,7 +7,7 @@ name = "nirs4all-benchmarks"
 dynamic = ["version"]
 description = "The Arena — a reproducible, scored, weights-free benchmark store and dataviz service for nirs4all / dag-ml NIRS pipelines."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "CeCILL-2.1 OR AGPL-3.0-or-later"
 license-files = ["LICENSE", "LICENSES/*.txt"]
 authors = [
@@ -30,7 +30,6 @@ classifiers = [
     "License :: OSI Approved",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
@@ -57,10 +56,11 @@ service = [
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0.9",
 ]
+project-service = ["nirs4all-benchmarks[service]", "nirs4all-access>=0.1,<0.2"]
 # Optional producer adapters. The Arena works without these (degraded paths);
 # install them only when ingesting live from the corresponding producer.
 nirs4all = ["nirs4all>=0.10"]
-dagml = ["dag-ml>=0.2.7"]
+dagml = ["dag-ml>=0.4.0"]
 datasets = ["nirs4all-datasets>=0.3.5", "pyyaml>=6.0"]
 repository = ["nirs4all-repository>=0.1.10; python_version >= '3.11'"]
 all = [
@@ -107,12 +107,13 @@ exclude = [
     "/data",
     "/scripts/collect_history.py",
     "/tests/test_history.py",
+    "/tests/test_arena_v2_history.py",
     "/tests/test_static_engine_parity.py",
 ]
 
 [tool.ruff]
 line-length = 120
-target-version = "py310"
+target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -128,7 +129,7 @@ ignore = [
 "tests/*" = ["B011", "E501"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 packages = ["nirs4all_benchmarks"]
 mypy_path = "src"
 plugins = ["pydantic.mypy"]

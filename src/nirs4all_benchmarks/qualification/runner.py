@@ -9,7 +9,7 @@ import os
 import subprocess
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -309,7 +309,7 @@ def run_qualification(manifest_path: str | Path) -> dict[str, Any]:
     qualification_report = QualificationReport.model_validate(
         {
             "schema_version": QUALIFICATION_REPORT_SCHEMA_VERSION,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "manifest": manifest_evidence,
             "scenario": {
                 "scenario_id": manifest.scenario.scenario_id,

@@ -1,13 +1,17 @@
 # Run the Arena dataviz service with a persistent store volume.
+#   # Explicit pinned conversion, outside the fresh store root:
+#   docker compose run --rm arena n4a-benchmarks convert-frozen-history --source /app/data/catalog-history-2026-09 --out /data/converted-history
+#   docker compose run --rm arena n4a-benchmarks ingest-history /data/converted-history --store /data/arena-store
 #   docker compose up --build
-#   # import measured results once:
-#   docker compose run --rm arena n4a-benchmarks ingest-history /app/data/catalog-history-2026-09 --store /data/arena-store
+# For an empty service instead, explicitly run n4a-benchmarks init first.
+# Schema 1 volumes are refused without migration. All converted history is unranked.
+# Publication remains gated; the existing live site is unchanged and stale.
 services:
   arena:
     build: .
     image: nirs4all-benchmarks:latest
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - arena-store:/data
     environment:

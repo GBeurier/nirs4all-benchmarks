@@ -23,7 +23,14 @@ from nirs4all_benchmarks.scoring import direction_of
 from nirs4all_benchmarks.scoring.metrics import METRIC_DIRECTION
 from nirs4all_benchmarks.store import ArenaStore
 
-from .observations import original_observations, pipeline_rows
+from .observations import (
+    CV_IDENTITY_SCOPES,
+    MIXED_CV_FOLD_GRANULARITY,
+    comparison_identity_reason,
+    cv_fold_granularity,
+    original_observations,
+    pipeline_rows,
+)
 
 METHODS = ["average_rank", "elo", "bradley_terry", "trueskill", "openskill"]
 DIMENSIONS = [
@@ -277,6 +284,7 @@ def _assemble_cohort(
     rows = batch.rows
     excluded: Counter[str] = Counter()
     accepted = []
+    cv_bindings: dict[str, bool] = {}
     for row in rows:
         reason = None
         if (
@@ -291,25 +299,8 @@ def _assemble_cohort(
             reason = "missing_or_nonfinite_metric"
         elif row["direction"] != req.direction:
             reason = "metric_direction_mismatch"
-        elif not all(
-            row[k]
-            for k in (
-                "dataset_fingerprint",
-                "dataset_variant_hash",
-                "pipeline_dag_hash",
-                "task_hash",
-                "task_type",
-                "score_computation_hash",
-                "split_indices_hash",
-            )
-        ):
-            reason = "missing_comparison_identity"
-        elif req.scope in {"cv", "fold"} and not row["engine_fold_set_fingerprint"]:
-            reason = "missing_actual_cv_identity"
-        elif req.scope == "fold" and row["fold_id"] is None:
-            reason = "missing_fold_identity"
-        elif req.scope in {"refit", "test"} and not row["refit_strategy_hash"]:
-            reason = "missing_refit_identity"
+        else:
+            reason = comparison_identity_reason(row, scope=req.scope, partition=req.partition, cv_bindings=cv_bindings)
         if reason:
             excluded[reason] += 1
         else:
@@ -318,6 +309,12 @@ def _assemble_cohort(
     artifact["provenance"]["accepted_observations"] = len(accepted)
     if not accepted:
         return _unavailable(artifact, "no_eligible_observations")
+    fold_granularity = cv_fold_granularity(req.scope, accepted)
+    if fold_granularity == MIXED_CV_FOLD_GRANULARITY:
+        return _unavailable(artifact, MIXED_CV_FOLD_GRANULARITY)
+    # Per-fold scores are averaged by the host across matched folds, never a native pooled OOF score.
+    fold_aggregation = "cv_fold_mean" if fold_granularity == "per_fold" else None
+    artifact["provenance"]["fold_aggregation"] = fold_aggregation
     if len({r["score_computation_hash"] for r in accepted}) > 1:
         return _unavailable(artifact, "ambiguous_protocol_requires_filter")
     if len({(r["task_type"], r["aggregation_level"]) for r in accepted}) > 1:
@@ -405,7 +402,8 @@ def _assemble_cohort(
                 "fold_id",
             )
         }
-        meta["cv_identity"] = row["engine_fold_set_fingerprint"] if req.scope in {"cv", "fold"} else None
+        meta["cv_identity"] = row["engine_fold_set_fingerprint"] if req.scope in CV_IDENTITY_SCOPES else None
+        meta["cv_instance_hash"] = row["cv_instance_hash"] if req.scope in CV_IDENTITY_SCOPES else None
         if req.comparison_mode == "matched":
             meta["rest_of_pipeline_fingerprint"] = component_contexts[pipe]["fingerprint"]
         # For splitter comparisons match the rest of the complete pipeline too.
@@ -498,6 +496,11 @@ def _assemble_cohort(
         "Dataset domains must support a stable common rating; indirect comparisons rely on that modeling assumption.",
         "Mean ranks on different candidate subsets are descriptive and may not be comparable.",
     ]
+    if fold_aggregation == "cv_fold_mean":
+        artifact["warnings"].append(
+            "CV values are host means of per-fold scores within matched folds; "
+            "they are not the producer's pooled avg/w_avg out-of-fold scores."
+        )
     if req.comparison_mode == "matched":
         artifact["warnings"].append(
             "Matched component comparisons hold the rest of the strict linear pipeline fixed; "

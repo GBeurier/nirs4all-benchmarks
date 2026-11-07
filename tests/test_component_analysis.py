@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import json
-import subprocess
 from types import SimpleNamespace
 
 import pytest
@@ -94,6 +93,78 @@ def test_original_rows_and_explicit_references_reach_native(tmp_path):
         assert all("task" in row and "block" in row for row in result["provenance"]["observations"])
 
 
+def populate_level_blocks(store, layout):
+    """Add two executions per dataset/split block for ``layout[dataset] = [(pipeline_id, operator, alpha), ...]``."""
+    count = 0
+    for dataset, pipelines in layout.items():
+        for split in ("s1", "s2"):
+            for pipeline, _, _ in pipelines:
+                for repeat in ("e1", "e2"):
+                    count += 1
+                    add(
+                        store,
+                        dataset,
+                        pipeline,
+                        0.2 + 0.001 * count,
+                        split=split,
+                        metric="nrmse",
+                        execution=f"{repeat}-{dataset}-{pipeline}-{split}",
+                    )
+    for pipelines in layout.values():
+        for pipeline, operator, alpha in pipelines:
+            graph = normalize_graph_spec(
+                [{"kind": "model", "operator": operator, "operator_version": "1", "params": {"alpha": alpha}}]
+            )[0]
+            store.update("pipeline_dags", "pipeline_dag_hash", pipeline, {"graph_json": json.dumps(graph)})
+    store.conn.commit()
+
+
+def test_mixed_effects_refuses_levels_never_sharing_a_block_before_compute(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        # A is observed only on D1/D2 and B only on D3/D4: beta_B would be a pure between-dataset contrast.
+        populate_level_blocks(
+            store,
+            {
+                "D1": [("A", "models.A", 1)],
+                "D2": [("A", "models.A", 1)],
+                "D3": [("B", "models.B", 1)],
+                "D4": [("B", "models.B", 1)],
+            },
+        )
+        calls = []
+
+        def estimator(*args, **kwargs):
+            calls.append(args)
+            return MixedCapture()(*args, **kwargs)
+
+        result = component_analysis(store, request(), estimator=estimator)
+        assert result["state"] == "unavailable"
+        assert result["reason"] == "categorical_levels_not_connected_within_blocks"
+        assert result["result"] is None and calls == []
+        assert result["provenance"]["accepted_observations"] == 16
+        assert any("not connected through shared evaluation blocks" in warning for warning in result["warnings"])
+
+
+def test_mixed_effects_accepts_levels_bridged_within_blocks_by_distinct_pipelines(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        # Full pipelines A1/B1 and A2/B2 never share a block, yet models A and B are compared in every block.
+        populate_level_blocks(
+            store,
+            {
+                "D1": [("A1", "models.A", 1), ("B1", "models.B", 1)],
+                "D2": [("A1", "models.A", 1), ("B1", "models.B", 1)],
+                "D3": [("A2", "models.A", 2), ("B2", "models.B", 2)],
+                "D4": [("A2", "models.A", 2), ("B2", "models.B", 2)],
+            },
+        )
+        capture = MixedCapture()
+        result = component_analysis(store, request(), estimator=capture)
+        assert result["state"] == "ready", result
+        assert len(capture.y) == 32 and {tuple(row) for row in capture.X} == {(1.0, 0.0), (1.0, 1.0)}
+        assert {row["pipeline"] for row in result["provenance"]["observations"]} == {"A1", "A2", "B1", "B2"}
+        assert len({row[0] for row in capture.groups}) == 4 and len({row[1] for row in capture.groups}) == 8
+
+
 def test_preview_and_missing_reference_preserve_domain_evidence(tmp_path):
     with ArenaStore(tmp_path) as store:
         populate(store)
@@ -116,7 +187,13 @@ def test_source_split_protocol_task_and_missing_runtime_refusals(tmp_path, monke
         monkeypatch.setattr(module, "_native", lambda: SimpleNamespace())
         assert component_analysis(store, request())["reason"] == "native_component_analysis_runtime_unavailable"
         store.conn.execute("UPDATE split_instances SET split_indices_hash=NULL")
+        # A bound fold set identifies CV validation rows without an outer-split identity.
         result = component_analysis(store, request(), estimator=MixedCapture())
+        assert "missing_comparison_identity" not in result["provenance"]["excluded"]
+        assert result["provenance"]["fold_granularity"] == "unfolded"
+        # Fold-train rows are relation-narrowed: they still need the absent outer-split identity.
+        store.conn.execute("UPDATE metric_observations SET partition='train'")
+        result = component_analysis(store, request(partition="train"), estimator=MixedCapture())
         assert result["reason"] == "no_eligible_original_observations"
         assert result["provenance"]["excluded"]["missing_comparison_identity"] == 12
     with ArenaStore(tmp_path / "history") as store:
@@ -222,30 +299,10 @@ def test_service_static_and_cli_exact_analysis_snapshots(tmp_path, monkeypatch):
     assert response.status_code == 200
     expected = response.json()
     assert expected["state"] == "ready", expected
-    build_site(root, tmp_path / "site", component_analysis_requests=[req])
-    bundle = json.loads((tmp_path / "site/data/bundle.json").read_text())
-    assert bundle["component_analyses"] == [expected]
-    from pathlib import Path
-
-    engine = Path(__file__).parents[1] / "src/nirs4all_benchmarks/web/lib/static-engine.js"
-    (tmp_path / "engine.mjs").write_text(engine.read_text())
-    (tmp_path / "driver.mjs").write_text("""
-import {readFileSync} from "node:fs";
-import {createStaticApi} from "./engine.mjs";
-globalThis.fetch = async () => ({ok:true,json:async()=>JSON.parse(readFileSync(process.argv[2],"utf8"))});
-const api=await createStaticApi(), request=JSON.parse(process.argv[3]);
-console.log(JSON.stringify(await Promise.all([api.componentAnalysis(request),
- api.componentAnalysis({...request, factors:[{...request.factors[0],reference:"models.B@1"}]}),
- api.componentAnalysis({...request, model_slice:"models.A@1"}),
- api.componentAnalysis({...request, preview_only:true})])));
-""")
-    results = json.loads(
-        subprocess.check_output(
-            ["node", str(tmp_path / "driver.mjs"), str(tmp_path / "site/data/bundle.json"), json.dumps(req)], text=True
-        )
-    )
-    assert results[0] == expected
-    assert all(result["reason"] == "static_component_analysis_request_not_precomputed" for result in results[1:])
+    # The publication gate is closed: no static snapshot or browser lookup can be built from this request.
+    with pytest.raises(ValueError, match="publication_gate_closed"):
+        build_site(root, tmp_path / "site", component_analysis_requests=[req])
+    assert not (tmp_path / "site").exists()
     assert (
         TestClient(create_app(root)).post("/api/component-analysis", json={**req, "formula": "arbitrary()"}).status_code
         == 422
@@ -273,9 +330,10 @@ def test_cli_accepts_component_requests_and_combined_snapshot_limit(tmp_path):
             str(path),
         ],
     )
-    assert result.exit_code == 0, result.output
-    bundle = json.loads((tmp_path / "site/data/bundle.json").read_text())
-    assert bundle["component_analyses"][0]["reason"] == "no_eligible_original_observations"
+    # The request file is valid; the closed publication gate refuses the build before any output exists.
+    assert result.exit_code == 1, result.output
+    assert "publication_gate_closed" in f"{result.exception} {result.output}"
+    assert not (tmp_path / "site").exists() and not (tmp_path / "empty").exists()
     path.write_text(json.dumps([request()] * 65))
     result = CliRunner().invoke(
         app, ["build-site", "--out", str(tmp_path / "oversize"), "--component-analysis-requests", str(path)]
@@ -388,9 +446,9 @@ def test_real_native_mixed_and_fanova_service_static_delivery(tmp_path):
     assert result["state"] == "ready", result
     assert result["result"]["feature_importance"][0]["fraction"] == pytest.approx(1)
     assert result["result"]["diagnostics"]["validation_r2"] < 0
-    build_site(root, tmp_path / "native-site", component_analysis_requests=[request(), fanova_request])
-    saved = json.loads((tmp_path / "native-site/data/bundle.json").read_text())["component_analyses"]
-    assert saved == [mixed, result]
+    with pytest.raises(ValueError, match="publication_gate_closed"):
+        build_site(root, tmp_path / "native-site", component_analysis_requests=[request(), fanova_request])
+    assert not (tmp_path / "native-site").exists()
 
 
 def test_categorical_parameter_integer_and_float_have_portable_distinct_ids(tmp_path):

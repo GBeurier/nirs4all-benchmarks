@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS dataset_cards (
 CREATE TABLE IF NOT EXISTS task_specs (
     task_hash           TEXT PRIMARY KEY,
     dataset_fingerprint TEXT REFERENCES dataset_fingerprints (dataset_fingerprint),
-    task_type           TEXT NOT NULL DEFAULT 'regression',
+    task_type           TEXT,
     target_name         TEXT,
     target_unit         TEXT,
     target_hash         TEXT,
@@ -192,7 +192,6 @@ CREATE TABLE IF NOT EXISTS split_specs (
 CREATE TABLE IF NOT EXISTS split_instances (
     split_instance_hash  TEXT PRIMARY KEY,
     split_spec_hash      TEXT REFERENCES split_specs (split_spec_hash),
-    rng_context_hash     TEXT,
     partition_summary_json TEXT NOT NULL DEFAULT '{}',
     split_indices_hash   TEXT
 );
@@ -202,22 +201,21 @@ CREATE TABLE IF NOT EXISTS cv_specs (
     method            TEXT NOT NULL DEFAULT 'none',
     n_folds           INTEGER,
     n_repeats         INTEGER,
-    nested            INTEGER NOT NULL DEFAULT 0,
-    within_train_only INTEGER NOT NULL DEFAULT 1,
+    nested            INTEGER,
+    within_train_only INTEGER,
     params_json       TEXT NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS cv_instances (
     cv_instance_hash          TEXT PRIMARY KEY,
     cv_spec_hash              TEXT REFERENCES cv_specs (cv_spec_hash),
-    rng_context_hash          TEXT,
     fold_summary_json         TEXT NOT NULL DEFAULT '{}',
     engine_fold_set_fingerprint TEXT
 );
 
 CREATE TABLE IF NOT EXISTS rng_contexts (
     rng_context_hash      TEXT PRIMARY KEY,
-    root_seed             INTEGER,
+    root_seed             TEXT,
     derivation            TEXT,
     framework_seeds_json  TEXT NOT NULL DEFAULT '{}',
     determinism_flags_json TEXT NOT NULL DEFAULT '{}'
@@ -290,13 +288,42 @@ CREATE TABLE IF NOT EXISTS executions (
     hardware            TEXT,
     time_ms             REAL,
     peak_mem_mb         REAL,
-    status              TEXT NOT NULL DEFAULT 'ok',
+    status              TEXT NOT NULL DEFAULT 'unreported',
     failure_code        TEXT,
     failure_message     TEXT,
-    oof_enforced        INTEGER NOT NULL DEFAULT 0,
-    unsafe_flags_json   TEXT NOT NULL DEFAULT '[]',
+    owner_pipeline_name TEXT,
+    visibility TEXT NOT NULL,
+    identity_basis_json TEXT NOT NULL,
+    identity_rankable   INTEGER NOT NULL,
+    oof_enforced        INTEGER,
+    group_leakage_checked INTEGER,
+    nested_cv_safe      INTEGER,
+    unsafe_flags_json   TEXT,
     validity_status     TEXT NOT NULL DEFAULT 'valid',   -- valid|quarantined|invalidated
     created_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS metadata_receipts (
+    arena_export_hash TEXT PRIMARY KEY,
+    receipt_json TEXT NOT NULL,
+    receipt_sha256 TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_executions_export_binding
+    ON executions (execution_hash, arena_export_hash);
+
+CREATE TABLE IF NOT EXISTS submitted_metadata (
+    arena_export_hash TEXT PRIMARY KEY,
+    execution_hash TEXT NOT NULL,
+    source_metadata_json TEXT NOT NULL,
+    source_metadata_sha256 TEXT NOT NULL,
+    normalized_provenance_sha256 TEXT NOT NULL,
+    normalized_dataset_card_sha256 TEXT NOT NULL,
+    dataset_card_hash TEXT REFERENCES dataset_cards (dataset_card_hash),
+    representation_kind TEXT NOT NULL,
+    profile_version INTEGER NOT NULL,
+    FOREIGN KEY (execution_hash, arena_export_hash)
+        REFERENCES executions (execution_hash, arena_export_hash)
 );
 
 CREATE TABLE IF NOT EXISTS score_sets (
@@ -317,6 +344,7 @@ CREATE TABLE IF NOT EXISTS metric_observations (
     metric_unit       TEXT,
     direction         TEXT,
     fold_id           TEXT,
+    source_fold_id    TEXT,
     partition         TEXT,
     aggregation_level TEXT,
     n_samples         INTEGER,
@@ -327,7 +355,7 @@ CREATE TABLE IF NOT EXISTS residual_sets (
     residual_set_id  TEXT PRIMARY KEY,
     execution_hash   TEXT REFERENCES executions (execution_hash),
     score_set_id     TEXT REFERENCES score_sets (score_set_id),
-    key              TEXT NOT NULL DEFAULT 'sample_id',   -- sample_id | positional (degraded)
+    key              TEXT,   -- sample_id | positional (degraded)
     partition_set_json TEXT NOT NULL DEFAULT '[]',
     parquet_path     TEXT,
     n_rows           INTEGER NOT NULL DEFAULT 0,
@@ -405,6 +433,14 @@ SELECT
     e.validity_status        AS execution_validity,
     e.status                 AS execution_status,
     e.producer_capsule,
+    e.owner_pipeline_name,
+    e.visibility,
+    e.identity_basis_json,
+    e.identity_rankable,
+    e.oof_enforced,
+    e.group_leakage_checked,
+    e.nested_cv_safe,
+    e.unsafe_flags_json,
     e.time_ms,
     rc.collection_id,
     rc.pipeline_dag_hash,
@@ -425,6 +461,7 @@ SELECT
     mo.metric_value,
     mo.direction,
     mo.fold_id,
+    mo.source_fold_id,
     mo.partition,
     mo.aggregation_level,
     mo.n_samples
@@ -433,3 +470,15 @@ JOIN run_conditions rc ON rc.run_condition_hash = e.run_condition_hash
 LEFT JOIN pipeline_dags pd ON pd.pipeline_dag_hash = rc.pipeline_dag_hash
 JOIN score_sets ss ON ss.execution_hash = e.execution_hash
 JOIN metric_observations mo ON mo.score_set_id = ss.score_set_id;
+
+-- Only completed, contextualized and explicitly safe v2 observations rank.
+CREATE VIEW IF NOT EXISTS v_ranked_metrics AS
+SELECT * FROM v_run_metrics
+WHERE execution_status = 'completed' AND execution_validity = 'valid' AND score_validity = 'valid'
+      AND identity_rankable = 1
+      AND oof_enforced = 1 AND group_leakage_checked = 1 AND nested_cv_safe = 1 AND unsafe_flags_json = '[]'
+      AND direction IS NOT NULL AND score_scope IS NOT NULL AND score_scope != 'unreported'
+      AND partition IS NOT NULL AND partition != 'unreported'
+      AND aggregation_level IS NOT NULL AND aggregation_level != 'unreported'
+      AND ((fold_id IS NOT NULL AND source_fold_id IS NULL) OR (fold_id IS NULL AND source_fold_id IS NOT NULL))
+      AND metric_value BETWEEN -1.7976931348623157e308 AND 1.7976931348623157e308;

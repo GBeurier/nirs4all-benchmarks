@@ -1,9 +1,7 @@
-"""Frozen identity regression contract (DATA_MANAGEMENT.md §9 step 5).
+"""Versioned fixture identity pins; old v1 proof remains intact.
 
-The pipeline_dag_hash and run_condition_hash of the fixtures must not drift: a
-change here means the canonical identity computation changed, which would silently
-break cross-version dedup. If this test fails intentionally, bump the relevant
-schema version and re-freeze the golden values.
+Sole v2 includes explicit evidence/context in identity. Native v2 pins below were
+observed from the deterministic synthetic generator, never a scientific fit.
 """
 
 from __future__ import annotations
@@ -30,6 +28,25 @@ GOLDEN_RUN_CONDITIONS = {
 }
 
 
+# Native v2 identity domain; do not reuse these for a v1 wire or store.
+GOLDEN_V2_RUN_CONDITIONS = {
+    "StdScaler→SNV→PLS(k=5)|Mock Corn": "07b18e88dbf54eb0",
+    "StdScaler→SNV→PLS(k=8)|Mock Corn": "778095a0e8225bb2",
+    "StdScaler→SNV→PLS(k=12)|Mock Corn": "f392d30ff964de3f",
+    "StdScaler→SNV→PLS(k=16)|Mock Corn": "54edb589e9a1fcb9",
+    "StdScaler→SNV→PLS(k=20)|Mock Corn": "1236286c3fc83394",
+    "[SNV→PLS | SG→PLS] → mean|Mock Corn": "6496a6f7f9eb9012",
+    "stack(SNV→PLS, SNV→RF)|Mock Corn": "cb925186587dfb34",
+    "StdScaler→SNV→PLS(k=5)|Mock Wheat": "acdc37d55594b077",
+    "StdScaler→SNV→PLS(k=8)|Mock Wheat": "03372ce1c1c21415",
+    "StdScaler→SNV→PLS(k=12)|Mock Wheat": "b7c2a92e5218f052",
+    "StdScaler→SNV→PLS(k=16)|Mock Wheat": "c82a3f9952a53405",
+    "StdScaler→SNV→PLS(k=20)|Mock Wheat": "82a70f4a70c91400",
+    "[SNV→PLS | SG→PLS] → mean|Mock Wheat": "43a897134689e1f2",
+    "stack(SNV→PLS, SNV→RF)|Mock Wheat": "4f2a93485cb2d9d4",
+}
+
+
 def test_fixture_count_and_distinct_pipelines():
     exps = generate_fixture_exports()
     assert len(exps) == 14
@@ -41,7 +58,9 @@ def test_run_condition_hashes_are_frozen():
     for exp in generate_fixture_exports():
         key = exp.pipeline.human_label + "|" + (exp.dataset.dataset_card.get("name") or "")
         got = resolve_identities(exp).run_condition_hash[:16]
-        assert got == GOLDEN_RUN_CONDITIONS[key], f"drift for {key}: {got}"
+        assert exp.arena_export_schema_version == 2
+        assert got == GOLDEN_V2_RUN_CONDITIONS[key], f"drift for {key}: {got}"
+        assert got != GOLDEN_RUN_CONDITIONS[key]  # Versioned identity change is explicit.
 
 
 def test_same_pipeline_different_dataset_shares_pipeline_hash():

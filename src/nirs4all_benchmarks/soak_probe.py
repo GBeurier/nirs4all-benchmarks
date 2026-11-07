@@ -17,7 +17,7 @@ import tempfile
 import time
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -348,7 +348,7 @@ def _summary(values: list[float]) -> dict[str, Any]:
 
 
 def _normalized_timestamp() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def run_plan(

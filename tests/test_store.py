@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from nirs4all_benchmarks import ARENA_SCHEMA_VERSION
-from nirs4all_benchmarks.store import ArenaStore, ArenaStoreVersionError
+from nirs4all_benchmarks.store import ArenaStore, ArenaStoreRefusal
 
 
 def test_schema_is_stamped(empty_store: ArenaStore):
@@ -28,7 +28,7 @@ def test_forward_incompatible_version_guard(tmp_path: Path):
     store.conn.execute(f"PRAGMA user_version = {ARENA_SCHEMA_VERSION + 1}")
     store.conn.commit()
     store.close()
-    with pytest.raises(ArenaStoreVersionError):
+    with pytest.raises(ArenaStoreRefusal):
         ArenaStore(tmp_path / "s")
 
 

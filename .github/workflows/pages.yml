@@ -7,18 +7,6 @@ name: pages
 # nirs4all-datasets is the medium-term plan).
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/pages.yml"
-      - "pyproject.toml"
-      - "VERSION"
-      - "src/nirs4all_benchmarks/**"
-      - "data/**"
-      - "frontend/**"
-      - "scripts/build-frontend.mjs"
-      - "package.json"
-      - "package-lock.json"
   workflow_dispatch:
 
 permissions:
@@ -34,6 +22,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Publication gate closed
+        run: |
+          echo publication_gate_closed
+          exit 1
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
@@ -49,7 +41,8 @@ jobs:
           uv pip install --python .venv -e .
       - name: Import real catalog runs + build static site
         run: |
-          .venv/bin/n4a-benchmarks ingest-history data/catalog-history-2026-09 --store ./pages-store
+          .venv/bin/n4a-benchmarks convert-frozen-history --out ./converted-history
+          .venv/bin/n4a-benchmarks ingest-history ./converted-history --store ./pages-store
           .venv/bin/n4a-benchmarks build-site --store ./pages-store --out ./site --domain benchmarks.nirs4all.org
       - uses: actions/upload-pages-artifact@v5
         with:

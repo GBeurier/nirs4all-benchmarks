@@ -94,3 +94,15 @@ catalog IDs directly and records an explicit evaluation protocol.
 
 The scored results follow this repository's CC-BY-4.0 content terms; dataset origins and their own
 licenses remain separate and are retained in the cards.
+
+
+Arena v2 intake refuses this immutable schema 1 reference pack. The explicit
+`n4a-benchmarks convert-frozen-history --out /separate/converted-history` command
+verifies the pinned source and emits a separate deterministic v2 artifact; it never
+rewrites this directory. Ingest only that output into a fresh v2 store. Historical
+positive/defaulted claims remain source claims, all observation levels and safety
+are unreported, and all history remains unranked. All 5,826 restricted records
+retain their restriction. Pages push publication is disabled and dispatch is
+closed pending the joint frontend batch and a separate root decision; the current
+live site remains online and stale. The private collector dependency refuses
+explicitly instead of being read or run. See docs/INGESTION.md for exact pins.

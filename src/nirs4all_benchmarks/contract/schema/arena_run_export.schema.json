@@ -1,182 +1,1654 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/GBeurier/nirs4all-benchmarks/schema/arena_run_export/1",
-  "title": "ArenaRunExport",
-  "description": "The weights-free, content-addressed ingestion contract of the Arena (DATA_MANAGEMENT.md §4). One bundle per execution.",
-  "type": "object",
-  "required": ["arena_export_schema_version", "dataset", "task", "dataset_variant", "pipeline"],
-  "properties": {
-    "arena_export_schema_version": { "type": "integer", "const": 1 },
-    "arena_export_hash": { "$ref": "#/$defs/sha256" },
-    "run_condition_hash": { "$ref": "#/$defs/sha256" },
-    "producer": {
-      "type": "object",
+  "$defs": {
+    "CVBlock": {
+      "additionalProperties": false,
       "properties": {
-        "capsule": { "type": "string" },
-        "nirs4all_version": { "type": ["string", "null"] },
-        "dag_ml_version": { "type": ["string", "null"] },
-        "dag_ml_data_version": { "type": ["string", "null"] },
-        "io_version": { "type": ["string", "null"] }
-      }
+        "cv_spec_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cv Spec Hash"
+        },
+        "cv_instance_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cv Instance Hash"
+        },
+        "fold_set_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fold Set Fingerprint"
+        },
+        "method": {
+          "default": "unreported",
+          "title": "Method",
+          "type": "string"
+        },
+        "n_folds": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Folds"
+        },
+        "n_repeats": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Repeats"
+        },
+        "within_train_only": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Within Train Only"
+        },
+        "nested": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nested"
+        }
+      },
+      "title": "CVBlock",
+      "type": "object"
+    },
+    "DatasetBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_card": {
+          "additionalProperties": true,
+          "title": "Dataset Card",
+          "type": "object"
+        },
+        "dataset_fingerprint": {
+          "title": "Dataset Fingerprint",
+          "type": "string"
+        },
+        "dataset_spec_ref": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset Spec Ref"
+        },
+        "n_features": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "maximum": 9223372036854775807,
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Features"
+        },
+        "n_samples": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "maximum": 9223372036854775807,
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Samples"
+        },
+        "plan_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Plan Fingerprint"
+        },
+        "producer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatasetProducerBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "relation_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relation Fingerprint"
+        },
+        "schema_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Schema Fingerprint"
+        },
+        "visibility": {
+          "default": "unreported",
+          "enum": [
+            "public",
+            "restricted",
+            "private",
+            "anonymized",
+            "unreported"
+          ],
+          "title": "Visibility",
+          "type": "string"
+        },
+        "visibility_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "producer_reported",
+                "unreported",
+                "local_policy"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Visibility Source"
+        }
+      },
+      "required": [
+        "dataset_fingerprint"
+      ],
+      "title": "DatasetBlock",
+      "type": "object"
+    },
+    "DatasetProducerBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "io_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Io Version"
+        }
+      },
+      "title": "DatasetProducerBlock",
+      "type": "object"
+    },
+    "DatasetVariantBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_variant_hash": {
+          "title": "Dataset Variant Hash",
+          "type": "string"
+        },
+        "sample_manifest_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Manifest Hash"
+        },
+        "variant_spec": {
+          "additionalProperties": true,
+          "title": "Variant Spec",
+          "type": "object"
+        }
+      },
+      "required": [
+        "dataset_variant_hash"
+      ],
+      "title": "DatasetVariantBlock",
+      "type": "object"
+    },
+    "ExecutionBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "execution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Id"
+        },
+        "failure_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Code"
+        },
+        "failure_message": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Message"
+        },
+        "hardware": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hardware"
+        },
+        "os": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Os"
+        },
+        "owner_pipeline_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner Pipeline Name"
+        },
+        "peak_mem_mb": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Mem Mb"
+        },
+        "status": {
+          "default": "unreported",
+          "enum": [
+            "ok",
+            "failed",
+            "cancelled",
+            "unreported"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "terminal_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "completed",
+                "incomplete",
+                "failed",
+                "cancelled"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Terminal Status"
+        },
+        "time_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Time Ms"
+        }
+      },
+      "title": "ExecutionBlock",
+      "type": "object"
+    },
+    "IdentityBases": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_fingerprint": {
+          "$ref": "#/$defs/IdentityBasis"
+        },
+        "dataset_variant_hash": {
+          "$ref": "#/$defs/IdentityBasis"
+        },
+        "task_hash": {
+          "$ref": "#/$defs/IdentityBasis"
+        }
+      },
+      "required": [
+        "dataset_fingerprint",
+        "task_hash",
+        "dataset_variant_hash"
+      ],
+      "title": "IdentityBases",
+      "type": "object"
+    },
+    "IdentityBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "additionalProperties": true,
+          "title": "Inputs",
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "owner_reported",
+            "arena_derived",
+            "source_declared_unverified"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Owner"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "IdentityBasis",
+      "type": "object"
+    },
+    "LeakageAttestation": {
+      "additionalProperties": false,
+      "properties": {
+        "group_leakage_checked": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Leakage Checked"
+        },
+        "nested_cv_safe": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nested Cv Safe"
+        },
+        "oof_enforced": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oof Enforced"
+        },
+        "unsafe_flags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unsafe Flags"
+        }
+      },
+      "title": "LeakageAttestation",
+      "type": "object"
+    },
+    "PipelineBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "controller_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Controller Fingerprint"
+        },
+        "engine_graph_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine Graph Fingerprint"
+        },
+        "graph": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph"
+        },
+        "graph_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Graph Ref"
+        },
+        "human_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Human Label"
+        },
+        "nirs4all_identity_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nirs4All Identity Hash"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/PipelineNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "pipeline_dag_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pipeline Dag Hash"
+        }
+      },
+      "title": "PipelineBlock",
+      "type": "object"
+    },
+    "PipelineNode": {
+      "additionalProperties": false,
+      "properties": {
+        "branch_path": {
+          "items": {},
+          "title": "Branch Path",
+          "type": "array"
+        },
+        "fit_scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fit Scope"
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kind"
+        },
+        "model_family": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Family"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "operator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator"
+        },
+        "operator_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Operator Version"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "role": {
+          "default": "unreported",
+          "title": "Role",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        }
+      },
+      "required": [
+        "node_id"
+      ],
+      "title": "PipelineNode",
+      "type": "object"
+    },
+    "ProducerBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "capsule": {
+          "default": "unreported",
+          "title": "Capsule",
+          "type": "string"
+        },
+        "dag_ml_data_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dag Ml Data Version"
+        },
+        "dag_ml_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dag Ml Version"
+        },
+        "io_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Io Version"
+        },
+        "nirs4all_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nirs4All Version"
+        },
+        "source_schema_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Schema Version"
+        }
+      },
+      "title": "ProducerBlock",
+      "type": "object"
+    },
+    "ProvenanceBlock": {
+      "additionalProperties": true,
+      "properties": {
+        "frozen_source": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Frozen Source"
+        },
+        "historical_source": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Historical Source"
+        },
+        "openlineage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Openlineage"
+        },
+        "prov_jsonld": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prov Jsonld"
+        },
+        "ro_crate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ro Crate"
+        }
+      },
+      "title": "ProvenanceBlock",
+      "type": "object"
+    },
+    "RNGBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "derivation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Derivation"
+        },
+        "determinism_flags": {
+          "additionalProperties": true,
+          "title": "Determinism Flags",
+          "type": "object"
+        },
+        "framework_seeds": {
+          "additionalProperties": true,
+          "title": "Framework Seeds",
+          "type": "object"
+        },
+        "rng_context_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rng Context Hash"
+        },
+        "root_seed": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "maximum": 18446744073709551615,
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Root Seed"
+        }
+      },
+      "title": "RNGBlock",
+      "type": "object"
+    },
+    "RefitBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "refit_strategy_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Refit Strategy Hash"
+        },
+        "selected_variant_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selected Variant Id"
+        },
+        "selection_scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Selection Scope"
+        },
+        "strategy": {
+          "default": "unreported",
+          "title": "Strategy",
+          "type": "string"
+        },
+        "train_scope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Train Scope"
+        }
+      },
+      "title": "RefitBlock",
+      "type": "object"
+    },
+    "ResidualsBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "inline": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "fold_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "group_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "origin_sample_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "partition": {
+                    "enum": [
+                      "train",
+                      "validation",
+                      "test",
+                      "final",
+                      "unreported"
+                    ]
+                  },
+                  "residual": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sample_id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "scope": {
+                    "enum": [
+                      "cv",
+                      "fold",
+                      "refit",
+                      "test",
+                      "view",
+                      "unreported"
+                    ]
+                  },
+                  "weight": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "y_pred": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "y_proba": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "items": {
+                          "type": "number"
+                        },
+                        "type": "array"
+                      }
+                    ]
+                  },
+                  "y_true": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "sample_id",
+                  "scope",
+                  "partition"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "key": {
+          "anyOf": [
+            {
+              "enum": [
+                "sample_id",
+                "positional"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key"
+        },
+        "pseudonymized": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pseudonymized"
+        },
+        "publishable": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "title": "Publishable",
+          "type": "object"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        }
+      },
+      "title": "ResidualsBlock",
+      "type": "object"
+    },
+    "ScoreObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_level": {
+          "anyOf": [
+            {
+              "enum": [
+                "sample",
+                "group",
+                "target",
+                "unreported"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Aggregation Level"
+        },
+        "coverage": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Coverage"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "min",
+                "max"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Direction"
+        },
+        "direction_source": {
+          "enum": [
+            "producer_reported",
+            "registry",
+            "unreported"
+          ],
+          "title": "Direction Source",
+          "type": "string"
+        },
+        "fold_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fold Id"
+        },
+        "metric_name": {
+          "minLength": 1,
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "metric_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric Unit"
+        },
+        "metric_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Metric Value"
+        },
+        "n_samples": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer",
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "N Samples"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "enum": [
+                "producer_reported",
+                "recomputed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "partition": {
+          "anyOf": [
+            {
+              "enum": [
+                "train",
+                "validation",
+                "test",
+                "final",
+                "unreported"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Partition"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "enum": [
+                "fold",
+                "cv",
+                "refit",
+                "test",
+                "view",
+                "unreported"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Scope"
+        },
+        "source_fold_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Fold Id"
+        }
+      },
+      "required": [
+        "metric_name",
+        "metric_value",
+        "direction",
+        "direction_source",
+        "scope",
+        "partition",
+        "aggregation_level",
+        "fold_id",
+        "source_fold_id"
+      ],
+      "title": "ScoreObservation",
+      "type": "object"
+    },
+    "ScoresBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation_policy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Aggregation Policy"
+        },
+        "completed_fold_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer",
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completed Fold Count"
+        },
+        "expected_fold_count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer",
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Fold Count"
+        },
+        "metric_implementation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric Implementation"
+        },
+        "observations": {
+          "items": {
+            "$ref": "#/$defs/ScoreObservation"
+          },
+          "title": "Observations",
+          "type": "array"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "enum": [
+                "producer_reported",
+                "recomputed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "score_computation_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score Computation Hash"
+        },
+        "score_version": {
+          "default": "unreported",
+          "title": "Score Version",
+          "type": "string"
+        }
+      },
+      "title": "ScoresBlock",
+      "type": "object"
+    },
+    "SplitBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "default": "unreported",
+          "title": "Method",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": true,
+          "title": "Params",
+          "type": "object"
+        },
+        "partition_summary": {
+          "additionalProperties": true,
+          "title": "Partition Summary",
+          "type": "object"
+        },
+        "split_instance_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Split Instance Hash"
+        },
+        "split_spec_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Split Spec Hash"
+        }
+      },
+      "title": "SplitBlock",
+      "type": "object"
+    },
+    "TaskBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "encoding": {
+          "additionalProperties": true,
+          "title": "Encoding",
+          "type": "object"
+        },
+        "target_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Hash"
+        },
+        "target_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Name"
+        },
+        "target_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Unit"
+        },
+        "task_hash": {
+          "title": "Task Hash",
+          "type": "string"
+        },
+        "task_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "regression",
+                "binary",
+                "multiclass",
+                "multilabel"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Type"
+        }
+      },
+      "required": [
+        "task_hash"
+      ],
+      "title": "TaskBlock",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/GBeurier/nirs4all-benchmarks/schema/arena_run_export/2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One weights-free, content-addressed export per ``execution``.",
+  "properties": {
+    "arena_export_hash": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arena Export Hash"
+    },
+    "arena_export_schema_version": {
+      "const": 2,
+      "title": "Arena Export Schema Version",
+      "type": "integer"
+    },
+    "cv": {
+      "$ref": "#/$defs/CVBlock"
     },
     "dataset": {
-      "type": "object",
-      "required": ["dataset_fingerprint"],
-      "properties": {
-        "dataset_fingerprint": { "$ref": "#/$defs/sha256" },
-        "schema_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
-        "relation_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
-        "plan_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
-        "dataset_card": { "type": "object" },
-        "visibility": { "enum": ["public", "restricted", "private", "anonymized"] },
-        "n_samples": { "type": ["integer", "null"], "minimum": 0 },
-        "n_features": { "type": ["integer", "null"], "minimum": 0 }
-      }
-    },
-    "task": {
-      "type": "object",
-      "required": ["task_hash"],
-      "properties": {
-        "task_hash": { "$ref": "#/$defs/sha256" },
-        "task_type": { "enum": ["regression", "binary", "multiclass", "multilabel"] },
-        "target_name": { "type": ["string", "null"] },
-        "target_unit": { "type": ["string", "null"] },
-        "target_hash": { "$ref": "#/$defs/sha256OrNull" }
-      }
+      "$ref": "#/$defs/DatasetBlock"
     },
     "dataset_variant": {
-      "type": "object",
-      "required": ["dataset_variant_hash"],
-      "properties": {
-        "dataset_variant_hash": { "$ref": "#/$defs/sha256" },
-        "variant_spec": { "type": "object" }
-      }
-    },
-    "pipeline": {
-      "type": "object",
-      "properties": {
-        "pipeline_dag_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "controller_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
-        "engine_graph_fingerprint": { "$ref": "#/$defs/sha256OrNull" },
-        "graph_ref": { "type": ["string", "null"] },
-        "graph": { "type": ["object", "null"] },
-        "nodes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["node_id"],
-            "properties": {
-              "node_id": { "type": "string" },
-              "role": { "type": "string" },
-              "operator": { "type": ["string", "null"] },
-              "operator_version": { "type": ["string", "null"] },
-              "params": { "type": "object" },
-              "branch_path": { "type": "array" },
-              "fit_scope": { "type": ["string", "null"] }
-            }
-          }
-        }
-      }
-    },
-    "split": { "$ref": "#/$defs/specInstance" },
-    "cv": {
-      "type": "object",
-      "properties": {
-        "cv_spec_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "cv_instance_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "method": { "type": "string" },
-        "n_folds": { "type": ["integer", "null"] },
-        "within_train_only": { "type": "boolean" }
-      }
-    },
-    "rng": {
-      "type": "object",
-      "properties": {
-        "rng_context_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "root_seed": { "type": ["integer", "null"] },
-        "derivation": { "type": ["string", "null"] },
-        "framework_seeds": { "type": "object" },
-        "determinism_flags": { "type": "object" }
-      }
-    },
-    "refit": {
-      "type": "object",
-      "properties": {
-        "refit_strategy_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "strategy": { "type": "string" }
-      }
+      "$ref": "#/$defs/DatasetVariantBlock"
     },
     "execution": {
-      "type": "object",
-      "properties": {
-        "execution_id": { "type": ["string", "null"] },
-        "status": { "enum": ["ok", "failed", "cancelled"] },
-        "time_ms": { "type": ["number", "null"] },
-        "peak_mem_mb": { "type": ["number", "null"] }
-      }
+      "$ref": "#/$defs/ExecutionBlock"
+    },
+    "identity_basis": {
+      "$ref": "#/$defs/IdentityBases"
     },
     "leakage_attestation": {
-      "type": "object",
-      "properties": {
-        "oof_enforced": { "type": "boolean" },
-        "group_leakage_checked": { "type": "boolean" },
-        "nested_cv_safe": { "type": "boolean" },
-        "unsafe_flags": { "type": "array", "items": { "type": "string" } }
-      }
+      "$ref": "#/$defs/LeakageAttestation"
     },
-    "scores": {
-      "type": "object",
-      "properties": {
-        "score_computation_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "score_version": { "type": "string" },
-        "observations": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["metric_name"],
-            "properties": {
-              "metric_name": { "type": "string" },
-              "metric_value": { "type": ["number", "null"] },
-              "direction": { "enum": ["min", "max"] },
-              "scope": { "enum": ["fold", "cv", "refit", "test", "view"] },
-              "fold_id": { "type": ["string", "null"] },
-              "partition": { "enum": ["train", "validation", "test", "final"] },
-              "aggregation_level": { "type": "string" },
-              "n_samples": { "type": ["integer", "null"] },
-              "coverage": { "type": ["number", "null"] }
-            }
-          }
+    "pipeline": {
+      "$ref": "#/$defs/PipelineBlock"
+    },
+    "producer": {
+      "$ref": "#/$defs/ProducerBlock"
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProvenanceBlock"
+        },
+        {
+          "type": "null"
         }
-      }
+      ],
+      "default": null
+    },
+    "refit": {
+      "$ref": "#/$defs/RefitBlock"
     },
     "residuals": {
-      "type": "object",
-      "properties": {
-        "ref": { "type": ["string", "null"] },
-        "key": { "enum": ["sample_id", "positional"] },
-        "pseudonymized": { "type": "boolean" },
-        "publishable": { "type": "object" },
-        "inline": { "type": ["array", "null"] }
-      }
+      "$ref": "#/$defs/ResidualsBlock"
     },
-    "provenance": { "type": ["object", "null"] }
-  },
-  "$defs": {
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "sha256OrNull": {
+    "rng": {
+      "$ref": "#/$defs/RNGBlock"
+    },
+    "run_condition_hash": {
       "anyOf": [
-        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        { "type": "null" }
-      ]
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Condition Hash"
     },
-    "specInstance": {
-      "type": "object",
-      "properties": {
-        "split_spec_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "split_instance_hash": { "$ref": "#/$defs/sha256OrNull" },
-        "method": { "type": "string" },
-        "params": { "type": "object" }
-      }
+    "scores": {
+      "$ref": "#/$defs/ScoresBlock"
+    },
+    "split": {
+      "$ref": "#/$defs/SplitBlock"
+    },
+    "task": {
+      "$ref": "#/$defs/TaskBlock"
     }
-  }
+  },
+  "required": [
+    "arena_export_schema_version",
+    "identity_basis",
+    "dataset",
+    "task",
+    "dataset_variant",
+    "pipeline"
+  ],
+  "title": "ArenaRunExport",
+  "type": "object"
 }

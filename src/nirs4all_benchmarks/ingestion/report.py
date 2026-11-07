@@ -16,7 +16,7 @@ class CleanReport:
     facts_written: dict[str, int] = field(default_factory=dict)
     dropped_fields: list[str] = field(default_factory=list)
     issues: list[dict[str, str]] = field(default_factory=list)
-    residual_key: str = "sample_id"
+    residual_key: str | None = None
     residual_rows: int = 0
     residuals_truncated: bool = False
     scores_recomputed: bool = False

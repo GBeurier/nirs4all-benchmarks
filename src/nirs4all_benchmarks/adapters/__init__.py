@@ -15,10 +15,15 @@ from __future__ import annotations
 
 from nirs4all_benchmarks.adapters.dagml_bundle import bundle_to_export
 from nirs4all_benchmarks.adapters.n4a_bundle import extract_n4a_recipe, n4a_pipeline_identity
-from nirs4all_benchmarks.adapters.nirs4all_workspace import WorkspaceAdapter, workspace_to_exports
+from nirs4all_benchmarks.adapters.nirs4all_workspace import (
+    WorkspaceAdapter,
+    WorkspaceAdapterError,
+    workspace_to_exports,
+)
 
 __all__ = [
     "WorkspaceAdapter",
+    "WorkspaceAdapterError",
     "bundle_to_export",
     "extract_n4a_recipe",
     "n4a_pipeline_identity",

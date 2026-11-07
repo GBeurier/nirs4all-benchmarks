@@ -157,7 +157,7 @@ schema version.
   "score_sets": 60, "metric_observations": 480, "residual_sets": 60,
   "collections": 2,
   "metrics": ["bias", "ccc", "mae", "mse", "r2", "rmse", "rpd", "rpiq"],
-  "schema_version": 1
+  "schema_version": 3
 }
 ```
 
@@ -979,3 +979,38 @@ Notes:
   body. `payload` may be an `ArenaRunExport`/dict manifest, a dag-ml bundle dict, a
   pipeline list/dict, a `Path` to a `.n4a`/`.json`/`.yaml` file, or raw JSON/YAML
   text.
+
+## Project-token API
+
+Project mode authenticates a Bearer token before reading the request body and derives
+the project from the verified principal. Reads require `arena.read`; ingestion requires
+`arena.add`. Unknown routes and foreign resources return 404 after authentication. The
+service does not expose uploads, API documentation, static files or a browser token flow.
+`GET /api/run/{execution_hash}/metadata` returns the first accepted source metadata
+fragments for that export, labelled `source_declared_unverified`. Client-supplied paths,
+URLs, citations and origin claims are data and are not followed or independently verified.
+The public sanitized receipt is separate. A submission declaring public dataset visibility
+is refused; a private submission can reference a public-origin dataset without mirroring it.
+The JSON body limit is 8 MiB; nesting, strings and arrays have further bounded limits.
+
+For `/api/run/{execution_hash}`, `rng.root_seed` is a canonical decimal string (or null), preserving the full unsigned 64-bit value. The `dataset` block describes the first accepted row for the dataset fingerprint and labels its association scope; its card key is `first_accepted_dataset_card_hash`. The `submission` block identifies the card for this export, or null. `/api/datasets` labels card fields as `first_accepted_fingerprint`. Exact submitted metadata remains available through `/metadata`.
+
+Private project receipts retain explicitly allowlisted user-declared labels verbatim; these labels are not automatically path-redacted. The public publication gate remains closed.
+
+The run detail `cv` dimension has no RNG field; use `rng` or `run_condition.rng_context_hash` for the per-run value. Split and CV dimensions describe declared conditions or opaque producer IDs, not necessarily realized assignments. Reuse of an adopted ID with conflicting declared facts returns 409 `identity_dimension_conflict`.
+
+Project run responses expose per-export submitted context with explicit reporting
+states. Execution lists use the per-export pipeline label; aggregate labels
+are scoped to the first accepted pipeline row. Offline responses do not expose
+the private context card and retain first-accepted label fields.
+The offline profile is for the trusted local store owner, not public distribution;
+`not_exposed` does not hide the card from that owner on disk. Public projections
+use selected public receipts only, and publication remains gated.
+
+Score comparisons are scoped by task and exact metric unit. Mixed-context
+aggregates are withheld instead of pooled; context metadata identifies the
+selection and withheld groups. Score routes accept a `task` hash to narrow the
+selection. Raw score details retain the submitted unit, including null.
+Homogeneous operator effects, pivot groups, graph nodes, composition rows and
+per-dataset summaries include their task hash and reported metric unit. Mixed
+groups remain withheld, and operator effects are ordered within each context.

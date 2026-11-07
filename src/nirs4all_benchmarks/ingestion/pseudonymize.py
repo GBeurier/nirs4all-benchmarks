@@ -30,8 +30,14 @@ class Pseudonymizer:
         """Get (or lazily create + persist) the store-global pseudonymization salt."""
         salt = store.get_meta(_SALT_META_KEY)
         if salt is None:
-            salt = os.urandom(16).hex()
-            store.set_meta(_SALT_META_KEY, salt)
+            if store.conn.in_transaction:
+                raise RuntimeError("pseudonymization salt must be provisioned before preparing rows")
+            store.conn.execute("INSERT OR IGNORE INTO arena_meta (key, value) VALUES (?, ?)",
+                               (_SALT_META_KEY, os.urandom(16).hex()))
+            store.conn.commit()
+            salt = store.get_meta(_SALT_META_KEY)
+            if salt is None:
+                raise RuntimeError("pseudonymization salt unavailable")
         return cls(salt)
 
     def map(self, raw: str | None) -> str | None:

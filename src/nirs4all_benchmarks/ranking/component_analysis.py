@@ -21,7 +21,13 @@ from nirs4all_benchmarks.scoring.metrics import METRIC_DIRECTION
 from nirs4all_benchmarks.store import ArenaStore
 
 from .contexts import _chain
-from .observations import original_observations
+from .observations import (
+    CV_IDENTITY_SCOPES,
+    MIXED_CV_FOLD_GRANULARITY,
+    comparison_identity_reason,
+    cv_fold_granularity,
+    original_observations,
+)
 from .relative_gain import POSITIVE_LOSSES
 
 SCALE_FREE_METRICS = {
@@ -215,6 +221,7 @@ def _observations(store: ArenaStore, req: ComponentAnalysisRequest, artifact: di
     accepted = []
     seen = set()
     chains: dict[str, tuple[Any, str | None]] = {}
+    cv_bindings: dict[str, bool] = {}
     for row in rows:
         reason = None
         if (
@@ -229,25 +236,8 @@ def _observations(store: ArenaStore, req: ComponentAnalysisRequest, artifact: di
             reason = "missing_or_nonfinite_metric"
         elif row["direction"] != req.direction:
             reason = "metric_direction_mismatch"
-        elif not all(
-            row[key]
-            for key in (
-                "dataset_fingerprint",
-                "dataset_variant_hash",
-                "pipeline_dag_hash",
-                "task_hash",
-                "task_type",
-                "score_computation_hash",
-                "split_indices_hash",
-            )
-        ):
-            reason = "missing_comparison_identity"
-        elif req.scope in {"cv", "fold"} and not row["engine_fold_set_fingerprint"]:
-            reason = "missing_actual_cv_identity"
-        elif req.scope == "fold" and row["fold_id"] is None:
-            reason = "missing_fold_identity"
-        elif req.scope in {"refit", "test"} and not row["refit_strategy_hash"]:
-            reason = "missing_refit_identity"
+        else:
+            reason = comparison_identity_reason(row, scope=req.scope, partition=req.partition, cv_bindings=cv_bindings)
         if reason is None:
             pipeline_id = row["pipeline_dag_hash"]
             if pipeline_id not in chains:
@@ -287,11 +277,17 @@ def _observations(store: ArenaStore, req: ComponentAnalysisRequest, artifact: di
                 "fold_id",
             )
         }
-        meta["actual_cv_identity"] = row["engine_fold_set_fingerprint"] if req.scope in {"cv", "fold"} else None
+        meta["actual_cv_identity"] = row["engine_fold_set_fingerprint"] if req.scope in CV_IDENTITY_SCOPES else None
+        meta["cv_instance_hash"] = row["cv_instance_hash"] if req.scope in CV_IDENTITY_SCOPES else None
         row["_block_id"] = fingerprint(meta)
         row["_block"] = meta
         accepted.append(row)
     artifact["provenance"]["excluded"] = dict(excluded)
+    fold_granularity = cv_fold_granularity(req.scope, accepted)
+    if fold_granularity == MIXED_CV_FOLD_GRANULARITY:
+        artifact["reason"] = MIXED_CV_FOLD_GRANULARITY
+        return []
+    artifact["provenance"]["fold_granularity"] = fold_granularity
     return accepted
 
 
@@ -341,6 +337,29 @@ def _factor_value(row: dict[str, Any], factor: AnalysisFactor) -> Scalar:
             raise ValueError("preprocessing_operator_version_mismatch")
         return f"{node['operator']}@{node['operator_version'] or 'unreported'}"
     return canonical_json(selected) if selected else "none"
+
+
+def _level_components(rows: list[dict[str, Any]], values: list[list[Scalar]], index: int) -> int:
+    """Count the connected groups of one factor's observed levels.
+
+    Two levels are connected when they occur in the same actual evaluation block,
+    whichever full pipelines carry them. A contrast between levels in different
+    groups rests only on exchangeable block effects, which the host does not assume.
+    """
+    parent: dict[str, str] = {}
+
+    def find(level: str) -> str:
+        while parent[level] != level:
+            parent[level] = parent[parent[level]]
+            level = parent[level]
+        return level
+
+    anchor: dict[str, str] = {}
+    for row, point in zip(rows, values, strict=True):
+        level = canonical_json(point[index])
+        parent.setdefault(level, level)
+        parent[find(level)] = find(anchor.setdefault(row["_block_id"], level))
+    return len({find(level) for level in parent})
 
 
 def _native() -> Any:
@@ -590,6 +609,13 @@ def component_analysis(
                 return _unavailable(artifact, "random_effect_groups_require_multiple_datasets_and_blocks")
             if len(datasets) + len(block_index) > 1024 or len(rows) * (len(datasets) + len(block_index)) > 4194304:
                 return _unavailable(artifact, "analysis_group_size_limit_requires_filter")
+            for i, factor in enumerate(req.factors):
+                if factor.kind == "categorical" and _level_components(rows, values, i) > 1:
+                    artifact["warnings"].append(
+                        f"Levels of factor {factor.name!r} are not connected through shared evaluation blocks, "
+                        "so its contrasts would rely only on between-block exchangeability; no fit was attempted."
+                    )
+                    return _unavailable(artifact, "categorical_levels_not_connected_within_blocks")
             result = compute(matrix, outcomes, groups, **req.options)
         else:
             if not req.training_datasets:

@@ -41,8 +41,9 @@ def validate_manifest(manifest: dict[str, Any]) -> list[str]:
     Returns a list of human-readable error strings (empty == valid). The Arena
     ingestion pipeline treats a non-empty list as a hard rejection at VERIFY.
     """
-    errors = sorted(_VALIDATOR.iter_errors(manifest), key=lambda e: list(e.absolute_path))
-    return [f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}" for e in errors]
+    errors = sorted(_VALIDATOR.iter_errors(manifest), key=lambda e: tuple(map(str, e.absolute_path)))
+    return [f"{'/'.join(str(p) for p in e.absolute_path) or '<root>'}: schema {e.validator} constraint failed"
+            for e in errors]
 
 
 __all__ = ["ARENA_RUN_EXPORT_SCHEMA", "RESIDUALS_PARQUET_COLUMNS", "validate_manifest"]

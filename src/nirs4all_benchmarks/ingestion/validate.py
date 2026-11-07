@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from nirs4all_benchmarks.contract import ArenaRunExport
+from nirs4all_benchmarks.contract.evidence import attestation_values
 
 if TYPE_CHECKING:
     from nirs4all_benchmarks.ingestion.resolve import ResolvedExport
@@ -17,7 +18,7 @@ class ValidationOutcome:
 
     issues: list[dict[str, str]] = field(default_factory=list)
     validity_status: str = "valid"  # valid | quarantined | rejected
-    residual_key: str = "sample_id"
+    residual_key: str | None = None
 
     def add(self, level: str, code: str, message: str) -> None:
         self.issues.append({"level": level, "code": code, "message": message})
@@ -34,7 +35,7 @@ def validate_export(
     quarantine_on_leakage: bool,
 ) -> ValidationOutcome:
     """Validate a resolved export; decide quarantine/degraded keying."""
-    out = ValidationOutcome()
+    out = ValidationOutcome(residual_key=export.residuals.key)
 
     # Dataset identity present (schema already guarantees the fingerprint string).
     if not export.dataset.dataset_fingerprint:
@@ -42,7 +43,7 @@ def validate_export(
         out.validity_status = "rejected"
 
     # Single-target task is the v1 indexing unit (DESIGN.md §2.5).
-    if export.task.task_type not in {"regression", "binary", "multiclass", "multilabel"}:
+    if export.task.task_type not in {None, "regression", "binary", "multiclass", "multilabel"}:
         out.add("error", "bad_task_type", f"unknown task_type '{export.task.task_type}'")
         out.validity_status = "rejected"
 
@@ -58,17 +59,17 @@ def validate_export(
 
     # Leakage honesty (DATA_MANAGEMENT.md §1.7 / §5).
     att = export.leakage_attestation
-    if not att.oof_enforced:
+    if attestation_values(att)["oof_enforced"] is not True:
         if quarantine_on_leakage:
             out.add(
                 "error",
                 "leakage_unattested",
-                "oof_enforced is false → quarantined (excluded from published views)",
+                "OOF safety is not attested → quarantined (excluded from published views)",
             )
             if not out.rejected:
                 out.validity_status = "quarantined"
         else:
-            out.add("warning", "leakage_unattested", "oof_enforced is false → ingested and flagged")
+            out.add("warning", "leakage_unattested", "OOF safety is not attested → ingested and flagged")
     if att.unsafe_flags:
         out.add("warning", "unsafe_flags", f"engine reported unsafe flags: {sorted(att.unsafe_flags)}")
 

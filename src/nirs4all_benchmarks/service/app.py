@@ -12,7 +12,8 @@ from typing import Any
 from nirs4all_benchmarks import __version__
 from nirs4all_benchmarks.ranking import RankingRequest, RelativeGainRequest, quality_ranking, quality_relative_gain
 from nirs4all_benchmarks.ranking.component_analysis import ComponentAnalysisRequest, component_analysis
-from nirs4all_benchmarks.store import ArenaStore, Queries
+from nirs4all_benchmarks.store import ArenaStore, ArenaStoreRefusal, Queries
+from nirs4all_benchmarks.store.arena_store import store_header_status
 
 # UploadFile must be importable at MODULE scope: with `from __future__ import
 # annotations` the route annotation `file: UploadFile | None` is a string that
@@ -33,7 +34,7 @@ def _store_root(explicit: str | Path | None) -> Path:
 
 
 def create_app(store_root: str | Path | None = None) -> Any:
-    """Build the ASGI app. Raises ``RuntimeError`` if the ``service`` extra is missing."""
+    """Build the unauthenticated, offline-only ASGI application."""
     try:
         from fastapi import Body, FastAPI, File, Form, HTTPException, Query
         from fastapi.responses import JSONResponse
@@ -61,43 +62,18 @@ def create_app(store_root: str | Path | None = None) -> Any:
 
     # ── meta ───────────────────────────────────────────────────────────
     @app.get("/api/healthz")
-    def healthz() -> dict[str, Any]:
-        return {
-            "status": "ok", "version": __version__, "store": str(root),
-            "store_exists": (root / "arena.sqlite").exists(),
-        }
+    def healthz() -> Any:
+        status = store_header_status(root)
+        return JSONResponse(status_code=200 if status["status"] == "schema_3_header" else 503,
+                            content={**status, "version":__version__, "fingerprint_checked":False})
 
-    @app.get("/api/overview")
-    def overview() -> dict[str, Any]:
-        with queries() as q:
-            return q.overview()
+    from nirs4all_benchmarks.service.routes import register_routes
 
-    @app.get("/api/collections")
-    def collections() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.collections()
+    register_routes(app, queries)
 
-    @app.get("/api/datasets")
-    def datasets() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.datasets()
-
-    @app.get("/api/pipelines")
-    def pipelines() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.pipelines()
-
-    @app.get("/api/operators")
-    def operators() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.operators()
-
-    @app.get("/api/parameters")
-    def parameters() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.sweepable_parameters()
-
-    # ── dataviz queries ────────────────────────────────────────────────
+    # ── observed ranking and native component analysis (offline service only) ──
+    # Deliberately not part of the shared routes: serve-project exposes only the
+    # right-scoped query routes of the accepted project service.
     @app.post("/api/component-analysis")
     def component_analysis_post(payload: ComponentAnalysisRequest) -> dict[str, Any]:
         with ArenaStore(root) as store:
@@ -149,139 +125,6 @@ def create_app(store_root: str | Path | None = None) -> Any:
         with ArenaStore(root) as store:
             return quality_ranking(store, request)
 
-    @app.get("/api/leaderboard")
-    def leaderboard(
-        metric: str = "rmse",
-        scope: str = "cv",
-        partition: str | None = None,
-        dataset: str | None = None,
-        task: str | None = None,
-        collection: str | None = None,
-        include_quarantined: bool = False,
-        limit: int = Query(200, le=2000),
-    ) -> dict[str, Any]:
-        with queries() as q:
-            return q.leaderboard(
-                metric=metric, scope=scope, partition=partition, dataset_fingerprint=dataset,
-                task_hash=task, collection_id=collection, include_quarantined=include_quarantined, limit=limit,
-            )
-
-    @app.get("/api/matrix")
-    def matrix(metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
-               include_quarantined: bool = False) -> dict[str, Any]:
-        with queries() as q:
-            return q.matrix(metric=metric, scope=scope, dataset_fingerprint=dataset,
-                            include_quarantined=include_quarantined)
-
-    @app.get("/api/runs")
-    def runs(
-        metric: str = "rmse",
-        scope: str = "cv",
-        dataset: str | None = None,
-        pipeline: str | None = None,
-        operator: str | None = None,
-        include_quarantined: bool = True,
-        limit: int = Query(500, le=100000),  # the Run explorer asks for every run (web/views/runs.js MAX_RUNS)
-    ) -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.run_explorer(
-                metric=metric, scope=scope, dataset_fingerprint=dataset, pipeline_dag_hash=pipeline,
-                operator=operator, include_quarantined=include_quarantined, limit=limit,
-            )
-
-    @app.get("/api/operator-effect")
-    def operator_effect(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
-        with queries() as q:
-            return q.operator_effect(metric=metric, scope=scope, dataset_fingerprint=dataset)
-
-    @app.get("/api/parameter-effect")
-    def parameter_effect(param: str, metric: str = "rmse", scope: str = "cv",
-                         dataset: str | None = None) -> dict[str, Any]:
-        with queries() as q:
-            return q.parameter_effect(param, metric=metric, scope=scope, dataset_fingerprint=dataset)
-
-    @app.get("/api/robustness")
-    def robustness(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.robustness(metric=metric, scope=scope, dataset_fingerprint=dataset)
-
-    # ── faceting / pivot / playground ──────────────────────────────────
-    @app.get("/api/facets")
-    def facets() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.facets()
-
-    @app.get("/api/facet-values")
-    def facet_values(key: str) -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.facet_values(key)
-
-    @app.get("/api/pivot")
-    def pivot(
-        group_by: str,
-        color_by: str | None = None,
-        metric: str = "rmse",
-        scope: str = "cv",
-        partition: str | None = None,
-        dataset: str | None = None,
-        include_quarantined: bool = False,
-        agg: str = "mean",
-    ) -> dict[str, Any]:
-        with queries() as q:
-            return q.pivot(
-                group_by=group_by, color_by=color_by, metric=metric, scope=scope, partition=partition,
-                dataset_fingerprint=dataset, include_quarantined=include_quarantined, agg=agg,
-            )
-
-    @app.get("/api/parallel")
-    def parallel(dimensions: str, metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
-                 include_quarantined: bool = False) -> dict[str, Any]:
-        dims = [d.strip() for d in dimensions.split(",") if d.strip()]
-        with queries() as q:
-            return q.parallel(dimensions=dims, metric=metric, scope=scope, dataset_fingerprint=dataset,
-                              include_quarantined=include_quarantined)
-
-    @app.get("/api/planned")
-    def planned() -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.planned()
-
-    @app.get("/api/graph")
-    def graph(kind: str = "pipelines", metric: str = "rmse", scope: str = "cv", dataset: str | None = None,
-              min_jaccard: float = 0.34) -> dict[str, Any]:
-        with queries() as q:
-            if kind == "operators":
-                return q.operator_graph(metric=metric, scope=scope, dataset_fingerprint=dataset)
-            return q.pipeline_graph(metric=metric, scope=scope, dataset_fingerprint=dataset, min_jaccard=min_jaccard)
-
-    @app.get("/api/composition")
-    def composition(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
-        with queries() as q:
-            return q.composition(metric=metric, scope=scope, dataset_fingerprint=dataset)
-
-    @app.get("/api/stats")
-    def stats(metric: str = "rmse", scope: str = "cv", dataset: str | None = None) -> dict[str, Any]:
-        with queries() as q:
-            return q.stats(metric=metric, scope=scope, dataset_fingerprint=dataset)
-
-    @app.get("/api/run/{execution_hash}")
-    def run_detail(execution_hash: str) -> dict[str, Any]:
-        with queries() as q:
-            detail = q.run_detail(execution_hash)
-            if detail is None:
-                raise HTTPException(status_code=404, detail="execution not found")
-            return detail
-
-    @app.get("/api/run/{execution_hash}/residuals")
-    def run_residuals(execution_hash: str, partition: str | None = None) -> list[dict[str, Any]]:
-        with queries() as q:
-            return q.residuals(execution_hash, partition=partition)
-
-    @app.get("/api/compare")
-    def compare(a: str, b: str, partition: str = "validation") -> dict[str, Any]:
-        with queries() as q:
-            return q.residual_compare(a, b, partition=partition)
-
     # ── ingestion (upload an ArenaRunExport manifest) ──────────────────
     @app.post("/api/ingest")
     def ingest(
@@ -289,15 +132,18 @@ def create_app(store_root: str | Path | None = None) -> Any:
         collection: str = Query("uploads"),
         as_release: bool = Query(False),
     ) -> dict[str, Any]:
-        from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
+        from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export, validate_metadata
 
+        validation = validate_metadata(payload)
+        if validation.status != "metadata_valid":
+            raise HTTPException(status_code=400, detail=validation.issues[0]["code"])
         store = ArenaStore(root)
         try:
             policy = IngestionPolicy(
                 collection_id=collection,
                 collection_kind="benchmark_release" if as_release else "user_run_collection",
             )
-            result = ingest_export(store, payload, policy=policy)
+            result = ingest_export(store, payload, policy=policy, _validated=validation)
         finally:
             store.close()
         return {
@@ -327,29 +173,32 @@ def create_app(store_root: str | Path | None = None) -> Any:
         import tempfile
 
         from nirs4all_benchmarks.ingestion import upload as do_upload
+        from nirs4all_benchmarks.ingestion.upload import prepare_upload
 
         targets = [t.strip() for t in target_datasets.split(",") if t.strip()]
-        store = ArenaStore(root)
+        tmp_path = None
         try:
             if file is not None and file.filename:
-                suffix = Path(file.filename).suffix or ".bin"
-                fd, tmp_path = tempfile.mkstemp(suffix=suffix)
-                try:
-                    with os.fdopen(fd, "wb") as fh:
-                        fh.write(await file.read())
-                    result = do_upload(store, tmp_path, collection_id=collection,
-                                       target_datasets=targets, as_release=as_release)
-                finally:
-                    os.unlink(tmp_path)
+                fd, tmp_path = tempfile.mkstemp(suffix=Path(file.filename).suffix or ".bin")
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(await file.read())
+                payload = prepare_upload(tmp_path)
             elif text:
-                # Request text is content, never a path on this server.
-                result = do_upload(store, text, collection_id=collection,
-                                   target_datasets=targets, as_release=as_release, allow_paths=False)
+                payload = prepare_upload(text, allow_paths=False)
             else:
                 raise HTTPException(status_code=400, detail="provide a file or text")
+            with ArenaStore(root) as store:
+                result = do_upload(store, payload, collection_id=collection, target_datasets=targets,
+                                   as_release=as_release, allow_paths=tmp_path is not None and payload == tmp_path)
             return result.to_json()
         finally:
-            store.close()
+            if tmp_path is not None:
+                os.unlink(tmp_path)
+
+    @app.exception_handler(ArenaStoreRefusal)
+    async def _store_refusal_handler(_request: Any, exc: ArenaStoreRefusal) -> Any:
+        return JSONResponse(status_code=503 if exc.code == "arena_store_busy" else 400,
+                            content={"detail": exc.code})
 
     @app.exception_handler(ValueError)
     async def _value_error_handler(_request: Any, exc: ValueError) -> Any:

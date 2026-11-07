@@ -24,8 +24,11 @@ RUN mkdir -p /data/arena-store
 VOLUME ["/data"]
 EXPOSE 8000
 
-# Seed nothing by default; the store is created on first request / ingest.
-# Import /app/data/catalog-history-2026-09 once to populate a fresh volume.
+# Seed nothing by default. Health stays uninitialized (503) until explicit init
+# or ingestion; querying an empty service can also create a fresh v2 store.
+# First explicitly convert the pinned source to /data/converted-history, then ingest
+# that v2 output into the separate fresh /data/arena-store. History stays unranked.
+# Existing schema 1 volumes are unsupported; no automatic migration or publication.
 CMD ["uvicorn", "--factory", "nirs4all_benchmarks.service.app:create_app", \
      "--host", "0.0.0.0", "--port", "8000"]
 

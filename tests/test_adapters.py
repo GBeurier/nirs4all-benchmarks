@@ -35,7 +35,7 @@ def _make_workspace(root: Path) -> Path:
     )
     steps = json.dumps([{"class": "sklearn.preprocessing.StandardScaler"},
                         {"model": {"class": "sklearn.cross_decomposition.PLSRegression"}, "params": {"n_components": 10}}])
-    conn.execute("INSERT INTO pipelines VALUES (?,?,?,?,?,?)", ("p1", "PLS", steps, "corn", "dh", "rmse"))
+    conn.execute("INSERT INTO pipelines VALUES (?,?,?,?,?,?)", ("p1", "PLS", steps, "corn", "a" * 64, "rmse"))
     rows = []
     for f in range(3):
         pid = f"pred_{f}"
@@ -58,31 +58,72 @@ def test_adapter_a_workspace(tmp_path: Path):
     assert len(exps) == 1
     exp = exps[0]
     assert exp.residuals.key == "positional"  # degraded keying (no stable sample id)
-    assert exp.leakage_attestation.oof_enforced is False  # honest
+    assert all(value is None for value in exp.leakage_attestation.model_dump().values())  # no factual attestation
+    assert exp.cv.n_folds is None  # Observed folds do not define the expected total.
+    assert exp.task.target_name is None
+    assert exp.refit.strategy == "unreported"
     with ArenaStore(tmp_path / "arena") as store:
         res = ingest_export(store, exp, policy=IngestionPolicy(collection_id="ws"))
         assert res.status == "committed"
         assert store.count("metric_observations") > 0
+        import pytest
+
+        from nirs4all_benchmarks.store import Queries
+        with pytest.raises(ValueError, match="positional"):
+            Queries(store).residual_compare(res.execution_hash, res.execution_hash)
+
+
+def test_workspace_missing_identity_and_failed_run_refusal(tmp_path: Path):
+    import pytest
+
+    workspace = _make_workspace(tmp_path)
+    with sqlite3.connect(workspace / "store.sqlite") as conn:
+        conn.execute("UPDATE pipelines SET dataset_hash = NULL")
+    with pytest.raises(ValueError, match="dataset_identity_required"):
+        workspace_to_exports(workspace)
+    with sqlite3.connect(workspace / "store.sqlite") as conn:
+        conn.execute("UPDATE pipelines SET dataset_hash = ?", ("a" * 64,))
+        conn.execute("DELETE FROM predictions")
+    with pytest.raises(ValueError, match="failed_run_identity_required"):
+        workspace_to_exports(workspace)
+    with sqlite3.connect(workspace / "store.sqlite") as conn:
+        for column in ("task_hash", "dataset_variant_hash", "status", "terminal_status", "task_type"):
+            conn.execute(f"ALTER TABLE pipelines ADD COLUMN {column} TEXT")
+        conn.execute("UPDATE pipelines SET task_hash = ?, dataset_variant_hash = ?, status = 'failed', terminal_status = 'incomplete', task_type = 'regression'",
+                     ("b" * 64, "c" * 64))
+    export = workspace_to_exports(workspace)[0]
+    with ArenaStore(tmp_path / "arena") as store:
+        result = ingest_export(store, export)
+        assert result.status == "committed" and result.terminal_status == "incomplete"
+        assert not export.scores.observations
 
 
 def test_adapter_b_bundle(tmp_path: Path):
     bundle = {
-        "bundle_id": "b1", "schema_version": 1, "graph_fingerprint": "a" * 64,
+        "selected_variant_id":"selected", "bundle_id": "b1", "schema_version": 1, "graph_fingerprint": "a" * 64,
         "campaign_fingerprint": "c" * 64, "controller_fingerprint": "d" * 64, "unsafe_flags": [],
         "refit_artifacts": [{"id": "r1"}],
-        "prediction_caches": [{"partition": "validation", "fold_id": "fold0",
+        "prediction_caches": [{"variant_label":"selected", "partition": "validation", "fold_id": "fold0",
                                "sample_ids": ["s1", "s2", "s3"], "values": [10.1, 10.9, 12.2],
                                "y_true": [10.0, 11.0, 12.0]}],
         "metadata": {"label": "dagml-pls"},
     }
-    reports = [{"partition": "validation", "level": "macro", "metrics": {"rmse": 0.31, "r2": 0.86}}]
-    exp = bundle_to_export(bundle, metric_reports=reports, n_samples=3, n_features=700)
+    reports = [{"variant_label":"selected", "partition": "validation", "level": "macro", "metrics": {"rmse": 0.31, "r2": 0.86}}]
+    exp = bundle_to_export(bundle, metric_reports=reports, n_samples=3, n_features=700,
+                           dataset_envelope={"dataset_fingerprint": "e" * 64},
+                           task={"task_hash": "f" * 64, "task_type": "regression"},
+                           dataset_variant={"dataset_variant_hash": "1" * 64},
+                           graph={"nodes":[{"node_id":"m","role":"model","operator":"synthetic.DAG"}]},
+                           identity_basis={key:{"kind":"owner_reported","owner":"synthetic-adapter"} for key in
+                                           ("dataset_fingerprint","task_hash","dataset_variant_hash")})
     assert exp.residuals.key == "sample_id"  # native sample keying
-    assert exp.leakage_attestation.oof_enforced is True  # dag-ml enforces OOF
+    assert all(value is None for value in exp.leakage_attestation.model_dump().values())  # bundle presence is no attestation
+    assert exp.execution.terminal_status is None
+    assert exp.dataset.visibility == "unreported"
     assert exp.pipeline.engine_graph_fingerprint == "a" * 64
     with ArenaStore(tmp_path / "arena") as store:
         res = ingest_export(store, exp, policy=IngestionPolicy(collection_id="dagml", collection_kind="benchmark_release"))
-        assert res.status == "committed"
+        assert res.status == "quarantined"
 
 
 def test_n4a_recipe_strips_weights(tmp_path: Path):

@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
 
@@ -74,7 +74,10 @@ jobs:
         run: docker build -t nirs4all-benchmarks:ci .
       - name: Smoke test
         run: |
-          docker run -d --name arena -p 8000:8000 nirs4all-benchmarks:ci
+          # Health refuses uninitialized/v1 volumes. This CI-only anonymous volume
+          # is explicitly initialized empty; no dataset/run or migration is seeded.
+          docker run -d --name arena -p 8000:8000 nirs4all-benchmarks:ci \
+            /bin/sh -c 'n4a-benchmarks init --store /data/arena-store && exec uvicorn --factory nirs4all_benchmarks.service.app:create_app --host 0.0.0.0 --port 8000'
           for i in $(seq 1 20); do
             if curl -sf http://127.0.0.1:8000/api/healthz; then echo " up"; exit 0; fi
             sleep 1
