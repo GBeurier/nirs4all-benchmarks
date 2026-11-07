@@ -206,7 +206,14 @@ def recompute_observations(
     """
     groups: dict[tuple[str, str | None, str], list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        key = (r.get("scope") or "cv", r.get("fold_id"), r.get("partition") or "validation")
+        if r.get("scope") not in {"cv", "fold", "test", "refit", "view"} or r.get("partition") not in {
+            "train",
+            "validation",
+            "test",
+            "final",
+        }:
+            raise ValueError("recompute_context_unsupported")
+        key = (r["scope"], r.get("fold_id"), r["partition"])
         groups[key].append(r)
 
     is_classification = task_type in {"binary", "multiclass", "multilabel"}
@@ -233,6 +240,8 @@ def recompute_observations(
                     "metric_name": name,
                     "metric_value": value,
                     "direction": direction_of(name),
+                    "direction_source": "registry",
+                    "source_fold_id": None,
                     "scope": scope,
                     "fold_id": fold_id,
                     "partition": partition,

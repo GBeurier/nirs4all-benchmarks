@@ -19,8 +19,8 @@ from nirs4all_benchmarks.version import __version__
 
 # Arena store / export contract versions. These are *frozen* numbers — bumping
 # one signals an incompatible on-disk or wire change (see DATA_MANAGEMENT.md §8).
-ARENA_SCHEMA_VERSION = 1
-ARENA_EXPORT_SCHEMA_VERSION = 1
+ARENA_SCHEMA_VERSION = 3
+ARENA_EXPORT_SCHEMA_VERSION = 2
 RESIDUALS_SCHEMA_VERSION = 1
 
 __all__ = [

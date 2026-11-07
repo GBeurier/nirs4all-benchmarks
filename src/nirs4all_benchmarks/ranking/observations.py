@@ -2,14 +2,88 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from nirs4all_benchmarks.ingestion.resolve import fold_set_cv_instance_hash
 from nirs4all_benchmarks.store import ArenaStore
 
 # This is a source-scan cap, distinct from each estimator's stricter design or
 # matrix cap. Overflow is a refusal, never an invitation to fit a truncated set.
 SOURCE_OBSERVATION_LIMIT = 100_000
+
+CV_IDENTITY_SCOPES = frozenset({"cv", "fold"})
+BASE_COMPARISON_IDENTITIES = (
+    "dataset_fingerprint",
+    "dataset_variant_hash",
+    "pipeline_dag_hash",
+    "task_hash",
+    "task_type",
+    "score_computation_hash",
+)
+MIXED_CV_FOLD_GRANULARITY = "mixed_cv_fold_granularity_requires_filter"
+
+
+def _actual_cv_identity_bound(row: Mapping[str, Any]) -> bool:
+    """Accept a stored fold-set identity only when its run-condition key recomputes from it."""
+    try:
+        summary = json.loads(row["fold_summary_json"] or "{}")
+    except (TypeError, ValueError):
+        return False
+    relation = summary.get("relation_fingerprint") if isinstance(summary, dict) else None
+    if not isinstance(relation, str) or not row["cv_spec_hash"]:
+        return False
+    return bool(
+        row["cv_instance_hash"]
+        == fold_set_cv_instance_hash(row["cv_spec_hash"], row["engine_fold_set_fingerprint"], relation)
+    )
+
+
+def comparison_identity_reason(
+    row: Mapping[str, Any], *, scope: str, partition: str, cv_bindings: dict[str, bool]
+) -> str | None:
+    """Return why a row lacks matched-comparison identity, or ``None`` when it is complete.
+
+    A positively bound DAG fold set replaces the actual outer-split identity only for
+    CV/fold validation rows: it binds the CV universe and each fold's validation
+    members. Train (relation-narrowed), refit, test, view and final rows still need
+    an actual outer-split identity, which no current producer reports. ``cv_bindings``
+    caches the binding check once per distinct CV instance.
+    """
+    fold_set_scoped = scope in CV_IDENTITY_SCOPES and partition == "validation"
+    required = BASE_COMPARISON_IDENTITIES if fold_set_scoped else (*BASE_COMPARISON_IDENTITIES, "split_indices_hash")
+    if not all(row[key] for key in required):
+        return "missing_comparison_identity"
+    if scope in CV_IDENTITY_SCOPES:
+        if not row["engine_fold_set_fingerprint"]:
+            return "missing_actual_cv_identity"
+        key = row["cv_instance_hash"]
+        if key not in cv_bindings:
+            cv_bindings[key] = _actual_cv_identity_bound(row)
+        if not cv_bindings[key]:
+            return "actual_cv_identity_requires_reingestion"
+    if scope == "fold" and row["fold_id"] is None:
+        return "missing_fold_identity"
+    if scope in {"refit", "test"} and not row["refit_strategy_hash"]:
+        return "missing_refit_identity"
+    return None
+
+
+def cv_fold_granularity(scope: str, rows: Iterable[Mapping[str, Any]]) -> str | None:
+    """Name the fold granularity of an accepted CV/fold cohort.
+
+    Returns ``per_fold`` for real fold rows, ``unfolded`` for rows without a fold id,
+    ``MIXED_CV_FOLD_GRANULARITY`` when both occur, and ``None`` outside CV scopes.
+    Per-fold rows are never the producer's pooled ``avg``/``w_avg`` OOF score.
+    """
+    if scope not in CV_IDENTITY_SCOPES:
+        return None
+    folded = {row["fold_id"] is not None for row in rows}
+    if folded == {True, False}:
+        return MIXED_CV_FOLD_GRANULARITY
+    return "per_fold" if True in folded else "unfolded"
 
 
 @dataclass(frozen=True)
@@ -55,6 +129,12 @@ def original_observations(
         "mo.partition=?",
         "NOT EXISTS (SELECT 1 FROM score_sets newer WHERE newer.supersedes_score_set_id=ss.score_set_id "
         "AND newer.validity_status='valid')",
+        # Sole-v2 rankability, as in v_ranked_metrics: unknown identity or attestations never rank.
+        "e.identity_rankable=1",
+        "e.oof_enforced=1",
+        "e.group_leakage_checked=1",
+        "e.nested_cv_safe=1",
+        "e.unsafe_flags_json='[]'",
     ]
     args: list[Any] = [metric, scope, partition]
     for column, value in (
@@ -87,7 +167,7 @@ def original_observations(
                   rc.dataset_fingerprint, rc.dataset_variant_hash, rc.task_hash,
                   rc.split_instance_hash, rc.cv_instance_hash, rc.refit_strategy_hash,
                   si.split_indices_hash, si.split_spec_hash,
-                  ci.engine_fold_set_fingerprint, ci.cv_spec_hash, ts.task_type """
+                  ci.engine_fold_set_fingerprint, ci.cv_spec_hash, ci.fold_summary_json, ts.task_type """
         + joins
         + """ LEFT JOIN split_instances si ON si.split_instance_hash=rc.split_instance_hash
              LEFT JOIN cv_instances ci ON ci.cv_instance_hash=rc.cv_instance_hash

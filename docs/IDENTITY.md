@@ -146,15 +146,16 @@ This is the `DATA_MANAGEMENT.md` §2 contract between "what the engine emits" an
 | `task_hash` | target + encoding identity | io `DatasetSpec` target + `task_type`; optional `target_vector_hash` | Recomputed |
 | `dataset_variant_hash` | view/subsample/aggregation of a dataset for a task | over `{dataset_fingerprint, task, variant_spec}` | Recomputed |
 | `pipeline_dag_hash` | topology-aware pipeline identity | dag-ml `graph_fingerprint` (normalized) | **Recomputed** (Arena Merkle hash; engine fingerprint recorded only) |
-| `cv_instance_hash` | the exact fold assignment | dag-ml `fold_set_fingerprint` | Adopted (engine) |
-| `split_instance_hash` | the exact external train/test split | dag-ml `SplitInvocation` fingerprint | Adopted (engine) |
+| `cv_instance_hash` | declared CV-condition key or opaque producer ID | optional producer value; with a declared `cv.fold_set_fingerprint`, derived over `{cv_spec_hash, fold_set_fingerprint, relation_fingerprint}` | Adopted or Arena-derived |
+| `engine_fold_set_fingerprint` (store) | actual CV assignment under one relation authority | only `cv.fold_set_fingerprint` (DAG canonical `fold_set_fingerprint`); never a copy of `cv_instance_hash` | Adopted; consumers accept it only when the run-condition key recomputes from it |
+| `split_instance_hash` | declared split-condition key or opaque producer ID | optional producer value; no `SplitInvocation` fingerprint is asserted | Adopted or Arena-derived |
 | `rng_context_hash` | seeds + determinism flags | dag-ml `SeedContext.root_seed` + derivation (+ framework seeds) | Recomputed |
 | `refit_strategy_hash` | selection + refit policy | dag-ml `SelectionDecision` + refit slot plan | Recomputed |
 | `score_computation_hash` | metric impl + scope + aggregation + version | Arena `ScoreComputationSpec` | Recomputed |
 | `run_condition_hash` | the natural identity of a condition | `compose(six component hashes)` | **Recomputed** (composition) |
 | `arena_export_hash` | idempotency key of an ingested export | SHA-256 of the canonical `ArenaRunExport` manifest | Recomputed (`export_hash`) |
 
-Even when the Arena **adopts** an engine fingerprint as the dimension key (folds, split, dataset, samples), it still **recomputes** its own composed hashes (`run_condition_hash`) so dedup stays correct across producers that may emit slightly different fingerprints. `pipeline_dag_hash` is deliberately the strongest case of "recompute, do not trust": the Arena computes its own self-contained Merkle hash and only *records* the engine's `graph_fingerprint` for verification/drift — see below.
+When the Arena **adopts** a producer-reported dimension key, it remains opaque and unverified; Arena still **recomputes** its own composed hashes (`run_condition_hash`) so dedup stays correct across producers that may emit slightly different fingerprints. `pipeline_dag_hash` is deliberately the strongest case of "recompute, do not trust": the Arena computes its own self-contained Merkle hash and only *records* the engine's `graph_fingerprint` for verification/drift — see below.
 
 ## `pipeline_dag_hash` in depth
 
@@ -282,3 +283,5 @@ n4a-benchmarks inspect-n4a path/to/model.n4a
 # pipeline_dag_hash: <64-hex>
 # nirs4all_identity_hash: <16-hex>
 ```
+
+Arena-derived split and CV keys describe declared conditions, not realized assignments or universal DAG hashes. Adopted values remain opaque: conflicting declared facts under one ID are refused rather than overwritten, including split parameters. A producer may reuse an assignment ID across generations with different declared facts and encounter this refusal. Per-run RNG belongs to the run condition; Arena does not assert that it produced the assignment.

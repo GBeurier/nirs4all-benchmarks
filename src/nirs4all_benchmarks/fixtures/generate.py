@@ -160,14 +160,15 @@ def _make_export(
         domain=dataset["domain"],
     )
     dataset_block = card_to_dataset_block(card)
+    dataset_block["visibility_source"] = "producer_reported"
     rng = np.random.default_rng(seed)
     sample_ids = [f"{dataset['id']}_{i:04d}" for i in range(dataset["n"])]
     y_true = rng.normal(dataset["mu"], dataset["sigma"], size=dataset["n"])
     residuals = _synth_residuals(seed, sample_ids, y_true, rmse, cv_folds)
 
     manifest: dict[str, Any] = {
-        "arena_export_schema_version": 1,
-        "producer": {"capsule": "fixture", "nirs4all_version": "0.10.0", "dag_ml_version": "0.1.0-alpha"},
+        "arena_export_schema_version": 2,
+        "producer": {"capsule": "fixture", "nirs4all_version": None, "dag_ml_version": None},
         "dataset": dataset_block,
         "task": {"task_hash": fingerprint({"d": dataset["id"], "t": "regression"}), "task_type": "regression",
                  "target_name": "reference", "target_unit": "g/100g"},
@@ -182,19 +183,28 @@ def _make_export(
                 "framework_seeds": {"numpy": seed, "sklearn": seed},
                 "determinism_flags": {"PYTHONHASHSEED": 0}},
         "refit": {"strategy": "global_best_params_full_train", "selection_scope": "oof", "train_scope": "full_train"},
-        "execution": {"execution_id": f"exec-{label}-{dataset['id']}", "status": "ok",
+        "execution": {"execution_id": f"exec-{label}-{dataset['id']}", "status": "unreported", "terminal_status": None,
                       "time_ms": float(rng.integers(500, 5000)), "peak_mem_mb": float(rng.integers(200, 900)),
                       "os": "linux", "hardware": "cpu-x86_64"},
-        "leakage_attestation": {"oof_enforced": True, "group_leakage_checked": True, "nested_cv_safe": True,
+        "leakage_attestation": {"oof_enforced": None, "group_leakage_checked": None, "nested_cv_safe": None,
                                 "unsafe_flags": []},
         "scores": {"score_version": "1.0", "observations": []},
         "residuals": {"key": "sample_id", "pseudonymized": False,
-                      "publishable": {"y_true": True, "y_pred": True, "residual": True},
+                      "publishable": {"y_true": True, "y_pred": True, "residual": True, "y_proba": False},
                       "inline": residuals},
     }
-    manifest["pipeline"]["_main_model"] = main_model
-    manifest["arena_export_hash"] = compute_export_hash(manifest)
-    return ArenaRunExport.model_validate(manifest)
+    from nirs4all_benchmarks.scoring import recompute_observations
+    manifest["identity_basis"] = {name:{"kind":"owner_reported", "owner":"synthetic_fixture"} for name in
+                                 ("dataset_fingerprint", "task_hash", "dataset_variant_hash")}
+    manifest["scores"].update(
+        metric_implementation="nirs4all_benchmarks.scoring.metrics/1",
+        aggregation_policy="macro_mean",
+        observations=recompute_observations(residuals, "regression"),
+    )
+    manifest["provenance"] = {"fixture":"synthetic; no scientific execution or qualification"}
+    model = ArenaRunExport.model_validate(manifest)
+    model.arena_export_hash = compute_export_hash(model.to_manifest())
+    return model
 
 
 def generate_fixture_exports() -> list[ArenaRunExport]:
@@ -352,7 +362,7 @@ def write_fixture_exports(out_dir: str | Path) -> list[Path]:
     paths: list[Path] = []
     for exp in generate_fixture_exports():
         manifest = exp.to_manifest()
-        path = out / f"arena_run_{manifest['arena_export_hash']}.json"
+        path = out / f"arena_run_{exp.arena_export_hash}.json"
         path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         paths.append(path)
     return paths

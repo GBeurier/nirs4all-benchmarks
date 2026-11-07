@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import os
-import shutil
-import subprocess
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -103,28 +99,7 @@ def test_native_gain_service_and_snapshot(tmp_path):
     assert result["result"]["meta_analysis"] == "dersimonian_laird"
     assert result["result"]["standard_error"] > 0
     assert result["provenance"]["study_dataset_ids"] == ["D1", "D2"]
-    build_site(root, tmp_path / "site", relative_gain_requests=[req])
-    bundle = json.loads((tmp_path / "site/data/bundle.json").read_text())
-    assert bundle["quality_relative_gains"] == [result]
-    node = shutil.which("node")
-    if node and int(subprocess.check_output([node, "-p", "process.versions.node.split('.')[0]"], text=True)) >= 18:
-        engine = Path(__file__).parents[1] / "src/nirs4all_benchmarks/web/lib/static-engine.js"
-        (tmp_path / "engine.mjs").write_text(engine.read_text())
-        (tmp_path / "driver.mjs").write_text("""
-import {readFileSync} from "node:fs";
-import {createStaticApi} from "./engine.mjs";
-globalThis.fetch = async () => ({ok:true,json:async()=>JSON.parse(readFileSync(process.argv[2],"utf8"))});
-const api = await createStaticApi();
-const request = JSON.parse(process.argv[3]);
-console.log(JSON.stringify(await Promise.all([
-  api.qualityRelativeGain({...request, direction:null}),
-  api.qualityRelativeGain({...request,effect_variances:{D1:0.1,D2:0.2}})])));
-""")
-        browser = json.loads(
-            subprocess.check_output(
-                [node, str(tmp_path / "driver.mjs"), str(tmp_path / "site/data/bundle.json"), json.dumps(req)],
-                text=True,
-            )
-        )
-        assert browser[0] == result
-        assert browser[1]["reason"] == "static_relative_gain_request_not_precomputed"
+    # The publication gate is closed: no static snapshot or browser lookup can be built from this request.
+    with pytest.raises(ValueError, match="publication_gate_closed"):
+        build_site(root, tmp_path / "site", relative_gain_requests=[req])
+    assert not (tmp_path / "site").exists()

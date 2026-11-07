@@ -126,6 +126,7 @@ def test_release_upload_quarantines_unattested_leakage_when_as_release(tmp_path:
 
     exp = generate_fixture_exports()[0]
     exp.leakage_attestation.oof_enforced = False
+    exp.arena_export_hash = None  # Intentional metadata edit invalidates the old claim.
     with ArenaStore(tmp_path / "a") as store:
         res = upload(store, exp.to_manifest(), collection_id="benchmark_release", as_release=True)
 
@@ -137,7 +138,7 @@ def test_release_upload_quarantines_unattested_leakage_when_as_release(tmp_path:
 
 
 def test_planned_fulfilled_by_execution(tmp_path: Path):
-    from nirs4all_benchmarks.fixtures import generate_fixture_exports
+    from conftest import rankable_fixture_exports as generate_fixture_exports
     from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
 
     exp = generate_fixture_exports()[0]
@@ -147,14 +148,14 @@ def test_planned_fulfilled_by_execution(tmp_path: Path):
         graph = exp.pipeline.graph
         register_pipeline(store, graph, collection_id="up", target_datasets=[df])
         assert store.count("planned_runs", "status = 'planned'") == 1
-        # now ingest a real execution for it → the plan is fulfilled
+        # now ingest a declared synthetic execution for it → the plan is fulfilled
         ingest_export(store, exp, policy=IngestionPolicy(collection_id="up"))
         assert store.count("planned_runs", "status = 'planned'") == 0
         assert store.count("planned_runs", "status = 'fulfilled'") == 1
 
 
 def test_facets_and_pivot_on_demo(tmp_path: Path):
-    from nirs4all_benchmarks.fixtures import seed_store
+    from conftest import seed_rankable_store as seed_store
 
     seed_store(tmp_path / "demo", collection_id="demo", demo=True)
     with ArenaStore(tmp_path / "demo") as store:
@@ -162,11 +163,20 @@ def test_facets_and_pivot_on_demo(tmp_path: Path):
         keys = {f["facet_key"] for f in q.facets()}
         assert {"model_family", "preprocessing_op", "has_augmentation", "split_method"} <= keys
         assert "param:n_components" in keys
+        dataset = q.datasets()[0]["dataset_fingerprint"]
         # augmentation on/off both present in the demo
-        aug = {r["group_value"] for r in q.pivot(group_by="has_augmentation", metric="rmse", scope="cv")["rows"]}
+        unfiltered_aug = q.pivot(group_by="has_augmentation", metric="rmse", scope="cv")
+        assert unfiltered_aug["score_context"]["status"] == "withheld"
+        assert unfiltered_aug["score_context"]["withheld"]["count"] > 0
+        aug = {r["group_value"] for r in q.pivot(group_by="has_augmentation", metric="rmse", scope="cv",
+                                                dataset_fingerprint=dataset)["rows"]}
         assert aug == {"yes", "no"}
         # multiple models present
-        models = {r["group_value"] for r in q.pivot(group_by="model_family", metric="rmse", scope="cv")["rows"]}
+        unfiltered_models = q.pivot(group_by="model_family", metric="rmse", scope="cv")
+        assert unfiltered_models["score_context"]["status"] == "withheld"
+        assert unfiltered_models["score_context"]["withheld"]["count"] > 0
+        models = {r["group_value"] for r in q.pivot(group_by="model_family", metric="rmse", scope="cv",
+                                                   dataset_fingerprint=dataset)["rows"]}
         assert len(models) >= 3
         # parallel coordinates rows carry the requested dimensions
         par = q.parallel(dimensions=["model_family", "param:n_components"], metric="rmse", scope="cv")
@@ -174,17 +184,23 @@ def test_facets_and_pivot_on_demo(tmp_path: Path):
 
 
 def test_pivot_numeric_param_ordering(tmp_path: Path):
-    from nirs4all_benchmarks.fixtures import seed_store
+    from conftest import seed_rankable_store as seed_store
 
     seed_store(tmp_path / "demo", collection_id="demo", demo=True)
     with ArenaStore(tmp_path / "demo") as store:
-        pv = Queries(store).pivot(group_by="param:n_components", metric="rmse", scope="cv")
+        q = Queries(store)
+        unfiltered = q.pivot(group_by="param:n_components", metric="rmse", scope="cv")
+        assert unfiltered["score_context"]["status"] == "withheld"
+        assert unfiltered["score_context"]["withheld"]["count"] > 0
+        dataset = q.datasets()[0]["dataset_fingerprint"]
+        pv = q.pivot(group_by="param:n_components", metric="rmse", scope="cv", dataset_fingerprint=dataset)
         nums = [r["group_num"] for r in pv["rows"] if r["group_num"] is not None]
+        assert nums
         assert nums == sorted(nums)
 
 
 def test_graph_and_composition_on_demo(tmp_path: Path):
-    from nirs4all_benchmarks.fixtures import seed_store
+    from conftest import seed_rankable_store as seed_store
 
     seed_store(tmp_path / "demo", collection_id="demo", demo=True)
     with ArenaStore(tmp_path / "demo") as store:
@@ -204,14 +220,15 @@ def test_graph_and_composition_on_demo(tmp_path: Path):
 
 
 def test_stats_on_demo(tmp_path: Path):
-    from nirs4all_benchmarks.fixtures import seed_store
+    from conftest import seed_rankable_store as seed_store
 
     seed_store(tmp_path / "demo", collection_id="demo", demo=True)
     with ArenaStore(tmp_path / "demo") as store:
-        st = Queries(store).stats(metric="rmse", scope="cv")
+        q = Queries(store)
+        st = q.stats(metric="rmse", scope="cv", dataset_fingerprint=q.datasets()[0]["dataset_fingerprint"])
         assert st["summary"]["n"] > 0
         assert {"mean", "median", "std", "p25", "p75"} <= set(st["summary"])
-        assert len(st["by_dataset"]) == 2
+        assert len(st["by_dataset"]) == 1
         assert st["values"]  # raw values for the histogram
         # numeric facets correlate; each entry has r in [-1, 1]
         assert all(-1.0 <= c["r"] <= 1.0 for c in st["correlations"])

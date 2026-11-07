@@ -1,5 +1,7 @@
 # ArenaRunExport v1 — the ingestion contract
 
+> Historical v1 reference only. Runtime accepts sole v2, defined in the final **Sole v2 contract authority** section and current schema/model. No v1 runtime compatibility remains.
+
 The one weights-free, content-addressed bundle the Arena ingests: one `ArenaRunExport` per `execution`. The engine (dag-ml driving a nirs4all run, with nirs4all-io supplying the dataset) emits it; the Arena ingests it with zero engine-internal knowledge. This page is the reference for the wire shape and how it is validated and keyed.
 
 The authoritative freeze contract is the JSON Schema at `src/nirs4all_benchmarks/contract/schema/arena_run_export.schema.json`. The pydantic models in `src/nirs4all_benchmarks/contract/arena_run_export.py` are the typed, validated Python view. The "why" lives in `DATA_MANAGEMENT.md` §4; do not read this page as a replacement for it.
@@ -34,12 +36,39 @@ The authoritative freeze contract is the JSON Schema at `src/nirs4all_benchmarks
 
 The schema is **frozen at v1**. `arena_export_schema_version` MUST be the integer `1` (the JSON Schema pins it with `"const": 1`). At ingest, an export whose `arena_export_schema_version` is anything other than `ARENA_EXPORT_SCHEMA_VERSION` (currently `1`) is rejected with code `unsupported_export_version` before schema validation runs. Bumping that constant signals an incompatible wire change.
 
-Every block is `extra="allow"` (pydantic) and the JSON Schema does not set `additionalProperties: false`, so a future producer can attach fields without breaking ingestion. The Arena validates only the fields it keys on. Unknown keys ride along in the stored manifest but do not affect identity beyond their contribution to `arena_export_hash`.
+Every block is `extra="allow"` (pydantic) and the JSON Schema does not set `additionalProperties: false`, so a future producer can attach fields without breaking ingestion. The Arena validates only the fields it keys on. Unknown keys contribute to the input export hash. Stored metadata receipts use an allowlist and omit free-form payloads; they are not replay inputs.
 
 Convention used in the field tables below:
 
 - **`<sha256>`** — a lowercase 64-hex SHA-256 string (`^[0-9a-f]{64}$`).
 - **Required?** — "yes" means the JSON Schema lists the field in a `required` array; the export is rejected at VERIFY if it is absent. "no" means optional; the typed view supplies the default shown.
+
+## Offline metadata semantics
+
+`validate_metadata(export)` and `n4a-benchmarks validate-export run.json` open no store and write nothing. Their outcome is `metadata_valid` or `rejected`, always with `scientific_verification: not_performed`. Stored `validity_status` remains a compatibility/policy field, not scientific validation. Malformed graphs, non-finite values and contradictory status pairs reject with safe typed issues.
+
+| `terminal_status` | Legacy `status` after defaults | Resolved status |
+|---|---|---|
+| absent/null | `ok` | `unreported` |
+| absent/null | `failed` / `cancelled` | Same status |
+| `completed` | `ok` | `completed` |
+| `incomplete` / `failed` | `failed` | Explicit terminal status |
+| `cancelled` | `cancelled` | `cancelled` |
+| Any other pair | Any | Reject `status_contradiction` |
+
+Legacy stored `ok` also means `unreported`. Nothing upgrades it to completion. Default score queries and statistics use `v_ranked_metrics`: completed executions, valid execution/score policy status and finite numeric scores. Failed, incomplete, cancelled and unreported outcomes remain inspectable, including outcomes without scores. `Queries(store, include_unreported=True)` is a labelled Python-only opt-in; it never includes failures or invalid scores. Static metrics packs always use strict selection and fail on zero rankable rows. Non-rankable executions are absent from static run files, so their inspection requires Python or the service. No existing site or store was rebuilt or migrated in this batch.
+
+Nullable additions to `scores` are `expected_fold_count` (positive integer), `completed_fold_count` (non-negative integer), and `origin` (`producer_reported` / `recomputed`); observations also accept nullable `origin`. Expected count is explicit, with `cv.n_folds` as the existing fallback. Fewer observed distinct fold ids than expected contradicts a `completed` declaration. Explicit counts must agree with fold rows. Aggregate-only observations report `fold_coverage: not_reported`; missing fold rows do not themselves prove incompleteness. Observed fold count never supplies the expected count.
+
+`leakage_attestation.reported_fields` is nullable. An explicit empty list means no boolean attestation was reported, even though legacy boolean defaults remain in the normalized hash domain. Adapters use this marker rather than asserting false or true safety. Private visibility chosen by an adapter is a conservative local sharing policy, not evidence of private origin. Missing native visibility is reported/stored as `unreported`; the v1 public default is retained only in its hash domain.
+
+Hash claims have three classes:
+
+- Arena-domain `arena_export_hash`, `run_condition_hash`, `pipeline_dag_hash`, `score_computation_hash`, `split_spec_hash`, `cv_spec_hash`: recompute and reject mismatch.
+- Existing `rng_context_hash` and `refit_strategy_hash`: retain engine-scoped adoption for v1 compatibility and list as `adopted_unverified`.
+- Producer/engine identities: `task_hash`, `dataset_variant_hash`, dataset/schema/relation/plan fingerprints, target, engine/controller, split/CV instance and sample-manifest identities are `adopted_unverified`. Their mismatch with Arena indexing projections is not a rejection. These checks do not verify owner execution or data content.
+
+Stored `exports/arena_run_<hash>.json` files are allowlisted metadata receipts with `sanitized: true` and `source_export_hash`. They omit inline residuals and arbitrary payloads, redact failure messages, and retain score context and provenance digests. They are atomically written and fsynced before SQLite commit. Ingestion refuses receipts to prevent accidental duplicate execution identities. Readers explicitly refuse pre-existing raw exports and redact legacy failure messages without rewriting old files. Residual queries reapply publication policy, including hiding reconstructive residuals. Existing raw files remain on disk and require separate authorized cleanup. Receipts are neither full replay archives nor scientific qualification bundles; referenced-member transport and owner-produced canonical n4a remain deferred.
 
 ## Top-level shape
 
@@ -47,7 +76,7 @@ Convention used in the field tables below:
 ArenaRunExport
 ├─ arena_export_schema_version : int = 1     (required, const 1)
 ├─ arena_export_hash           : <sha256>    (idempotency key; see below)
-├─ run_condition_hash          : <sha256>    (informational; the Arena recomputes its own)
+├─ run_condition_hash          : <sha256>    (optional claim; a mismatch rejects)
 ├─ producer            : object
 ├─ dataset             : object              (required)
 ├─ task                : object              (required)
@@ -70,7 +99,7 @@ JSON Schema `required` at the root: `arena_export_schema_version`, `dataset`, `t
 |---|---|---|---|
 | `arena_export_schema_version` | int (`const 1`) | yes | Contract version. Must equal `ARENA_EXPORT_SCHEMA_VERSION`. |
 | `arena_export_hash` | `<sha256>` \| null | no | The export's idempotency key. If omitted, the Arena computes it; if present it must be the fixed point (see below). |
-| `run_condition_hash` | `<sha256>` \| null | no | Producer's view of `H(dataset_variant, split, cv, rng, pipeline_dag, refit)`. Recorded but the Arena **recomputes** its own from the six component hashes. |
+| `run_condition_hash` | `<sha256>` \| null | no | Producer's view of `H(dataset_variant, split, cv, rng, pipeline_dag, refit)`. The Arena recomputes it from the six component hashes; a supplied mismatch rejects. |
 | `producer` | object | no | Capsule + producer library versions. |
 | `dataset` | object | yes | Dataset identity + card. |
 | `task` | object | yes | Target / task-type identity. |
@@ -106,7 +135,7 @@ Dataset identity from the io `CoordinatorDataPlanEnvelope` + `DatasetSpec`. `dat
 
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
-| `dataset_fingerprint` | `<sha256>` | yes | — | Canonical dataset identity (= io `schema_fingerprint`). Adopted as the dimension key. |
+| `dataset_fingerprint` | `<sha256>` | yes | — | Owner-supplied dataset identity. A schema fingerprint alone is not a scientific dataset identity. Adopted without scientific verification. |
 | `schema_fingerprint` | `<sha256>` \| null | no | `null` | io schema fingerprint, recorded for provenance. |
 | `relation_fingerprint` | `<sha256>` \| null | no | `null` | io relation fingerprint. |
 | `plan_fingerprint` | `<sha256>` \| null | no | `null` | io plan fingerprint. |
@@ -179,19 +208,20 @@ External train/test split. Both hashes are optional; if `split_instance_hash` is
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
 | `split_spec_hash` | `<sha256>` \| null | no | `null` | Producer's split-spec hash. The Arena recomputes its own from `{method, params}`. |
-| `split_instance_hash` | `<sha256>` \| null | no | `null` | The exact split instance. Adopted if present, else derived. Component of `run_condition_hash`. |
+| `split_instance_hash` | `<sha256>` \| null | no | `null` | Opaque producer ID if supplied; otherwise an Arena declared-condition key, not a realized assignment. |
 | `method` | string | no | `"none"` | Split method (e.g. `kennard_stone`, `random`, `predefined`, `group`). |
 | `params` | object | no | `{}` | Split parameters (e.g. `{"test_size": 0.25}`). |
 | `partition_summary` | object | no | `{}` | Per-partition counts/summary, stored on the instance row. |
 
 ### cv
 
-Cross-validation. `cv_instance_hash` equals the dag-ml `fold_set_fingerprint` when supplied and is adopted; otherwise derived from `{spec, fold_summary}`.
+Cross-validation. A supplied `cv_instance_hash` is an opaque producer value; otherwise Arena derives a declared-condition key from `{spec, fold_summary}`. When `fold_set_fingerprint` is declared, `cv_instance_hash` must be absent (`cv_identity_contradiction`) and Arena derives it as `fingerprint({spec: cv_spec_hash, fold_set_fingerprint, relation_fingerprint: dataset.relation_fingerprint})`.
 
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
 | `cv_spec_hash` | `<sha256>` \| null | no | `null` | Producer's CV-spec hash. The Arena recomputes its own. |
-| `cv_instance_hash` | `<sha256>` \| null | no | `null` | The exact fold assignment (= `fold_set_fingerprint`). Component of `run_condition_hash`. |
+| `cv_instance_hash` | `<sha256>` \| null | no | `null` | Opaque producer ID if supplied; otherwise an Arena declared-condition key, not a realized assignment. |
+| `fold_set_fingerprint` | `<sha256>` \| null | no | omitted | DAG canonical `fold_set_fingerprint` of the FoldSet over which the export's CV observations were scored (CV universe and per-fold train/validation members). Requires a `dataset.relation_fingerprint` hash (`fold_set_relation_identity_required`). Omitted from the manifest when null, so existing export hashes are unchanged. A submitted value is an adopted, unverified producer claim; only the DAG adapter's `training_outcome` path computes it, through the owner `dag_ml.fold_set_fingerprint_json` API. It is not an outer-split or held-out cohort identity. |
 | `method` | string | no | `"none"` | CV method (e.g. `kfold`, `stratified`, `group`, `nested`). |
 | `n_folds` | int \| null | no | `null` | Number of folds. Rejected at VALIDATE if `> n_samples` (`cv_inconsistent`). |
 | `n_repeats` | int \| null | no | `null` | Number of repeats. |
@@ -205,7 +235,7 @@ Seeds and determinism. `rng_context_hash` is adopted if present, else derived fr
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
 | `rng_context_hash` | `<sha256>` \| null | no | `null` | RNG-context identity. Component of `run_condition_hash`. |
-| `root_seed` | int \| null | no | `null` | Root seed. |
+| `root_seed` | int \| null | no | `null` | Unsigned 64-bit root seed (0 through 18446744073709551615). |
 | `derivation` | string \| null | no | `null` | Seed-derivation policy (e.g. `sha256-hash-chain`). |
 | `framework_seeds` | object | no | `{}` | Per-framework seeds (e.g. `{"numpy": 0, "torch": 0, "sklearn": 0}`). |
 | `determinism_flags` | object | no | `{}` | Determinism switches (e.g. `{"PYTHONHASHSEED": 0, "cudnn_deterministic": true}`). |
@@ -230,7 +260,8 @@ One concrete run's outcome and environment. The Arena derives a content-addresse
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
 | `execution_id` | string \| null | no | `null` | Producer's run id (recorded, never a join key). |
-| `status` | enum: `ok` \| `failed` \| `cancelled` | no | `"ok"` | Run outcome. |
+| `status` | enum: `ok` \| `failed` \| `cancelled` | no | `"ok"` | Legacy wire status, retained for v1 hashing. It does not prove completion. |
+| `terminal_status` | `completed` \| `incomplete` \| `failed` \| `cancelled` \| null | no | `null` | Explicit producer declaration; see offline semantics below. |
 | `time_ms` | number \| null | no | `null` | Wall time in milliseconds. |
 | `peak_mem_mb` | number \| null | no | `null` | Peak memory in MB. |
 | `os` | string \| null | no | `null` | Operating system. |
@@ -280,19 +311,19 @@ JSON Schema `required` per observation: `metric_name`.
 
 ### residuals
 
-A reference to (or inline carrier of) the sample-keyed residual arrays. See [the column contract](#the-residualsparquet-column-contract) and [inline residuals](#inline-residuals).
+An inline carrier of sample-keyed residual arrays. All non-null references are currently refused. See [the column contract](#the-residualsparquet-column-contract) and [inline residuals](#inline-residuals).
 
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
-| `ref` | string \| null | no | `null` | Path to `residuals.parquet`, relative to the manifest's directory (used when ingesting from a file path). |
+| `ref` | string \| null | no | `null` | Reserved wire field. Any non-null value rejects as `residual_ref_unsupported`, including an empty string. |
 | `key` | enum: `sample_id` \| `positional` | no | `"sample_id"` | Residual keying. `positional` is accepted but flagged degraded (`degraded_residual_keying`) and excluded from cross-run sample comparison. |
 | `pseudonymized` | bool | no | `false` | Whether the producer already pseudonymized ids. The Arena pseudonymizes at ingest regardless. |
 | `publishable` | object (string → bool) | no | `{}` | Per-column publication policy, e.g. `{"y_true": true, "y_pred": true, "residual": true}`. Columns set false are dropped at ingest. |
-| `inline` | array of object \| null | no | `null` | Inline residual rows (fixtures / small runs / tests). Takes priority over `ref`. |
+| `inline` | array of object \| null | no | `null` | Inline residual rows (fixtures / small runs / tests). A concurrent `ref` still rejects. |
 
 ### provenance
 
-Optional pass-through of standards-conformant provenance documents. The whole block may be `null`. No field is required; all paths are optional.
+Optional provenance declarations; no referenced document is read. The whole block may be `null`. Stored receipts preserve a digest of the complete declaration and allowlisted historical source/exporter hashes. Local paths and experiment keys are retained only as digests, not plaintext; arbitrary provenance documents are not archived.
 
 | Field | Type | Required? | Default | Meaning |
 |---|---|---|---|---|
@@ -302,7 +333,7 @@ Optional pass-through of standards-conformant provenance documents. The whole bl
 
 ## The residuals.parquet column contract
 
-Residuals are stored sample-keyed (DATA_MANAGEMENT.md §3): the row key is the stable `sample_id`, never a positional index. Whether residuals arrive as a `residuals.parquet` sidecar (via `residuals.ref`) or inline (via `residuals.inline`), they are normalized to the exact column set `RESIDUALS_PARQUET_COLUMNS` (in `contract/schema/__init__.py`). The `ResidualStore` writes one Zstd-compressed Parquet file per `residual_set`, fills missing columns with `null`, and drops unknown keys.
+Residuals are stored sample-keyed (DATA_MANAGEMENT.md §3): the row key is the stable `sample_id`, never a positional index. Only inline residuals are accepted in this offline batch; they are normalized to the exact column set `RESIDUALS_PARQUET_COLUMNS` (in `contract/schema/__init__.py`). The `ResidualStore` writes one Zstd-compressed Parquet file per `residual_set`, fills missing columns with `null`, and drops unknown keys.
 
 | Column | Arrow type | Nullable | Meaning |
 |---|---|---|---|
@@ -321,14 +352,14 @@ Residuals are stored sample-keyed (DATA_MANAGEMENT.md §3): the row key is the s
 Ingest behavior worth knowing:
 
 - **Publication policy.** `publishable.{y_true,y_pred,y_proba}` each default to `true`. A column set to false is nulled out and recorded in the clean report's dropped fields.
-- **Residual derivation.** For `task_type == "regression"`, a missing `residual` is filled with `y_true - y_pred` when both are present and publishable.
+- **Residual derivation.** For `task_type == "regression"`, a missing `residual` is filled with `y_true - y_pred` only when both operands and the residual are publishable. Hiding either operand also hides the residual to remove the direct equation within that row. Publication policy is per run; stable pseudonym joins across runs and unsuppressed one-sample scores can still reveal withheld information (see the C1–C4 amendments in INGESTION.md).
 - **Row cap.** If the residual rows exceed `IngestionPolicy.residual_row_cap` (default `1_000_000`), residuals are dropped and the run is stored scores-only (`residuals_truncated` in the clean report).
 - **Scores from residuals.** If `scores.observations` is empty (or `IngestionPolicy.recompute_scores` is set) and residuals are present, metric observations are recomputed from the residual rows.
 - **Idempotency.** The Parquet file is named by the `residual_set` content hash, so re-ingesting identical residuals writes byte-identical rows to the same path.
 
 ## Inline residuals
 
-For fixtures, small runs, and tests, residual rows can be embedded directly in the manifest under `residuals.inline` instead of shipping a separate Parquet file. When `inline` is non-empty it takes priority over `ref`. Each inline row is a plain object whose keys are a subset of the [residuals.parquet columns](#the-residualsparquet-column-contract); missing columns are filled with `null` and unknown keys are dropped during normalization.
+For fixtures, small runs, and tests, residual rows can be embedded directly in the manifest under `residuals.inline` instead of shipping a separate Parquet file. A non-null `ref` rejects even when inline rows are present. Each inline row is a plain object whose keys are a subset of the [residuals.parquet columns](#the-residualsparquet-column-contract); missing columns are filled with `null` and unknown keys are dropped during normalization.
 
 ```json
 {
@@ -490,25 +521,19 @@ A complete regression export with producer versions, a linear pipeline, split/cv
 
 ## arena_export_hash — the idempotency key
 
-`arena_export_hash` is the SHA-256 of the canonical manifest and is the idempotency key of an ingested export. Canonical JSON here means `json.dumps(..., sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)` — so two semantically equal manifests serialize byte-identically. `NaN` / `Infinity` are rejected.
-
-The hash excludes the `arena_export_hash` field itself, making it a fixed point: a manifest that carries the field MUST satisfy `manifest["arena_export_hash"] == export_hash(manifest)`.
+The claim domain is `ArenaRunExport.model_validate(manifest).to_manifest()`: v1 defaults remain present, and `None` is excluded. `export_hash` removes only the root `arena_export_hash` before canonical JSON SHA-256. New extension fields default to `None`, so absent extensions do not change existing keys. Existing stored rows are never rewritten.
 
 ```python
+from nirs4all_benchmarks.contract import ArenaRunExport
 from nirs4all_benchmarks.identity.hashing import export_hash
 
-manifest = { ... }              # without arena_export_hash
-manifest["arena_export_hash"] = export_hash(manifest)
-assert manifest["arena_export_hash"] == export_hash(manifest)   # fixed point
+model = ArenaRunExport.model_validate(manifest)
+model.arena_export_hash = export_hash(model.to_manifest())
 ```
 
-How it drives ingestion:
+Dict and JSON-path inputs also accept the observed v1 raw canonical-manifest claim profile, for old on-disk exporters. Model objects accept only the normalized profile. No other compatibility profile is tried. Dedup and execution identity always use the computed normalized hash, never the submitted claim. A claimed hash that matches neither permitted profile rejects before dedup.
 
-- **Dedup key.** The full idempotency key is `(arena_export_hash, target_collection, arena_schema_version)`. If a prior batch with that key is already `committed` or `quarantined`, `ingest_export` returns `status="already_ingested"` and does not write again.
-- **If omitted.** Producers may leave `arena_export_hash` out; the Arena computes it from the canonical manifest at VERIFY. Either way, dedup is identical.
-- **Execution identity.** The derived `execution_hash` folds in `arena_export_hash`, so two genuinely distinct runs of the same `run_condition` get distinct executions, while a re-ingest of the same export collapses.
-
-> Distinguish this from `run_condition_hash`, the *natural* identity of a condition: `H(dataset_variant_hash, split_instance_hash, cv_instance_hash, rng_context_hash, pipeline_dag_hash, refit_strategy_hash)` over the six component hashes in fixed labelled order (`identity/hashing.py::compose_run_condition_hash`). The Arena recomputes it from its own resolved components rather than trusting the manifest's `run_condition_hash`.
+The stored key is `(input_export_hash, arena_schema_version)`, globally across collections. Under `BEGIN IMMEDIATE`, a repeat returns the original batch and execution as `already_ingested`; a second collection receives `collection_conflict`. A distinct export for a condition owned by another collection also receives that rejection. Rejected input is not recorded in the batch table; legacy rejected slots can be reused on a corrected retry.
 
 ## validate_manifest
 
@@ -528,3 +553,44 @@ else:
 Each error string is formatted as `"<json/pointer/path>: <message>"`, with `<root>` used for top-level errors; errors are sorted by their path for stable output.
 
 `validate_manifest` is the **VERIFY** gate inside `ingest_export`: a non-empty list is a hard rejection (`status="rejected"`, code `schema_invalid`), before any identity resolution. It runs after the `arena_export_schema_version` check and is independent of the later semantic VALIDATE step (`ingestion/validate.py`), which is where leakage quarantine, `task_type`, `n_folds`/`n_samples`, and degraded residual keying are decided. Schema-shape errors are caught here; semantic and policy issues are caught there.
+
+## WORK evidence profile
+
+The current `arena.metadata/2` reporting profile separates normalization defaults from declarations. `dataset.visibility` additionally accepts `unreported`; nullable `visibility_source` is `producer_reported`, `unreported` or `local_policy`. Producer-reported visibility requires an explicit value. Omitted extensions do not change v1 hashes. Older strict readers may refuse the additive `unreported` enum value; no public fallback is invented for them.
+
+Nullable observation `direction_source` is `producer_reported`, `registry` or `unreported`. Native direction keeps its legacy min default for hashing; semantic direction is not inferred from that default for a custom metric. Registry-known directions resolve deterministically. Explicit mismatching producer declarations reject. Stored/read observations may have null direction when unreported. Receipts are non-ingestible projections, not another run format.
+
+See [the normative B1–B5 amendments](INGESTION.md#work-review-corrections-b1b5) for attestation nullability, required fold series, explicit public publication gates and compatibility limits. In particular the earlier presence-based attestation/visibility explanation is superseded: normalizing a sparse export must not create either kind of evidence.
+
+## Sole v2 contract authority (4 November 2026)
+
+The v1 reference above is retained for historical provenance and is unsupported
+at runtime. The current JSON Schema and strict Pydantic model define sole version
+2; the [v2 ingestion amendments](INGESTION.md#sole-v2-offline-contract-4-november-2026)
+supersede every earlier default, hash profile, migration and unknown-ranking rule.
+Version 2 must be explicit and integer. All normalized nulls are in the hash
+domain. Every score context field is required, nullable/unreported context never
+ranks, and genuine folds cannot be confused with aggregate source labels.
+Attestations are tri-state. A required, hashed `identity_basis` distinguishes owner
+claims, explicitly namespaced Arena derivations with inputs, and unverified
+frozen-source claims. Metadata validity is never scientific validation.
+
+The only v1 reader is the separately invoked, exact-hash frozen-history converter;
+it is not a generic migration or normal ingestion fallback. Old wire inputs and
+old/unstamped databases refuse before mutation. Old fixtures/proofs and real
+stores are not rewritten. Python v2 producers and consumers were changed only
+inside benchmarks; browser/native producer boundaries remain separate work.
+
+Arena stores count fields as signed 64-bit integers and refuses counts above 9223372036854775807, even when an owner accepts a wider count. Counts and seeds require integers: booleans, floating-point values and strings are refused. CV fold and repeat counts must be positive; other count minima follow the schema. The seed remains an integer on the v2 wire.
+
+Split and CV declared-condition keys do not prove realized assignments and are not universal DAG assignment identities. A producer can supply an opaque assignment ID, but reuse with different declared facts, including split parameters, is refused with `identity_dimension_conflict`; a repeated owner assignment across different generations may therefore be refused. Per-run RNG is stored on the run condition, not on split or CV dimensions.
+
+A task identity reused within a store must retain the exact same `target_unit`,
+including null. Arena does not convert units or infer an owner's identity rules.
+Pipeline labels and secondary engine fingerprints are per-export declarations,
+not evidence that a pipeline hash identifies a unique label or engine graph.
+
+Score comparisons use the task hash, exact metric name and exact reported metric
+unit within the selected score scope. A null unit compares only with null; Arena
+does not infer it from the target unit or convert units. A single export with
+contradictory units for a metric is refused.

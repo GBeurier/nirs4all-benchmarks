@@ -101,7 +101,7 @@ def test_linear_list_lifts_and_records_get_hash():
 
 
 def test_export_hash_is_fixed_point():
-    manifest = {"arena_export_schema_version": 1, "dataset": {"dataset_fingerprint": "a" * 64}}
+    manifest = {"arena_export_schema_version": 2, "dataset": {"dataset_fingerprint": "a" * 64}}
     h = export_hash(manifest)
     manifest["arena_export_hash"] = h
     assert export_hash(manifest) == h

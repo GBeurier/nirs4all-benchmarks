@@ -129,15 +129,19 @@ def build_run_facets(resolved: Any, model: Any) -> list[dict[str, Any]]:
         rows_by_kv[kv] = {"run_condition_hash": rch, "facet_key": key, "facet_value": str(value),
                           "facet_num": num, "role": role}
 
+    def exact_number(value: int) -> float | None:
+        number = float(value)
+        return number if int(number) == value else None
+
     # ── condition-level facets ─────────────────────────────────────────
     add("dataset", resolved.dataset_fingerprint)
     add("task_type", model.task.task_type)
     add("split_method", model.split.method)
     add("cv_method", model.cv.method)
     if model.cv.n_folds is not None:
-        add("n_folds", model.cv.n_folds, float(model.cv.n_folds))
+        add("n_folds", model.cv.n_folds, exact_number(model.cv.n_folds))
     if model.rng.root_seed is not None:
-        add("seed", model.rng.root_seed, float(model.rng.root_seed))
+        add("seed", model.rng.root_seed, exact_number(model.rng.root_seed))
     add("refit_strategy", model.refit.strategy)
     add("pipeline", resolved.pipeline_dag_hash)
     add("is_linear", "linear" if resolved.pipeline_id.is_linear else "branching")
@@ -160,7 +164,10 @@ def build_run_facets(resolved: Any, model: Any) -> list[dict[str, Any]]:
             add("merge_strategy", short, None, role)
         # per-parameter facets (numeric params carry facet_num for sweeps)
         for pname, pval in _safe_params(node).items():
-            num = float(pval) if isinstance(pval, (int, float)) and not isinstance(pval, bool) else None
+            try:
+                num = float(pval) if isinstance(pval, (int, float)) and not isinstance(pval, bool) else None
+            except OverflowError:
+                num = None
             add(f"param:{pname}", pval, num)
 
     add("model", resolved.main_model and _short(resolved.main_model))

@@ -7,7 +7,9 @@ from copy import deepcopy
 
 import pytest
 
-from nirs4all_benchmarks.fixtures import generate_fixture_exports
+from conftest import rankable_fixture_exports
+from nirs4all_benchmarks.contract import ArenaRunExport
+from nirs4all_benchmarks.identity import fingerprint
 from nirs4all_benchmarks.identity.pipeline_dag import (
     GRAPH_NORMALIZATION_VERSION,
     compute_pipeline_dag_hash,
@@ -19,8 +21,15 @@ from test_quality_ranking import Capture
 
 
 def _exports():
-    first = generate_fixture_exports()[0]
-    first.split.split_indices_hash = "controlled-actual-holdout"
+    raw = rankable_fixture_exports()[0].to_manifest()
+    # Synthetic declarations only: no owner fold set, relation or execution was observed.
+    raw["cv"].pop("cv_instance_hash", None)
+    raw["cv"]["fold_set_fingerprint"] = fingerprint({"synthetic_fold_set": raw["dataset"]["dataset_fingerprint"]})
+    raw["dataset"]["relation_fingerprint"] = fingerprint({"synthetic_relation": raw["dataset"]["dataset_fingerprint"]})
+    raw["provenance"]["synthetic_test_declarations"] += (
+        "; cv.fold_set_fingerprint and dataset.relation_fingerprint are synthetic declarations"
+    )
+    first = ArenaRunExport.model_validate(raw)
     second = first.model_copy(deep=True)
     second.execution.execution_id += "-different-model"
     second.pipeline.graph["nodes"][-1]["operator"] = "sklearn.linear_model.Ridge"

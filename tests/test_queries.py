@@ -64,7 +64,7 @@ def test_pipelines_catalogue_is_read_only(queries: Queries, monkeypatch: pytest.
 
 
 def test_leaderboard_sorted_by_direction(queries: Queries):
-    lb = queries.leaderboard(metric="rmse", scope="cv")
+    lb = queries.leaderboard(metric="rmse", scope="cv", dataset_fingerprint=queries.datasets()[0]["dataset_fingerprint"])
     means = [r["mean"] for r in lb["rows"]]
     assert lb["direction"] == "min"
     assert means == sorted(means)  # ascending for a min-metric
@@ -72,7 +72,7 @@ def test_leaderboard_sorted_by_direction(queries: Queries):
 
 
 def test_leaderboard_r2_is_descending(queries: Queries):
-    lb = queries.leaderboard(metric="r2", scope="cv")
+    lb = queries.leaderboard(metric="r2", scope="cv", dataset_fingerprint=queries.datasets()[0]["dataset_fingerprint"])
     means = [r["mean"] for r in lb["rows"]]
     assert lb["direction"] == "max"
     assert means == sorted(means, reverse=True)
@@ -94,18 +94,19 @@ def test_parameter_effect_n_components(queries: Queries):
 
 @pytest.mark.parametrize(("metric", "descending"), [("rmse", False), ("r2", True)])
 def test_runs_limit_keeps_the_best_runs(queries: Queries, metric: str, descending: bool):
-    everything = queries.run_explorer(metric=metric, scope="cv", limit=100000)
+    dataset = queries.datasets()[0]["dataset_fingerprint"]
+    everything = queries.run_explorer(metric=metric, scope="cv", dataset_fingerprint=dataset, limit=100000)
     values = [r["metric_value"] for r in everything]
     assert len(values) > 3
     assert values == sorted(values, reverse=descending)
     # The limit is applied after the best-first ordering, not to an arbitrary prefix of the runs.
-    assert [r["execution_hash"] for r in queries.run_explorer(metric=metric, scope="cv", limit=3)] == [
+    assert [r["execution_hash"] for r in queries.run_explorer(metric=metric, scope="cv", dataset_fingerprint=dataset, limit=3)] == [
         r["execution_hash"] for r in everything[:3]
     ]
 
 
 def test_operator_effect(queries: Queries):
-    oe = queries.operator_effect(metric="rmse", scope="cv")
+    oe = queries.operator_effect(metric="rmse", scope="cv", dataset_fingerprint=queries.datasets()[0]["dataset_fingerprint"])
     assert oe["series"]
     assert all("values" in s and s["n"] > 0 for s in oe["series"])
 
@@ -156,10 +157,11 @@ def test_analysis_queries_honor_the_dataset_lens(queries: Queries):
         queries.parallel(dimensions=["seed"], **kw)["rows"]
     )
     totals = {
-        "operator_effect": lambda **k: sum(s["n"] for s in queries.operator_effect(**k)["series"]),
         "composition": lambda **k: sum(r["n_runs"] for r in queries.composition(**k)["rows"]),
         "pipeline_graph": lambda **k: sum(n["size"] for n in queries.pipeline_graph(**k)["nodes"]),
         "operator_graph": lambda **k: sum(n["n_runs"] for n in queries.operator_graph(**k)["nodes"]),
     }
     for name, total in totals.items():
         assert 0 < total(**kw, dataset_fingerprint=ds) < total(**kw), name
+    assert sum(s["n"] for s in queries.operator_effect(**kw, dataset_fingerprint=ds)["series"]) > 0
+    assert queries.operator_effect(**kw)["score_context"]["withheld"]["count"] > 0

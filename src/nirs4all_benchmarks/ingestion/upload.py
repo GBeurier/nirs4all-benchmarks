@@ -29,6 +29,7 @@ from typing import Any
 from nirs4all_benchmarks.adapters.dagml_bundle import bundle_to_export
 from nirs4all_benchmarks.adapters.n4a_bundle import extract_n4a_recipe
 from nirs4all_benchmarks.contract import ArenaRunExport
+from nirs4all_benchmarks.contract.strict_json import strict_loads
 from nirs4all_benchmarks.identity import canonical_json, compute_pipeline_dag_hash, fingerprint
 from nirs4all_benchmarks.ingestion.ingest import IngestionPolicy, ingest_export
 from nirs4all_benchmarks.ingestion.resolve import _extract_pipeline_rows
@@ -73,15 +74,17 @@ class UploadResult:
 def _load_text_recipe(text: str) -> Any:
     text = text.strip()
     try:
-        return json.loads(text)
+        return strict_loads(text)
     except json.JSONDecodeError:
+        if text.startswith(("{", "[")):
+            raise ValueError("upload_json_invalid") from None
         pass
     try:
         import yaml
 
         return yaml.safe_load(text)
     except Exception as exc:
-        raise ValueError(f"could not parse upload as JSON or YAML: {exc}") from exc
+        raise ValueError("could not parse upload as JSON or YAML") from exc
 
 
 def _recipe_to_pipeline_source(recipe: Any) -> tuple[Any, list[Any] | None, str | None, int]:
@@ -167,7 +170,8 @@ def register_pipeline(
             existing = store.query_one(
                 """SELECT COUNT(*) n FROM run_conditions rc
                    JOIN executions e ON e.run_condition_hash = rc.run_condition_hash
-                   WHERE rc.pipeline_dag_hash = ? AND rc.dataset_fingerprint = ? AND e.validity_status = 'valid'""",
+                   WHERE rc.pipeline_dag_hash = ? AND rc.dataset_fingerprint = ?
+                         AND e.validity_status = 'valid' AND e.status = 'completed'""",
                 (pid.pipeline_dag_hash, df),
             )
             n_exec = (existing or {}).get("n", 0)
@@ -243,7 +247,10 @@ def upload(
                       target_datasets=target_datasets, as_release=as_release, filename=filename, allow_paths=False)
 
     # A results-bearing ArenaRunExport.
-    if isinstance(payload, ArenaRunExport) or (isinstance(payload, dict) and "arena_export_schema_version" in payload):
+    if isinstance(payload, ArenaRunExport) or (
+        isinstance(payload, dict)
+        and ("arena_export_schema_version" in payload or {"dataset", "task", "dataset_variant"} <= set(payload))
+    ):
         _require_release_mode_for_public_collection(collection_id, as_release=as_release)
         policy = IngestionPolicy(
             collection_id=collection_id,
@@ -258,13 +265,21 @@ def upload(
                 "status": res.status, "validity_status": res.validity_status,
                 "run_condition_hash": res.run_condition_hash, "execution_hash": res.execution_hash,
                 "issues": res.issues, "clean_report": res.clean_report,
+                "metadata_status": res.metadata_status, "scientific_verification": res.scientific_verification,
+                "terminal_status": res.terminal_status,
             },
             message=f"ingested ArenaRunExport: {res.status} ({res.validity_status})",
         )
 
     # A dag-ml ExecutionBundle (results).
     if isinstance(payload, dict) and ("graph_fingerprint" in payload or "bundle_id" in payload):
-        export = bundle_to_export(payload)
+        try:
+            export = bundle_to_export(payload)
+        except (ValueError, TypeError, KeyError):
+            return UploadResult(kind="dagml_bundle", status="rejected", message="dag-ml owner metadata required",
+                                ingestion={"status": "rejected", "issues": [{
+                                    "level": "error", "code": "dagml_adapter_refused",
+                                "message": "Owner identity or supported result context is missing"}]})
         return upload(store, export, collection_id=collection_id, target_datasets=target_datasets,
                       as_release=as_release)
 
@@ -292,6 +307,28 @@ def _looks_like_path(value: str | Path) -> bool:
     if not s or s[0] in "{[\"" or "\n" in s or len(s) > 1024:
         return False
     return Path(s).exists()
+
+
+def prepare_upload(payload: Any, *, allow_paths: bool = True) -> Any:
+    """Preflight results without a store; preserve the existing recipe parser."""
+    from nirs4all_benchmarks.ingestion.offline import validate_metadata
+
+    if allow_paths and isinstance(payload, (str, Path)) and _looks_like_path(payload):
+        if zipfile.is_zipfile(payload):
+            return payload  # The existing n4a recipe reader owns this separate contract.
+        payload = _parse_text_payload(Path(payload).read_text(encoding="utf-8"))
+    elif isinstance(payload, str):
+        payload = _parse_text_payload(payload)
+    if isinstance(payload, ArenaRunExport) or (isinstance(payload, dict) and (
+        "arena_export_schema_version" in payload or {"dataset", "task", "dataset_variant"} <= set(payload)
+    )):
+        validation = validate_metadata(payload)
+        if validation.status != "metadata_valid":
+            raise ValueError(validation.issues[0]["code"])
+        return validation.model
+    if isinstance(payload, dict) and ("graph_fingerprint" in payload or "bundle_id" in payload):
+        return bundle_to_export(payload)
+    return payload
 
 
 def _require_release_mode_for_public_collection(collection_id: str, *, as_release: bool) -> None:

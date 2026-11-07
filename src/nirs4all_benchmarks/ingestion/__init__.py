@@ -9,26 +9,33 @@ never trusts producer UUIDs (every Arena-owned hash is recomputed).
 from __future__ import annotations
 
 from nirs4all_benchmarks.ingestion.ingest import (
+    AtomicIngestionError,
     IngestionPolicy,
     IngestionResult,
     ingest_export,
+    ingest_exports_atomic,
 )
+from nirs4all_benchmarks.ingestion.offline import MetadataValidation, validate_metadata
 from nirs4all_benchmarks.ingestion.repository import list_repository_pipelines, register_repository_pipeline
 from nirs4all_benchmarks.ingestion.resolve import ResolvedExport, resolve_identities
 from nirs4all_benchmarks.ingestion.upload import UploadResult, register_pipeline, upload
 from nirs4all_benchmarks.ingestion.validate import ValidationOutcome, validate_export
 
 __all__ = [
+    "AtomicIngestionError",
     "IngestionPolicy",
     "IngestionResult",
+    "MetadataValidation",
     "ResolvedExport",
     "UploadResult",
     "ValidationOutcome",
     "ingest_export",
+    "ingest_exports_atomic",
     "list_repository_pipelines",
     "register_pipeline",
     "register_repository_pipeline",
     "resolve_identities",
     "upload",
     "validate_export",
+    "validate_metadata",
 ]

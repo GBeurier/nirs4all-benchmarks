@@ -9,6 +9,7 @@ the service uses.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 
 import typer
@@ -29,10 +30,16 @@ _DEFAULT_STORE = "./arena-store"
 StoreOpt = typer.Option(_DEFAULT_STORE, "--store", "-s", help="Arena store directory.")
 
 
+@contextmanager
 def _store(path: str):
-    from nirs4all_benchmarks.store import ArenaStore
+    from nirs4all_benchmarks.store import ArenaStore, ArenaStoreRefusal
 
-    return ArenaStore(path)
+    try:
+        with ArenaStore(path) as store:
+            yield store
+    except ArenaStoreRefusal as exc:
+        typer.echo(f"rejected: {exc.code}")
+        raise typer.Exit(code=2) from None
 
 
 @app.command()
@@ -48,6 +55,21 @@ def init(store: str = StoreOpt) -> None:
         console.print(f"[green]✓[/] store ready at [bold]{s.root}[/] (schema v{s.get_meta('arena_schema_version')})")
 
 
+@app.command("validate-export")
+def validate_export_cmd(
+    path: Path = typer.Argument(..., exists=True, dir_okay=False, help="ArenaRunExport JSON; no store is opened."),
+) -> None:
+    """Validate local metadata only. Does not execute or scientifically verify a run."""
+    import json
+
+    from nirs4all_benchmarks.ingestion.offline import validate_metadata
+
+    result = validate_metadata(path)
+    typer.echo(json.dumps(result.to_json(), sort_keys=True))
+    if result.status == "rejected":
+        raise typer.Exit(code=2)
+
+
 @app.command("ingest-export")
 def ingest_export_cmd(
     path: Path = typer.Argument(..., exists=True, help="ArenaRunExport manifest JSON (or directory of them)."),
@@ -56,7 +78,7 @@ def ingest_export_cmd(
     release: bool = typer.Option(False, "--release", help="Ingest as a benchmark release (quarantine on leakage)."),
 ) -> None:
     """Ingest one or more ``ArenaRunExport`` manifests."""
-    from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
+    from nirs4all_benchmarks.ingestion import AtomicIngestionError, IngestionPolicy, ingest_exports_atomic
 
     files = sorted(path.glob("*.json")) if path.is_dir() else [path]
     policy = IngestionPolicy(
@@ -64,12 +86,30 @@ def ingest_export_cmd(
         collection_kind="benchmark_release" if release else "user_run_collection",
     )
     counts: dict[str, int] = {}
+    from nirs4all_benchmarks.ingestion import validate_metadata
+    from nirs4all_benchmarks.contract.strict_json import strict_loads
+    try:
+        payloads = [strict_loads(f.read_text(encoding="utf-8")) for f in files]
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        typer.echo("rejected: manifest_invalid")
+        raise typer.Exit(code=2) from None
+    validations = [validate_metadata(payload) for payload in payloads]
+    models = []
+    for validation, payload in zip(validations, payloads, strict=True):
+        if validation.status != "metadata_valid":
+            typer.echo("rejected: " + validation.issues[0]["code"])
+            raise typer.Exit(code=2)
+        assert validation.model is not None
+        models.append(payload)
     with _store(store) as s:
-        for f in files:
-            res = ingest_export(s, f, policy=policy)
-            counts[res.status] = counts.get(res.status, 0) + 1
-            console.print(f"  {f.name}: [bold]{res.status}[/] ({res.validity_status})")
-    console.print(f"[green]✓[/] {counts}")
+        try:
+            results = ingest_exports_atomic(s, models, policy=policy)
+        except AtomicIngestionError as exc:
+            typer.echo(f"rejected: {exc.code}")
+            raise typer.Exit(code=2) from None
+        for result in results:
+            counts[result.status] = counts.get(result.status, 0) + 1
+    console.print(counts)
 
 
 @app.command("ingest-workspace")
@@ -79,16 +119,28 @@ def ingest_workspace_cmd(
     collection: str = typer.Option("nirs4all-workspace", "--collection", "-c"),
 ) -> None:
     """Adapter A — ingest a nirs4all workspace (artifacts ignored)."""
-    from nirs4all_benchmarks.adapters import WorkspaceAdapter
-    from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
+    from nirs4all_benchmarks.adapters import WorkspaceAdapterError, workspace_to_exports
+    from nirs4all_benchmarks.ingestion import AtomicIngestionError, IngestionPolicy, ingest_exports_atomic
 
     policy = IngestionPolicy(collection_id=collection, collection_kind="user_run_collection")
     counts: dict[str, int] = {}
+    try:
+        exports = workspace_to_exports(workspace)
+    except WorkspaceAdapterError as exc:
+        typer.echo(f"rejected: {exc.code}")
+        raise typer.Exit(code=2) from None
+    except (ValueError, TypeError, KeyError, OSError):
+        typer.echo("rejected: workspace_metadata_unsupported")
+        raise typer.Exit(code=2) from None
     with _store(store) as s:
-        for exp in WorkspaceAdapter(workspace).iter_exports():
-            res = ingest_export(s, exp, policy=policy)
-            counts[res.status] = counts.get(res.status, 0) + 1
-    console.print(f"[green]✓[/] workspace ingested: {counts}")
+        try:
+            results = ingest_exports_atomic(s, exports, policy=policy)
+        except AtomicIngestionError as exc:
+            typer.echo(f"rejected: {exc.code}")
+            raise typer.Exit(code=2) from None
+        for result in results:
+            counts[result.status] = counts.get(result.status, 0)+1
+    console.print(f"workspace metadata ingested: {counts}; scientific_verification=not_performed")
 
 
 @app.command("ingest-history")
@@ -97,10 +149,22 @@ def ingest_history_cmd(
     store: str = StoreOpt,
 ) -> None:
     """Import checked-in real research scores (no synthetic fixtures or fitted artifacts)."""
-    from nirs4all_benchmarks.history import ingest_history
+    from nirs4all_benchmarks.history import ingest_history, load_history_exports
+    from nirs4all_benchmarks.ingestion import AtomicIngestionError
 
+    try:
+        loaded = load_history_exports(path)
+    except ValueError as exc:
+        typer.echo(f"rejected: {exc}")
+        raise typer.Exit(code=2) from None
     with _store(store) as s:
-        summary = ingest_history(s, path, progress=lambda done, total: console.print(f"Imported {done}/{total}"))
+        try:
+            summary = ingest_history(
+                s, path, _loaded=loaded, progress=lambda done, total: console.print(f"Staged {done}/{total}")
+            )
+        except AtomicIngestionError as exc:
+            typer.echo(f"rejected: {exc.code}")
+            raise typer.Exit(code=2) from None
     console.print(summary)
 
 
@@ -110,21 +174,30 @@ def ingest_bundle_cmd(
     store: str = StoreOpt,
     graph: Path | None = typer.Option(None, "--graph", help="Canonical GraphSpec JSON."),
     envelope: Path | None = typer.Option(None, "--envelope", help="io CoordinatorDataPlanEnvelope JSON."),
+    metadata: Path | None = typer.Option(
+        None, "--metadata", help="Owner-supplied ArenaRunExport JSON with genuine identities and context."),
     collection: str = typer.Option("dag-ml", "--collection", "-c"),
-    release: bool = typer.Option(True, "--release/--user", help="dag-ml runs are leakage-safe by construction."),
+    release: bool = typer.Option(False, "--release/--user", help="Release mode requires producer OOF attestation."),
 ) -> None:
     """Adapter B — ingest a dag-ml ExecutionBundle (+ optional graph/envelope)."""
     from nirs4all_benchmarks.adapters import bundle_to_export
     from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
 
-    exp = bundle_to_export(bundle, graph=graph, dataset_envelope=envelope)
+    try:
+        exp = bundle_to_export(bundle, graph=graph, dataset_envelope=envelope, owner_export=metadata)
+    except (ValueError, TypeError, KeyError, OSError) as exc:
+        code = str(exc) if str(exc).startswith("dagml_") else "dagml_metadata_unsupported"
+        typer.echo(f"rejected: {code}")
+        raise typer.Exit(code=2) from None
     policy = IngestionPolicy(
         collection_id=collection,
         collection_kind="benchmark_release" if release else "user_run_collection",
     )
     with _store(store) as s:
         res = ingest_export(s, exp, policy=policy)
-    console.print(f"[green]✓[/] bundle ingested: {res.status} ({res.validity_status})")
+    console.print(f"bundle: {res.status}; metadata={res.metadata_status}; scientific_verification=not_performed")
+    if not res.ok:
+        raise typer.Exit(code=2)
 
 
 @app.command("ingest-pipeline")
@@ -137,11 +210,19 @@ def ingest_pipeline_cmd(
 ) -> None:
     """Register a pipeline (weights stripped) and plan/inspect it on target datasets."""
     from nirs4all_benchmarks.ingestion import upload
+    from nirs4all_benchmarks.ingestion.upload import prepare_upload
 
+    try:
+        prepared = prepare_upload(path)
+    except ValueError as exc:
+        typer.echo(f"rejected: {exc}")
+        raise typer.Exit(code=2) from None
     targets = [t.strip() for t in (datasets or "").split(",") if t.strip()]
     with _store(store) as s:
-        res = upload(s, path, collection_id=collection, target_datasets=targets)
-    console.print(f"[green]✓[/] {res.kind}: {res.message}")
+        res = upload(s, prepared, collection_id=collection, target_datasets=targets)
+    console.print(f"{res.kind}: {res.status}: {res.message}")
+    if res.status == "rejected":
+        raise typer.Exit(code=2)
     for d in res.datasets:
         mark = "already run" if d["status"] == "already_run" else "planned"
         console.print(f"  • {d['token']}: [bold]{mark}[/]"
@@ -197,6 +278,10 @@ def leaderboard(
     store: str = StoreOpt,
     metric: str = typer.Option("rmse", "--metric", "-m"),
     scope: str = typer.Option("cv", "--scope"),
+    partition: str | None = typer.Option(None, "--partition", help="Required for refit; CV defaults to validation."),
+    aggregation_level: str = typer.Option("sample", "--aggregation-level", help="sample, group or target."),
+    source_fold_id: str | None = typer.Option(
+        None, "--source-fold-id", help="Exact source aggregate label; required for view."),
     dataset: str | None = typer.Option(None, "--dataset"),
     limit: int = typer.Option(15, "--limit", "-n"),
 ) -> None:
@@ -204,8 +289,14 @@ def leaderboard(
     from nirs4all_benchmarks.store import Queries
 
     with _store(store) as s:
-        lb = Queries(s).leaderboard(metric=metric, scope=scope, dataset_fingerprint=dataset, limit=limit)
-    table = Table(title=f"Leaderboard — {metric} ({scope}, {lb['direction']})")
+        try:
+            lb = Queries(s).leaderboard(
+                metric=metric, scope=scope, partition=partition, aggregation_level=aggregation_level,
+                source_fold_id=source_fold_id, dataset_fingerprint=dataset, limit=limit)
+        except ValueError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+    table = Table(title=f"Leaderboard — {metric} ({scope}, {lb['partition']}, "
+                        f"{aggregation_level}, {source_fold_id or 'raw'}, {lb['direction']})")
     table.add_column("#", justify="right")
     table.add_column("mean", justify="right")
     table.add_column("pipeline")
@@ -359,7 +450,7 @@ def serve(
     port: int = typer.Option(8000, "--port", "-p"),
     reload: bool = typer.Option(False, "--reload"),
 ) -> None:
-    """Run the dataviz web service."""
+    """Run the unauthenticated offline-only dataviz service."""
     import os
 
     try:
@@ -367,12 +458,75 @@ def serve(
     except ImportError as exc:
         raise typer.Exit(code=1) from exc
     os.environ["NIRS4ALL_BENCHMARKS_STORE"] = str(Path(store).resolve())
+    console.print("Unauthenticated offline-only service; do not expose it to a network.")
     console.print(f"[green]✓[/] serving Arena at [bold]http://{host}:{port}[/] (store: {store})")
     uvicorn.run("nirs4all_benchmarks.service.app:create_app", factory=True, host=host, port=port, reload=reload)
 
 
+@app.command("provision-project")
+def provision_project_cmd(root: Path = typer.Option(..., "--root"),
+                          project_id: str = typer.Option(..., "--project-id")) -> None:
+    """Create an isolated project store before starting the service."""
+    from nirs4all_benchmarks.service.project import provision_project
+
+    try:
+        provision_project(root, project_id)
+    except Exception:
+        typer.echo("Project provisioning failed.", err=True)
+        raise typer.Exit(code=1) from None
+
+
+@app.command("serve-project")
+def serve_project_cmd(root: Path = typer.Option(..., "--root"),
+                      credentials: Path = typer.Option(..., "--credentials"),
+                      host: str = typer.Option("127.0.0.1", "--host"),
+                      port: int = typer.Option(8000, "--port")) -> None:
+    """Serve provisioned projects on a loopback interface."""
+    import logging
+
+    try:
+        import uvicorn
+        from nirs4all_access import load_credential_store, require_secure_transport
+        from nirs4all_benchmarks.service.project import create_project_app
+
+        require_secure_transport(host, tls=False)
+        application = create_project_app(root, load_credential_store(credentials))
+        logger = logging.getLogger()
+        logger.setLevel(logging.WARNING)
+        logger.handlers.clear()
+        for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+            owned = logging.getLogger(name)
+            owned.handlers.clear()
+            owned.setLevel(logging.WARNING)
+        uvicorn.Server(uvicorn.Config(application, host=host, port=port, workers=1, reload=False,
+            http="h11", ws="none", lifespan="off", log_config=None, log_level="warning", access_log=False,
+            proxy_headers=False, server_header=False, h11_max_incomplete_event_size=16384,
+            timeout_graceful_shutdown=10)).run()
+    except Exception:
+        typer.echo("Project service unavailable.", err=True)
+        raise typer.Exit(code=1) from None
+
+
 def main() -> None:
     app()
+
+
+
+@app.command("convert-frozen-history")
+def convert_frozen_history_cmd(
+    out: Path = typer.Option(..., "--out"),
+    source: Path = typer.Option(Path("data/catalog-history-2026-09"), "--source"),
+) -> None:
+    """Convert only the pinned immutable reference pack; never a generic v1 reader."""
+    from nirs4all_benchmarks.frozen_history import FrozenHistoryRefusal, convert_frozen_history
+    try:
+        result = convert_frozen_history(
+            source, out, progress=lambda done, total: console.print(f"Validated {done}/{total}")
+        )
+    except FrozenHistoryRefusal as exc:
+        typer.echo(f"rejected: {exc.code}")
+        raise typer.Exit(code=2) from None
+    console.print(result["output"])
 
 
 if __name__ == "__main__":

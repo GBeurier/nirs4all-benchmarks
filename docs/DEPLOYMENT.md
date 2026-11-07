@@ -312,10 +312,8 @@ What is in each part:
 - `exports/` — the original ingested `ArenaRunExport` bundles, kept for audit and
   replay.
 
-Because identity is content-addressed and writes are idempotent (`INSERT OR
-IGNORE`, content-hash file names), you can also reconstruct a store by replaying
-the `exports/` bundles into a fresh `init`ed store with `ingest-export` —
-re-ingesting the same export is a no-op rather than a duplicate.
+Re-ingesting the same supported export is idempotent. Retain original exports
+separately if replay is needed: sanitized receipts are not replay inputs.
 
 ## Operational notes
 
@@ -325,9 +323,8 @@ re-ingesting the same export is a no-op rather than a duplicate.
   database is `arena.sqlite` plus `-wal`/`-shm` sidecars — account for them when
   copying a hot store.
 - **Schema version guard.** The store stamps `PRAGMA user_version` with the
-  library's `ARENA_SCHEMA_VERSION` (currently `1`). Opening a store written by a
-  newer library raises `ArenaStoreVersionError` and refuses to run — upgrade the
-  package rather than downgrading the data.
+  library's `ARENA_SCHEMA_VERSION` (currently `3`). Unsupported versions are
+  refused without migration or fallback, including schema 1 and 2 stores.
 - **Residual size cap.** Ingestion caps per-`residual_set` rows at
   `IngestionPolicy.residual_row_cap` (default `1_000_000`). Beyond the cap the run
   is stored **scores-only**: the per-sample residual array is dropped and the
@@ -366,3 +363,20 @@ repo settings.
 
 This is the **prototype** stage; the medium-term plan is a live server backing the same SPA — see
 [ROADMAP.md](ROADMAP.md).
+
+## Local project-token service
+
+The existing `serve` command and Docker service are unauthenticated and intended
+for offline use only. The optional `project-service` extra adds a separate local
+service. Provision a store with `n4a-arena provision-project --root ROOT --project-id ID`,
+then start `n4a-arena serve-project --root ROOT --credentials CREDENTIALS`. Credentials
+are managed by the independent `nirs4all-access` project-token leaf. The source extra
+specifies its version range; it does not imply the leaf is published on an index.
+
+The supported service configuration is POSIX loopback and one process, without TLS,
+proxy, multi-worker or Windows qualification. Projects and credential revocations are
+startup snapshots. Projects have separate stores and pseudonym salts, but availability
+is shared: the process-wide store lock serializes opens, closes and writes. A project's
+transaction can delay another project before its SQLite busy timeout begins. Direct ASGI
+hosts and proxies are responsible for their own logging. The SPA has no project-token
+flow and is not supported by this service. A crash may leave orphan residual blobs.

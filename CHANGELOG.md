@@ -252,3 +252,20 @@ First implementation — the Arena goes from design docs to a working v1.
 [0.1.5]: https://github.com/GBeurier/nirs4all-benchmarks/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/GBeurier/nirs4all-benchmarks/compare/v0.1.3...v0.1.4
 [0.1.0]: https://github.com/GBeurier/nirs4all-benchmarks/releases/tag/v0.1.0
+
+### Unreleased: local project service
+
+- Add optional project-token scoped local Arena access and per-export submitted metadata.
+- Use fresh-only Arena store schema 3 while retaining ArenaRunExport wire schema 2;
+  existing schema 1 and 2 stores are refused without migration.
+
+- Correct Arena metadata binding consistency, replay ordering, dataset association labels, and bounded integer handling. Unreleased schema 3 stores with an earlier fingerprint are refused.
+
+- Remove per-run RNG links from split and CV dimensions and refuse conflicting declared facts for adopted split, CV and refit IDs. Earlier unreleased schema 3 fingerprints are refused.
+
+- Record private per-export label and unit context, reject conflicting task units,
+  and scope first-accepted labels in API responses. The legacy shared-label
+  privacy limitation remains open for joint resolution.
+
+- Refuse contradictory metric units within a task and prevent aggregate score
+  readers from pooling different tasks or reported units.

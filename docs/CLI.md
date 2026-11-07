@@ -64,7 +64,7 @@ and reports the schema version.
 
 ```bash
 n4a-benchmarks init --store ./arena-store
-# ✓ store ready at arena-store (schema v1)
+# ✓ store ready at arena-store (schema v3)
 ```
 
 ### `ingest-export`
@@ -307,8 +307,8 @@ Requires the `service` extra (`fastapi`, `uvicorn`); without it the command exit
 | `--reload` | off (flag) | Enable uvicorn auto-reload (development). |
 
 ```bash
-n4a-benchmarks serve --store ./arena-store --host 0.0.0.0 --port 8080
-# ✓ serving Arena at http://0.0.0.0:8080 (store: ./arena-store)
+n4a-benchmarks serve --store ./arena-store --host 127.0.0.1 --port 8080
+# ✓ serving Arena at http://127.0.0.1:8080 (store: ./arena-store)
 ```
 
 The SPA is served at `/`, and the JSON API under `/api/*` (`/api/healthz`, `/api/overview`,
@@ -322,7 +322,7 @@ A minimal walkthrough: create a store, seed the fixture grid, inspect it, rank i
 ```bash
 # 1. Create an empty store.
 n4a-benchmarks init --store ./arena-store
-# ✓ store ready at arena-store (schema v1)
+# ✓ store ready at arena-store (schema v3)
 
 # 2. Seed the synthetic fixture grid (no real data needed).
 n4a-benchmarks fixtures --store ./arena-store
@@ -354,3 +354,9 @@ Some commands need optional dependency groups:
 
 The core CLI (`init`, `ingest-export`, `inspect-n4a`, `fixtures`, `stats`, `leaderboard`) works with
 the base install. `pip install 'nirs4all-benchmarks[all]'` pulls the `service` and `datasets` extras.
+
+`n4a-arena provision-project --root ROOT --project-id ID` provisions a project store.
+`n4a-arena serve-project --root ROOT --credentials FILE [--host 127.0.0.1] [--port PORT]`
+serves the startup snapshot on loopback with project-token authentication. The existing
+`serve` command remains unauthenticated and is for offline use only. Provisioning and
+serving do not publish or host the service.

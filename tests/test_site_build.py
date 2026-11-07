@@ -1,54 +1,22 @@
-"""Static-site build produces a self-contained, client-queryable snapshot."""
-
-from __future__ import annotations
-
-import json
+"""Backend publication gate: refusal must not create or overwrite any output."""
 from pathlib import Path
 
-from nirs4all_benchmarks.fixtures import seed_store
+import pytest
+
 from nirs4all_benchmarks.site_build import build_site
+from nirs4all_benchmarks.store import ArenaStore
 
 
-def test_build_site_produces_static_snapshot(tmp_path: Path):
-    seed_store(tmp_path / "store", collection_id="demo", demo=True)
-    out = tmp_path / "site"
-    summary = build_site(tmp_path / "store", out, domain="benchmarks.nirs4all.org")
-
-    # SPA copied + static flag + custom domain
-    assert (out / "index.html").exists()
-    assert (out / "app.js").exists()
-    assert (out / "lib" / "static-engine.js").exists()
-    assert (out / "brand" / "icon.svg").exists()
-    overview = (out / "views" / "overview.js").read_text()
-    assert "lower ${FIND}" in overview and "higher ${FIND}" in overview
-    assert "easier or less independent splits" in overview
-    assert "performance against leakage risk" in overview
-    assert "match split independence to deployment" in overview
-    assert "Do not tune splits on held-out test results" in overview
-    assert "${lo.group_value} best" not in overview
-    assert "${hi.group_value} worst" not in overview
-    assert (out / "config.js").read_text().strip() == "window.ARENA_STATIC = true;"
-    assert (out / "CNAME").read_text().strip() == "benchmarks.nirs4all.org"
-    assert "Sitemap: https://benchmarks.nirs4all.org/sitemap.xml" in (out / "robots.txt").read_text()
-    assert "<loc>https://benchmarks.nirs4all.org/</loc>" in (out / "sitemap.xml").read_text()
-    assert (out / ".nojekyll").exists()
-
-    # bundle is well-formed and carries the aggregation backbone
-    bundle = json.loads((out / "data" / "bundle.json").read_text())
-    assert bundle["meta"]["static"] is True
-    assert bundle["overview"]["pipelines"] == summary["pipelines"]
-    tables = bundle["tables"]
-    assert tables["metrics"]["n"] and tables["facets"]["n"] and tables["pipeline_nodes"]["n"]
-    assert tables["pipelines"]["n"] == summary["pipelines"]
-    assert {"datasets", "operators", "parameters", "planned", "strings"} <= set(bundle)
-    # string columns are indices into the shared string table, each string stored once
-    assert len(bundle["strings"]) == len(set(bundle["strings"]))
-    hashes = tables["metrics"]["columns"]["execution_hash"]["s"]
-    assert all(len(bundle["strings"][i]) == 64 for i in hashes)
-    assert len(set(hashes)) == summary["executions"]
-
-    # one per-run file per execution, with detail + residuals
-    run_files = list((out / "data" / "runs").glob("*.json"))
-    assert len(run_files) == summary["executions"] > 0
-    one = json.loads(run_files[0].read_text())
-    assert "detail" in one and "residuals" in one
+@pytest.mark.parametrize("existing", [False, True])
+def test_build_site_refuses_before_any_output_or_store_mutation(tmp_path: Path, existing):
+    root, out = tmp_path/"store", tmp_path/"site"
+    if existing:
+        with ArenaStore(root):
+            pass
+        out.mkdir()
+        (out/"existing-private-record.json").write_text('{"private": true}')
+    before = {p.relative_to(tmp_path):p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+    with pytest.raises(ValueError,match="publication_gate_closed"):
+        build_site(root,out,domain=None)
+    assert {p.relative_to(tmp_path):p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}==before
+    assert root.exists()==out.exists()==existing

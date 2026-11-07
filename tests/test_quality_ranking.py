@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from nirs4all_benchmarks.identity.pipeline_dag import normalize_graph_spec
+from nirs4all_benchmarks.ingestion.resolve import fold_set_cv_instance_hash
 from nirs4all_benchmarks.ranking import RankingRequest, quality_ranking
 from nirs4all_benchmarks.service import create_app
 from nirs4all_benchmarks.site_build import build_site
@@ -45,7 +46,10 @@ def add(
     execution = execution or f"exec-{dataset}-{pipeline}-{split}-{cv}-{scope}-{partition}-{fold}"
     stamp = "2026-11-04T00:00:00Z"
     store.upsert("dataset_fingerprints", {"dataset_fingerprint": dataset, "created_at": stamp})
-    store.upsert("task_specs", {"task_hash": task, "dataset_fingerprint": dataset, "created_at": stamp})
+    store.upsert(
+        "task_specs",
+        {"task_hash": task, "dataset_fingerprint": dataset, "task_type": "regression", "created_at": stamp},
+    )
     store.upsert(
         "dataset_variants",
         {"dataset_variant_hash": variant, "dataset_fingerprint": dataset, "task_hash": task, "created_at": stamp},
@@ -81,8 +85,19 @@ def add(
             "split_indices_hash": "actual-" + split if actual else None,
         },
     )
+    # Synthetic declared fold set: its run-condition key is the positively bound CV identity key.
+    cv_spec = "cvspec-" + cv
+    store.upsert("cv_specs", {"cv_spec_hash": cv_spec})
+    fold_set, relation = "actual-" + cv, "relation-" + cv
+    cv = fold_set_cv_instance_hash(cv_spec, fold_set, relation) if actual else cv
     store.upsert(
-        "cv_instances", {"cv_instance_hash": cv, "engine_fold_set_fingerprint": "actual-" + cv if actual else None}
+        "cv_instances",
+        {
+            "cv_instance_hash": cv,
+            "cv_spec_hash": cv_spec,
+            "fold_summary_json": json.dumps({"relation_fingerprint": relation}) if actual else "{}",
+            "engine_fold_set_fingerprint": fold_set if actual else None,
+        },
     )
     store.upsert("refit_strategies", {"refit_strategy_hash": "refit"})
     store.upsert("score_computation_specs", {"score_computation_hash": protocol, "created_at": stamp})
@@ -108,6 +123,13 @@ def add(
             "run_condition_hash": rc,
             "status": status,
             "validity_status": validity,
+            "visibility": "public",
+            "identity_basis_json": "{}",
+            "identity_rankable": 1,
+            "oof_enforced": 1,
+            "group_leakage_checked": 1,
+            "nested_cv_safe": 1,
+            "unsafe_flags_json": "[]",
             "created_at": stamp,
         },
     )
@@ -303,9 +325,10 @@ def test_service_static_native_artifact_parity(tmp_path, monkeypatch):
     assert client.post("/api/quality-ranking", json={}).json() == live
     assert client.get("/api/quality-ranking", params={"scope": "invalid"}).status_code == 422
     assert client.post("/api/quality-ranking", json={"mystery": 1}).status_code == 422
-    build_site(root, tmp_path / "site", ranking_requests=[{}])
-    bundle = json.loads((tmp_path / "site/data/bundle.json").read_text())
-    assert bundle["quality_rankings"] == [live]
+    # The publication gate is closed: the static snapshot of this live artifact cannot be built.
+    with pytest.raises(ValueError, match="publication_gate_closed"):
+        build_site(root, tmp_path / "site", ranking_requests=[{}])
+    assert not (tmp_path / "site").exists()
     assert RankingRequest().identity == live["request_id"]
 
 
@@ -317,17 +340,35 @@ def test_native_end_to_end_partial_and_disconnected(tmp_path):
         add(store, "D1", "B", 2)
         add(store, "D2", "B", 20)
         add(store, "D2", "C", 30)
-        for method in ("elo", "bradley_terry", "trueskill", "openskill", "average_rank"):
+        for method in ("elo", "bradley_terry", "trueskill", "openskill"):
             result = quality_ranking(store, {"method": method})
             assert result["state"] == "ready", result
             assert result["coverage"]["connected_components"] == 1
             assert all(c["rank"] is not None for c in result["candidates"])
+        # Incomplete dataset panels give descriptive mean ranks only; the owner withholds global ranks.
+        result = quality_ranking(store, {"method": "average_rank"})
+        assert result["state"] == "ready", result
+        assert result["coverage"]["connected_components"] == 1
+        assert result["coverage"]["complete_blocks"] < result["coverage"]["blocks"]
+        assert all(c["rank"] is None for c in result["candidates"])
+        assert all(c["score"] is not None and c["average_rank"] is not None for c in result["candidates"])
+        assert any("Incomplete design" in warning for warning in result["warnings"])
         add(store, "D3", "X", 1)
         add(store, "D3", "Y", 2)
         result = quality_ranking(store)
         assert result["state"] == "ready", result
         assert result["coverage"]["connected_components"] == 2
         assert all(c["rank"] is None for c in result["candidates"])
+    # Control: complete dataset panels keep finite average-rank global ranks.
+    with ArenaStore(tmp_path / "complete") as store:
+        for dataset, losses in (("D1", (1, 2, 3)), ("D2", (10, 30, 20))):
+            for pipeline, loss in zip("ABC", losses, strict=True):
+                add(store, dataset, pipeline, loss)
+        result = quality_ranking(store, {"method": "average_rank"})
+        assert result["state"] == "ready", result
+        assert result["coverage"]["complete_blocks"] == result["coverage"]["blocks"]
+        assert all(c["rank"] is not None for c in result["candidates"])
+        assert not any("Incomplete design" in warning for warning in result["warnings"])
 
 
 def test_static_exact_config_lookup_and_explicit_unavailable(tmp_path, monkeypatch):
@@ -470,3 +511,42 @@ def test_matched_operator_compares_selected_presence_with_absence(tmp_path):
         assert source_block["rest_of_pipeline_fingerprint"]
         assert {c["label"] for c in result["candidates"]} == {"With prep.SNV@1", "Without prep.SNV"}
         assert capture.scores[0] == [2, 1]
+
+
+def test_bound_fold_set_replaces_outer_split_only_for_cv_validation(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        for pipeline, value in (("A", 1), ("B", 2)):
+            for partition in ("validation", "train"):
+                add(store, "D", pipeline, value, partition=partition, fold="fold:0")
+            add(store, "D", pipeline, value, scope="refit", partition="test")
+        store.conn.execute("UPDATE split_instances SET split_indices_hash=NULL")
+        store.conn.commit()
+        result = quality_ranking(store, ranker=Capture())
+        assert result["state"] == "ready"
+        assert result["provenance"]["fold_aggregation"] == "cv_fold_mean"
+        assert any("not the producer's pooled avg/w_avg" in warning for warning in result["warnings"])
+        assert all(block["cv_instance_hash"] for block in result["provenance"]["blocks"])
+        for request in ({"partition": "train"}, {"scope": "refit", "partition": "test"}):
+            refused = quality_ranking(store, request, ranker=Capture())
+            assert refused["reason"] == "no_eligible_observations"
+            assert refused["provenance"]["excluded"] == {"missing_comparison_identity": 2}
+
+
+def test_copied_or_unbound_cv_identity_requires_reingestion(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        add(store, "D", "A", 1)
+        add(store, "D", "B", 2)
+        # The pre-fix writer copied the opaque cv_instance_hash into the engine column.
+        store.conn.execute("UPDATE cv_instances SET engine_fold_set_fingerprint=cv_instance_hash")
+        store.conn.commit()
+        result = quality_ranking(store, ranker=Capture())
+        assert result["reason"] == "no_eligible_observations"
+        assert result["provenance"]["excluded"] == {"actual_cv_identity_requires_reingestion": 2}
+
+
+def test_mixed_cv_fold_granularity_is_refused(tmp_path):
+    with ArenaStore(tmp_path) as store:
+        add(store, "D", "A", 1, fold="fold:0")
+        add(store, "D", "B", 2)
+        result = quality_ranking(store, ranker=Capture())
+        assert result["reason"] == "mixed_cv_fold_granularity_requires_filter"
