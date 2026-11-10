@@ -2,8 +2,7 @@
 
 import json
 
-from nirs4all_benchmarks.ingestion import validate_metadata
-from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export
+from nirs4all_benchmarks.ingestion import IngestionPolicy, ingest_export, validate_metadata
 from nirs4all_benchmarks.store import ArenaStore
 from test_arena_v2 import record
 
@@ -90,8 +89,10 @@ def test_first_normalized_equivalent_form_and_corruption(tmp_path):
 
 def test_store_two_is_refused_without_writes(tmp_path):
     import sqlite3
-    from nirs4all_benchmarks.store import ArenaStoreRefusal
+
     import pytest
+
+    from nirs4all_benchmarks.store import ArenaStoreRefusal
 
     root = tmp_path / "old"
     root.mkdir()
@@ -146,7 +147,7 @@ def test_each_store_write_failure_rolls_back(tmp_path, monkeypatch):
         failed_positions = 0
         for position in range(1, 100):
             counter = [0]
-            def wrapped(name):
+            def wrapped(name, counter, position):
                 def invoke(*args, **kwargs):
                     result = methods[name](*args, **kwargs)
                     counter[0] += 1
@@ -156,7 +157,7 @@ def test_each_store_write_failure_rolls_back(tmp_path, monkeypatch):
                 return invoke
             with monkeypatch.context() as patch:
                 for name in methods:
-                    patch.setattr(store, name, wrapped(name))
+                    patch.setattr(store, name, wrapped(name, counter, position))
                 try:
                     result = ingest_export(store, source)
                 except RuntimeError as exc:

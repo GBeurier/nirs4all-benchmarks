@@ -31,9 +31,10 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 
 > ⚠️ **Early prototype.** Schemas, scores, views and the public page may still change.
 
-- **Now (v0.1.x): static, client-side.** The public page at **[benchmarks.nirs4all.org](https://benchmarks.nirs4all.org)**
-  is a fully static snapshot deployed on GitHub Pages — the whole dataviz runs in the browser from a
-  JSON snapshot, **no backend required**. The FastAPI service runs locally for ingestion and real stores.
+- **Current Pages build: results unavailable.** The existing public route at
+  **[benchmarks.nirs4all.org](https://benchmarks.nirs4all.org)** builds a data-free status page.
+  Scientific result publication remains closed. The local Arena store and SPA remain separate;
+  no deployment success or scientific acceptance follows from the build route.
 - **Next (medium term): a live meta-analysis server** that manages **runs, pipelines and meta-analyses**
   and interacts with **[`nirs4all-repository`](https://github.com/GBeurier/nirs4all-repository)** (pipeline
   recipes to score) and **[`nirs4all-datasets`](https://github.com/GBeurier/nirs4all-datasets)** (the dataset
@@ -41,9 +42,10 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 
 The checked-in [real-data pack](data/README.md) contains **10,824 measured runs on 104 catalog datasets**,
 covering 153 source/target tasks, 32 method labels, three seeds, and 32,286 score observations (including derived nRMSE).
-The Pages build imports this pack instead of synthetic fixtures. The pack lives in the Git repository for
-the website only; it is not part of the PyPI package (sdist or wheel). Scores retain their original held-out
-**test** scope and source provenance; the existing charts use test scores by default.
+The Pages status page does not import this pack. The frozen pack remains historical provenance in
+the Git repository; it is not part of the PyPI package (sdist or wheel). Scores retain their original held-out
+**test** scope and source provenance. Its explicit v2 conversion supplies no rankable records;
+see the [current publication boundary](docs/INGESTION.md#data-free-existing-site-route-9-november-2026).
 
 Full plan: **[docs/ROADMAP.md](docs/ROADMAP.md)**.
 

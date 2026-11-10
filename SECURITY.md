@@ -27,12 +27,17 @@ must protect their own logs.
 
 Arena store files require operator-controlled access. Unkeyed receipt and metadata hashes detect some partial inconsistencies; they do not provide tamper resistance against a writer who can consistently rewrite stored facts and hashes.
 
-Private project receipts retain explicitly allowlisted user-declared labels verbatim, without automatic path redaction. The public publication gate remains closed.
+Private project receipts retain explicitly allowlisted user-declared labels verbatim, without automatic path redaction. Scientific result publication remains closed.
 
 The private context card and its local digest do not authenticate a coherent
 rewrite of a store. The offline API is for the trusted local store owner: its
 first-accepted shared labels can originate in private exports, while the new
 per-export card is not exposed by that API. Authenticated project readers see
 only their project's per-export card. Public projections use selected public
-receipts, not shared labels; the publication gate remains closed. Do not publish
+receipts, not shared labels; scientific result publication remains closed. Do not publish
 offline output by hand.
+
+The existing Pages route builds only the explicit `--unavailable-results` page.
+It reads no store and ships only static HTML, the existing stylesheet and the
+Arena icon. It includes no SPA, scripts, upload forms, receipts or score data.
+This route does not qualify any local or remote service.

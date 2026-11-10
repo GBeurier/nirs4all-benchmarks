@@ -121,7 +121,8 @@ def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
         pipeline: str | None = None,
         operator: str | None = None,
         include_quarantined: bool = True,
-        limit: int = Query(500, ge=1, le=2000) if project else Query(500, le=100000),  # the Run explorer asks for every run (web/views/runs.js MAX_RUNS)
+        # the Run explorer asks for every run (web/views/runs.js MAX_RUNS)
+        limit: int = Query(500, ge=1, le=2000) if project else Query(500, le=100000),
     ) -> list[dict[str, Any]]:
         with queries() as q:
             return execution_rows(q, q.run_explorer(

@@ -1190,6 +1190,8 @@ upstream collector is a separate dependency: `scripts/collect_history.py` refuse
 
 ### Publication and remaining owners
 
+Historical checkpoint: for the current data-free Pages route, see [9 November 2026](#data-free-existing-site-route-9-november-2026).
+
 Pages has no push trigger. Its first dispatch step fails with
 `publication_gate_closed`, with no override; `build_site()` also refuses before
 opening a store or creating output. Backend static pack selection still requires
@@ -2242,3 +2244,37 @@ After same-export replay, a new export is refused with `metric_unit_conflict`
 when its final observations disagree with stored units for the same task and
 metric. This applies to all execution statuses and is transactional for packs.
 An internally mixed export is refused before replay as `metric_unit_contradiction`.
+
+
+### Data-free existing-site route (9 November 2026)
+
+The maintainer's existing-site redeployment authorization permits a separate,
+explicit `build-site --unavailable-results` page. This narrows the earlier blanket
+Pages refusal only for a data-free status artifact. The ordinary result builder
+still raises `publication_gate_closed` before store access/output. The existing
+manual Pages workflow builds only the status artifact; conversion and history
+intake remain separately invoked offline commands.
+
+This profile reads no store, requires no scientific runs, and copies only the
+unavailable-results HTML, existing stylesheet and Arena icon, plus optional CNAME
+and `.nojekyll`. It ships no SPA, generated runtime, data bundle, run documents,
+upload UI or analysis snapshots. Old hash routes therefore have no executable
+ranking/import path. Nonempty output is refused to prevent stale data publication.
+It is an explicit unavailable public view, not acceptance of zero scientific runs.
+
+The 10,824 frozen records and 32,286 observations retain their original facts,
+visibility and provenance. All remain unranked; neither the 5,826 restricted
+records nor the 4,998 unreported-visibility records enter this artifact. The
+canonical uncompressed JSONL digest remains
+`d29af7685161345775d69ac03a1c0f86120a7442bb99cc7921461e67176d4945`.
+No missing identity, safety, completion, fold or variant context is supplied.
+Arena wire version 2 is independent of an owner's ScientificContextV1 version;
+accepting metadata does not establish scientific eligibility in either contract.
+
+Publishing scientific results still needs genuinely eligible public evidence,
+exact task/metric/unit and fold/variant context, an owner-reviewed public
+projection with its frontend consumer, and Root's execution decision. Private
+per-export cards, local APIs, project-token services and hosting acceptance stay
+separate. Earlier conversion/recovery proofs and refusals remain historical
+records. This section defines the bounded route, not an executed validation or
+hosted deployment claim.

@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from pathlib import Path
 
 from nirs4all_access import ProjectPrincipal, issue_credential, write_credential_store
@@ -226,10 +227,8 @@ def test_sigkill_before_commit_restarts_and_replays(tmp_path):
             process.kill()
             stdout, stderr = process.communicate(timeout=10)
             all_logs += stdout + stderr
-            try:
+            with suppress(OSError, http.client.HTTPException):
                 pending.result(timeout=10)
-            except (OSError, http.client.HTTPException):
-                pass
         process = subprocess.Popen([sys.executable, '-B', '-m', 'nirs4all_benchmarks.cli', *options],
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         ready()

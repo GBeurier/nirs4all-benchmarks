@@ -341,28 +341,32 @@ separately if replay is needed: sanitized receipts are not replay inputs.
 
 ## Static deployment on GitHub Pages (no backend)
 
-The public page at **benchmarks.nirs4all.org** is a fully static, client-side snapshot — GitHub Pages
-serves it with no server. The SPA loads a JSON snapshot and answers every query in the browser via
-`web/lib/static-engine.js` (a parity-checked mirror of the Python `Queries`).
-
-Build it locally:
+The existing **benchmarks.nirs4all.org** route supports only a data-free
+unavailable-results page. Scientific result publication remains closed. Build
+this profile into an absent or empty directory:
 
 ```bash
-n4a-benchmarks fixtures   --store ./pages-store           # or ingest a real store
-n4a-benchmarks build-site --store ./pages-store --out ./site --domain benchmarks.nirs4all.org
-# ./site is self-contained: index.html, app.js, lib/, views/, vendor/, brand/,
-# config.js (window.ARENA_STATIC = true), CNAME, .nojekyll, and data/ (bundle.json + runs/*.json)
-python -m http.server -d ./site 8080   # preview
+n4a-benchmarks build-site --unavailable-results --out ./site --domain benchmarks.nirs4all.org
 ```
 
-CI does this automatically: `.github/workflows/pages.yml` seeds the demo store, runs `build-site`,
-and deploys `./site` to Pages on `workflow_dispatch` or site-affecting pushes to `main`
-(`pyproject.toml`, `VERSION`, the workflow itself, or `src/nirs4all_benchmarks/**`). Point a DNS `CNAME` record for
-`benchmarks.nirs4all.org` at `gbeurier.github.io`, and enable Pages (source: GitHub Actions) in the
-repo settings.
+The artifact contains exactly `index.html`, `styles.css`, `brand/icon.svg`,
+`CNAME` and `.nojekyll`. It includes no SPA, scripts, data bundle, run documents
+or upload form. No store is opened or seeded; no history is converted/imported.
+Analysis request options and stale output directories are refused. Omitting
+`--unavailable-results` retains the ordinary `publication_gate_closed` refusal.
 
-This is the **prototype** stage; the medium-term plan is a live server backing the same SPA — see
-[ROADMAP.md](ROADMAP.md).
+The existing `.github/workflows/pages.yml` is manual-only (`workflow_dispatch`);
+there is no push trigger. It builds this explicit profile and uses the existing
+Pages artifact/deployment channel and custom domain. Root owns dispatch after
+review and affected checks, then verifies the served tree and source. This is
+not a new hosting or service authorization and claims no deployment success.
+Root should confirm the existing Pages environment accepts the merged ref.
+
+The page uses root-absolute asset URLs for the existing custom domain. A GitHub
+project sub-path without that domain does not provide the same styling.
+Scientific result publication still requires genuine eligible public evidence,
+an owner-reviewed projection and frontend consumer, and Root's decision; see the
+[current publication boundary](INGESTION.md#data-free-existing-site-route-9-november-2026).
 
 ## Local project-token service
 

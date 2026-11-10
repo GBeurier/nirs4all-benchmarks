@@ -140,7 +140,7 @@ def test_early_refusals_never_read_body(tmp_path):
     assert asyncio.run(request("GET", "/api/overview", auth, b"project=b")) == 400
     add = [(b"authorization", ("Bearer " + add_token).encode())]
     assert asyncio.run(request("POST", "/api/ingest", add)) == 415
-    assert asyncio.run(request("POST", "/api/ingest", add + [(b"content-type", b"application/json"),
+    assert asyncio.run(request("POST", "/api/ingest", [*add, (b"content-type", b"application/json"),
                                                                (b"content-length", b"8388609")])) == 413
     assert asyncio.run(request("GET", "/api/overview", auth + auth)) == 401
 
@@ -251,6 +251,7 @@ def test_cancelled_metadata_reads_hold_project_slots_until_workers_finish(tmp_pa
 def test_cancelled_writer_holds_its_slot_until_worker_finishes(tmp_path, monkeypatch):
     import asyncio
     import threading
+
     import nirs4all_benchmarks.service.project as project
 
     provision_project(tmp_path, 'a')
@@ -325,6 +326,7 @@ def test_cancelled_writer_holds_its_slot_until_worker_finishes(tmp_path, monkeyp
 
 def test_distinct_cards_source_replay_and_collision_precheck(tmp_path, monkeypatch):
     import copy
+
     import nirs4all_benchmarks.datasets as datasets
     from nirs4all_benchmarks.ingestion import validate_metadata
     from nirs4all_benchmarks.store import ArenaStore
@@ -408,6 +410,7 @@ def test_fixed_internal_error_never_echoes_server_or_request_data(tmp_path, monk
 
 def test_bounded_stream_and_body_deadline(tmp_path, monkeypatch):
     import asyncio
+
     import nirs4all_benchmarks.service.project as project
 
     provision_project(tmp_path, 'a')
@@ -432,7 +435,7 @@ def test_bounded_stream_and_body_deadline(tmp_path, monkeypatch):
     async def deadline(coro, timeout):
         assert timeout == 30
         coro.close()
-        raise asyncio.TimeoutError
+        raise TimeoutError
     with monkeypatch.context() as patch:
         patch.setattr(project.asyncio, 'wait_for', deadline)
         assert asyncio.run(request([])) == 408
@@ -440,6 +443,7 @@ def test_bounded_stream_and_body_deadline(tmp_path, monkeypatch):
 
 def test_startup_rejects_unprovisioned_symlinks_and_shared_database(tmp_path):
     import os
+
     import pytest
 
     token, credential = issue_credential(ProjectPrincipal('a', 'test', frozenset({'arena'}),
