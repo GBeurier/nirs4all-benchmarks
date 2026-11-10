@@ -86,8 +86,9 @@ def ingest_export_cmd(
         collection_kind="benchmark_release" if release else "user_run_collection",
     )
     counts: dict[str, int] = {}
-    from nirs4all_benchmarks.ingestion import validate_metadata
     from nirs4all_benchmarks.contract.strict_json import strict_loads
+    from nirs4all_benchmarks.ingestion import validate_metadata
+
     try:
         payloads = [strict_loads(f.read_text(encoding="utf-8")) for f in files]
     except (OSError, ValueError, UnicodeError, RecursionError):
@@ -312,6 +313,9 @@ def build_site_cmd(
     store: str = StoreOpt,
     out: Path = typer.Option(Path("site"), "--out", "-o", help="Output directory for the static site."),
     domain: str = typer.Option("benchmarks.nirs4all.org", "--domain", help="Custom domain (CNAME); empty to skip."),
+    unavailable_results: bool = typer.Option(
+        False, "--unavailable-results", help="Build only the data-free unavailable-results page; never open a store.",
+    ),
     ranking_requests: Path | None = typer.Option(
         None, "--ranking-requests", exists=True, dir_okay=False,
         help="JSON file containing an array of exact ranking request objects to precompute.",
@@ -325,11 +329,20 @@ def build_site_cmd(
         help="JSON file containing exact mixed-effects or fANOVA analysis requests to precompute.",
     ),
 ) -> None:
-    """Build a fully static, client-side copy of the Arena (for GitHub Pages — no backend)."""
+    """Build a static Arena page; result snapshots remain closed."""
+    from nirs4all_benchmarks.site_build import build_site
+
+    if unavailable_results:
+        if any(path is not None for path in (ranking_requests, relative_gain_requests, component_analysis_requests)):
+            raise typer.BadParameter("--unavailable-results cannot include analysis request files")
+        summary = build_site(store, out, domain=domain or None, unavailable_results=True)
+        console.print(f"[green]✓[/] unavailable-results page built at [bold]{summary['out']}[/]; "
+                      "no scientific records published")
+        return
+
     from pydantic import ValidationError
 
     from nirs4all_benchmarks.ranking import ComponentAnalysisRequest, RankingRequest, RelativeGainRequest
-    from nirs4all_benchmarks.site_build import build_site
 
     def read_requests(path: Path | None, model: type, option: str) -> list:
         if path is None:
@@ -487,6 +500,7 @@ def serve_project_cmd(root: Path = typer.Option(..., "--root"),
     try:
         import uvicorn
         from nirs4all_access import load_credential_store, require_secure_transport
+
         from nirs4all_benchmarks.service.project import create_project_app
 
         require_secure_transport(host, tls=False)

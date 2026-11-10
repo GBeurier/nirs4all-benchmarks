@@ -360,3 +360,21 @@ the base install. `pip install 'nirs4all-benchmarks[all]'` pulls the `service` a
 serves the startup snapshot on loopback with project-token authentication. The existing
 `serve` command remains unauthenticated and is for offline use only. Provisioning and
 serving do not publish or host the service.
+
+
+### `build-site`
+
+Scientific result builds remain closed with `publication_gate_closed`, before
+opening a store or creating output. The explicitly selected data-free route is:
+
+```bash
+n4a-benchmarks build-site --unavailable-results --out ./NEW-EMPTY-SITE --domain benchmarks.nirs4all.org
+```
+
+This builds static HTML using the existing Arena stylesheet and icon. It does not
+read or provision `--store`, convert/import history, copy the SPA or generated
+assets, or publish scores, receipts or residuals. All analysis request options
+are forbidden, including empty request files. Output must be absent or an empty
+real directory; nonempty, file and symlink outputs refuse. An empty `--domain`
+omits CNAME. Building a directory is not deployment; Root owns the existing
+manual Pages workflow. Service/authentication acceptance is separate.

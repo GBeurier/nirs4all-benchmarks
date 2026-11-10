@@ -44,7 +44,7 @@ async def _drain_cancelled(task: asyncio.Task[Any]) -> None:
         try:
             task.result()
         except Exception:
-            pass
+            return
 
 
 def _principal(project_id: str) -> Any:
@@ -131,12 +131,12 @@ def _limits(value: Any, path: tuple[str, ...] = (), depth: int = 0) -> None:
     if isinstance(value, dict):
         for k, v in value.items():
             _limits(k, path, depth + 1)
-            _limits(v, path + (k,), depth + 1)
+            _limits(v, (*path, k), depth + 1)
     elif isinstance(value, list):
         if len(value) > 4096 and path not in {('residuals', 'inline'), ('scores', 'observations')}:
             raise ValueError('array')
         for item in value:
-            _limits(item, path + ('[]',), depth + 1)
+            _limits(item, (*path, '[]'), depth + 1)
 
 
 def _metadata(root: Path, execution_hash: str) -> dict[str, Any] | None:
@@ -153,7 +153,8 @@ def _metadata(root: Path, execution_hash: str) -> dict[str, Any] | None:
         if not row or not receipt or not binding_consistent(execution, row, receipt):
             raise RuntimeError('stored binding')
         receipt_json = json.loads(receipt['receipt_json'])
-        if fingerprint(receipt_json) != receipt['receipt_sha256'] or receipt_json.get('source_export_hash') != export_hash:
+        if (fingerprint(receipt_json) != receipt['receipt_sha256']
+                or receipt_json.get('source_export_hash') != export_hash):
             raise RuntimeError('stored receipt')
         receipt_json = read_stored_metadata(None, export_hash, stored_json=receipt['receipt_json'])
         if receipt_json.get('status') == 'metadata_unavailable':
@@ -214,6 +215,7 @@ def create_project_app(root: str | Path, records: Any) -> Any:
     from fastapi import FastAPI
     from fastapi.responses import JSONResponse
     from nirs4all_access import AccessError, ProjectTokenVerifier, parse_bearer
+
     from nirs4all_benchmarks.service.routes import register_routes
 
     records = tuple(records)
@@ -308,22 +310,28 @@ def create_project_app(root: str | Path, records: Any) -> Any:
             if method == 'POST':
                 params = dict(query)
                 if 'as_release' in params:
-                    await reply(400, {'code': 'release_not_supported'}); return
+                    await reply(400, {'code': 'release_not_supported'})
+                    return
                 collection = params.get('collection', 'uploads')
                 if not _COLLECTION.fullmatch(collection):
-                    await reply(400, {'code': 'invalid_query'}); return
+                    await reply(400, {'code': 'invalid_query'})
+                    return
                 content_types = [v for k, v in raw_headers if k.lower() == b'content-type']
                 if (len(content_types) != 1 or content_types[0].split(b';', 1)[0].strip().lower() != b'application/json'
                         or any(k.lower() == b'content-encoding' for k, _ in raw_headers)):
-                    await reply(415, {'code': 'unsupported_media_type'}); return
+                    await reply(415, {'code': 'unsupported_media_type'})
+                    return
                 lengths = [v for k, v in raw_headers if k.lower() == b'content-length']
                 if len(lengths) > 1 or (lengths and (not lengths[0].isdigit())):
-                    await reply(400, {'code': 'invalid_request'}); return
+                    await reply(400, {'code': 'invalid_request'})
+                    return
                 if lengths and int(lengths[0]) > _MAX_BODY:
-                    await reply(413, {'code': 'body_too_large'}); return
+                    await reply(413, {'code': 'body_too_large'})
+                    return
                 acquired = writers[project_id].acquire(blocking=False)
                 if not acquired:
-                    await reply(503, {'code': 'project_busy'}, [(b'retry-after', b'1')]); return
+                    await reply(503, {'code': 'project_busy'}, [(b'retry-after', b'1')])
+                    return
                 async def read_body() -> bytes:
                     chunks = bytearray()
                     while True:
@@ -338,23 +346,29 @@ def create_project_app(root: str | Path, records: Any) -> Any:
                     return bytes(chunks)
                 try:
                     body = await asyncio.wait_for(read_body(), timeout=30)
-                except asyncio.TimeoutError:
-                    await reply(408, {'code': 'body_timeout'}); return
+                except TimeoutError:
+                    await reply(408, {'code': 'body_timeout'})
+                    return
                 except OverflowError:
-                    await reply(413, {'code': 'body_too_large'}); return
+                    await reply(413, {'code': 'body_too_large'})
+                    return
                 except ValueError:
-                    await reply(400, {'code': 'invalid_request'}); return
+                    await reply(400, {'code': 'invalid_request'})
+                    return
                 if lengths and len(body) != int(lengths[0]):
-                    await reply(400, {'code': 'invalid_request'}); return
+                    await reply(400, {'code': 'invalid_request'})
+                    return
                 task = asyncio.create_task(asyncio.to_thread(_ingest, roots[project_id], body, collection))
                 try:
                     status, result = await asyncio.shield(task)
                 except asyncio.CancelledError:
                     await _drain_cancelled(task)
                     raise
-                await reply(status, result); return
+                await reply(status, result)
+                return
             if path == '/api/healthz':
-                await reply(200, {'status': 'ok'}); return
+                await reply(200, {'status': 'ok'})
+                return
             if match and match.group(2) == 'metadata':
                 metadata_task = asyncio.create_task(asyncio.to_thread(_metadata, roots[project_id], match.group(1)))
                 try:

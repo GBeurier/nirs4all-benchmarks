@@ -41,8 +41,48 @@ def build_site(
     ranking_requests: list[RankingRequest | dict[str, Any]] | None = None,
     relative_gain_requests: list[RelativeGainRequest | dict[str, Any]] | None = None,
     component_analysis_requests: list[ComponentAnalysisRequest | dict[str, Any]] | None = None,
+    unavailable_results: bool = False,
 ) -> dict[str, Any]:
-    """Build a fully static, client-side copy of the Arena from a store. Returns a summary."""
+    """Build an explicitly data-free status page; result publication remains closed.
+
+    Args:
+        store_root: Store location for result builds; unused by the status page.
+        out_dir: Absent or empty output directory.
+        domain: Optional custom domain written to CNAME.
+        ranking_requests: Explicit ranking snapshots; forbidden for the status page.
+        relative_gain_requests: Explicit gain snapshots; forbidden for the status page.
+        component_analysis_requests: Explicit component snapshots; forbidden for the status page.
+        unavailable_results: Publish only the static unavailable-results page.
+
+    Returns:
+        Summary of the generated page and its zero published scientific records.
+
+    Raises:
+        ValueError: Result publication is closed, requests are supplied for the status
+            page, or output could retain stale content.
+    """
+    if unavailable_results:
+        if any(requests is not None for requests in (
+            ranking_requests, relative_gain_requests, component_analysis_requests,
+        )):
+            raise ValueError("unavailable_results_forbids_analysis_requests")
+        out = Path(out_dir)
+        if out.is_symlink() or (out.exists() and (not out.is_dir() or any(out.iterdir()))):
+            raise ValueError("site output must be an empty directory; stale files cannot be published")
+        out.mkdir(parents=True, exist_ok=True)
+        # Deliberate file allowlist: no SPA, store, history, data or generated runtime.
+        for source, target in (
+            ("unavailable.html", "index.html"), ("styles.css", "styles.css"), ("brand/icon.svg", "brand/icon.svg"),
+        ):
+            destination = out / target
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(_WEB_DIR / source, destination)
+        if domain:
+            (out / "CNAME").write_text(domain + "\n", encoding="utf-8")
+        (out / ".nojekyll").write_text("", encoding="utf-8")
+        return {"out": str(out), "state": "unavailable", "reason": "no_qualified_public_snapshot",
+                "executions": 0, "pipelines": 0, "datasets": 0, "metric_rows": 0, "facet_rows": 0,
+                "domain": domain}
     raise ValueError("publication_gate_closed")
     if not (Path(store_root) / "arena.sqlite").is_file():
         raise ValueError("site build requires an existing store with rankable completed runs")

@@ -1,10 +1,7 @@
 name: pages
 
-# Build the static, client-side Arena (a JSON snapshot of real research runs + the
-# SPA and optional ranking bundle) and deploy it to GitHub Pages at benchmarks.nirs4all.org.
-# The published site needs NO backend — see DESIGN/ROADMAP (static now; a live
-# server managing runs/pipelines/meta-analyses with nirs4all-repository &
-# nirs4all-datasets is the medium-term plan).
+# Deploy only the data-free unavailable-results page to the existing Arena site.
+# Scientific result publication remains closed; Root owns manual dispatch.
 
 on:
   workflow_dispatch:
@@ -22,28 +19,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Publication gate closed
-        run: |
-          echo publication_gate_closed
-          exit 1
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: npm
-      - name: Build shared ranking frontend
-        run: npm ci && npm run build:frontend
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv python install 3.11
       - name: Install
         run: |
           uv venv --python 3.11 .venv
           uv pip install --python .venv -e .
-      - name: Import real catalog runs + build static site
-        run: |
-          .venv/bin/n4a-benchmarks convert-frozen-history --out ./converted-history
-          .venv/bin/n4a-benchmarks ingest-history ./converted-history --store ./pages-store
-          .venv/bin/n4a-benchmarks build-site --store ./pages-store --out ./site --domain benchmarks.nirs4all.org
+      - name: Build unavailable-results page without a store or history
+        run: .venv/bin/n4a-benchmarks build-site --unavailable-results --out ./site --domain benchmarks.nirs4all.org
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ./site

@@ -14,7 +14,7 @@ Keep the later store/transaction amendments distinct: [R3–R7 scope](docs/INGES
 
 The [CLI reference](docs/CLI.md#commands) distinguishes unauthenticated offline-only `serve` from loopback project-token `serve-project`. The latter is an owner-documented LOCAL, UNQUALIFIED profile; it inherits no acceptance from the separately accepted S1 local-evidence slice. It grants no auth, hosting, upload, publication or remote-service acceptance. Root policy remains unchanged.
 
-Follow [security](SECURITY.md) and the [project-token API](docs/API.md#project-token-api): authenticate before bodies, use exact project rights and startup snapshots, and never follow client paths/URLs. Private allowlisted labels can contain sensitive text; hashes and pseudonyms neither prove rights nor guarantee anonymity. Keep private per-export cards distinct from public receipts. Never publish offline output by hand; the publication gate remains closed and the existing Pages snapshot grants no new deployment authority.
+Follow [security](SECURITY.md) and the [project-token API](docs/API.md#project-token-api): authenticate before bodies, use exact project rights and startup snapshots, and never follow client paths/URLs. Private allowlisted labels can contain sensitive text; hashes and pseudonyms neither prove rights nor guarantee anonymity. Keep private per-export cards distinct from public receipts. Never publish offline output by hand. Scientific result publication remains closed. The explicit `build-site --unavailable-results` route may build only a data-free public status page; it grants no result, history, upload or service acceptance. Root owns existing-site deployment under the current maintainer authorization.
 
 ## Checks and licensing
 

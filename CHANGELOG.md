@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.11] — 2026-11-09
+
+Release preparation for the bounded public-site closure; publication is pending.
+
+### Added
+- `build-site --unavailable-results` builds a data-free public status page without opening a store
+  or publishing scientific records. The published 0.1.10 release does not contain this option.
+
+### Changed
+- The existing manual Pages workflow builds only the unavailable-results page using the existing
+  stylesheet and Arena icon. Scientific result publication remains closed.
+- Align package, VERSION and citation metadata at 0.1.11. Published 0.1.10 artifacts and history
+  remain unchanged; no wire, store or residual schema version changes.
+
 ## [0.1.9] — 2026-11-03
 
 Packaging fix: the results database no longer ships on PyPI.

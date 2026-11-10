@@ -25,7 +25,7 @@ jobs:
       - name: Create venv and install
         run: |
           uv venv --python ${{ matrix.python-version }} .venv
-          uv pip install --python .venv -e ".[service,dev]" pytest-cov
+          uv pip install --python .venv -e ".[project-service,dev]" pytest-cov
 
       - name: Ruff (lint)
         run: .venv/bin/ruff check src tests
@@ -34,6 +34,8 @@ jobs:
         run: .venv/bin/mypy --python-version ${{ matrix.python-version }}
 
       - name: Pytest (with coverage)
+        env:
+          ARENA_PROJECT_LOOPBACK: "1"
         run: .venv/bin/python -m pytest -q --cov=nirs4all_benchmarks --cov-report=xml
 
       - name: Upload coverage
