@@ -371,12 +371,10 @@ def test_native_end_to_end_partial_and_disconnected(tmp_path):
         assert not any("Incomplete design" in warning for warning in result["warnings"])
 
 
-def test_static_exact_config_lookup_and_explicit_unavailable(tmp_path, monkeypatch):
+def test_static_exact_config_lookup_and_explicit_unavailable(tmp_path):
     import shutil
     import subprocess
     from pathlib import Path
-
-    import nirs4all_benchmarks.ranking.quality as quality
 
     node = shutil.which("node")
     if not node:
@@ -392,8 +390,19 @@ def test_static_exact_config_lookup_and_explicit_unavailable(tmp_path, monkeypat
     with ArenaStore(root) as store:
         add(store, "D", "A", 1)
         add(store, "D", "B", 2)
-    monkeypatch.setattr(quality, "_native_rank", lambda: Capture())
-    build_site(root, tmp_path / "site", ranking_requests=[{}])
+        expected = quality_ranking(store, ranker=Capture())
+    assert expected["state"] == "ready", expected
+    # This is a private response fixture, never a published ranking snapshot.
+    with pytest.raises(ValueError, match=r"^publication_gate_closed$"):
+        build_site(root, tmp_path / "site", ranking_requests=[{}])
+    assert not (tmp_path / "site").exists()
+    bundle = {
+        "strings": [], "datasets": [],
+        "tables": {name: {"n": 0, "columns": {}} for name in ("metrics", "facets", "pipeline_nodes", "pipelines")},
+        "quality_rankings": [expected],
+    }
+    bundle_path = tmp_path / "private-ranking-response.json"
+    bundle_path.write_text(json.dumps(bundle))
     engine = Path(__file__).parents[1] / "src/nirs4all_benchmarks/web/lib/static-engine.js"
     (tmp_path / "engine.mjs").write_text(engine.read_text())
     (tmp_path / "driver.mjs").write_text("""
@@ -408,13 +417,12 @@ console.log(JSON.stringify(await Promise.all([
   api.qualityRanking({direction: null})])));
 """)
     result = subprocess.run(
-        [node, str(tmp_path / "driver.mjs"), str(tmp_path / "site/data/bundle.json")],
+        [node, str(tmp_path / "driver.mjs"), str(bundle_path)],
         text=True,
         capture_output=True,
         check=True,
     )
     results = json.loads(result.stdout)
-    expected = json.loads((tmp_path / "site/data/bundle.json").read_text())["quality_rankings"][0]
     assert results[0] == expected
     assert results[-1] == expected
     assert all(r["reason"] == "static_ranking_request_not_precomputed" and not r["candidates"] for r in results[1:-1])

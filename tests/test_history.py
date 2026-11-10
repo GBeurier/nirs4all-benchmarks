@@ -4,20 +4,15 @@ from __future__ import annotations
 
 import gzip
 import hashlib
-import http.server
 import json
 import math
-import shutil
-import subprocess
-import threading
 from collections import Counter
-from functools import partial
 from pathlib import Path
 
 import pytest
 
 from nirs4all_benchmarks.contract import validate_manifest
-from nirs4all_benchmarks.history import ingest_history
+from nirs4all_benchmarks.history import ingest_history, load_history_exports
 from nirs4all_benchmarks.scoring import direction_of
 from nirs4all_benchmarks.site_build import build_site
 from nirs4all_benchmarks.store import ArenaStore, Queries
@@ -65,19 +60,6 @@ def test_checked_in_real_data_archive_is_immutable_source_not_v2_attestation() -
     assert counts["observations"] == metadata["metric_observations"] == 32286
     assert len(datasets) == metadata["datasets"] == 104 and len(tasks) == metadata["tasks"] == 153
     assert counts["nrmse"] == 6480
-
-
-def _small_pack(root: Path) -> dict:
-    with gzip.open(PACK / "runs.jsonl.gz", "rt") as stream:
-        manifest = json.loads(next(stream))
-    assert validate_manifest(manifest) == []
-    archive = root / "runs.jsonl.gz"
-    with gzip.open(archive, "wt") as stream:
-        stream.write(json.dumps(manifest) + "\n")
-    metadata = json.loads((PACK / "manifest.json").read_text())
-    metadata.update(executions=1, archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest())
-    (root / "manifest.json").write_text(json.dumps(metadata))
-    return manifest
 
 
 def test_converted_native_record_replays_and_stays_unranked(tmp_path):
@@ -174,55 +156,20 @@ def test_duplicate_native_pack_does_not_qualify_as_pinned_history(tmp_path):
         assert store.count("executions") == store.count("collections") == 0
 
 
-def test_real_charts_recover_from_saved_demo_filters(tmp_path: Path) -> None:
-    chrome = next((shutil.which(name) for name in ("google-chrome", "chromium", "chromium-browser")
-                   if shutil.which(name)), None)
-    if not chrome:
-        pytest.skip("Chrome or Chromium is required for chart rendering validation")
-    _small_pack(tmp_path)
-    with ArenaStore(tmp_path / "store") as store:
-        ingest_history(store, tmp_path)
-        if not Queries(store).overview()["score_scopes"]:
-            pytest.skip("History terminal completion is unreported; strict site generation is refused")
-    site = tmp_path / "site"
-    build_site(tmp_path / "store", site, domain=None)
-    index = site / "index.html"
-    original = index.read_text(encoding="utf-8")
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), partial(http.server.SimpleHTTPRequestHandler,
-                                                                     directory=str(site)))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        cases = [
-            ({"metric": "r2", "scope": "cv", "dataset": "old-demo-dataset"}, "accuracy"),
-            ({"metric": "f1_weighted", "scope": "test", "dataset": ""}, "f1_weighted"),
-        ]
-        for number, (lens, expected_metric) in enumerate(cases):
-            setup = f"localStorage.setItem('arena.state.v2', {json.dumps(json.dumps(lens))});"
-            # Check actual SVG bar paths, rather than treating a rendered table
-            # or the absence of JavaScript errors as proof that a chart exists.
-            setup += """
-                const check = setInterval(() => {
-                  const plot = document.getElementById('lb-plot');
-                  if (plot?.querySelector('.barlayer .point path')) {
-                    document.body.dataset.chartRendered = 'true';
-                    document.body.dataset.chartLens = localStorage.getItem('arena.state.v2');
-                    clearInterval(check);
-                  }
-                }, 100);
-            """
-            index.write_text(original.replace("</head>", f"<script>{setup}</script></head>"), encoding="utf-8")
-            result = subprocess.run(
-                [chrome, "--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
-                 f"--user-data-dir={tmp_path / f'browser-{number}'}", "--virtual-time-budget=10000", "--dump-dom",
-                 f"http://127.0.0.1:{server.server_port}/#/leaderboard"],
-                capture_output=True, text=True, timeout=30, check=True,
-            )
-            assert 'data-chart-rendered="true"' in result.stdout
-            assert f'&quot;metric&quot;:&quot;{expected_metric}&quot;' in result.stdout
-            assert '&quot;scope&quot;:&quot;test&quot;' in result.stdout
-            assert '&quot;dataset&quot;:&quot;&quot;' in result.stdout
-    finally:
-        server.shutdown()
-        thread.join()
-        server.server_close()
+def test_frozen_history_is_refused_as_chart_input(tmp_path: Path) -> None:
+    """Frozen source claims cannot become current chart eligibility."""
+    from nirs4all_benchmarks.ingestion import validate_metadata
+
+    # The original SVG/filter oracle is preserved verbatim under the historical
+    # static-oracle fixtures. This refusal does not qualify browser rendering.
+    with gzip.open(PACK / "runs.jsonl.gz", "rt") as stream:
+        manifest = json.loads(next(stream))
+    assert manifest["arena_export_schema_version"] == 1
+    assert validate_manifest(manifest)
+    assert validate_metadata(manifest).issues[0]["code"] == "unsupported_export_version"
+    with pytest.raises(ValueError, match=r"^unsupported_export_version$"):
+        load_history_exports(PACK)
+    with pytest.raises(ValueError, match=r"^publication_gate_closed$"):
+        build_site(tmp_path / "store", tmp_path / "site", domain=None)
+    assert not (tmp_path / "store").exists()
+    assert not (tmp_path / "site").exists()
