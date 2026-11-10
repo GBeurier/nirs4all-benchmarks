@@ -6,6 +6,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.12] — 2026-11-10
+
+Supersedes the unpublished 0.1.11 preparation at immutable tag `v0.1.11`
+(`16655b0`), whose full CI failed. Only one package publication is planned for
+this coherent 0.1.12 batch; publication remains pending Root's gates.
+
+### Fixed
+- Resolve the existing Node executable in the offline test guard and its isolated
+  selftest instead of using platform-specific executable paths; keep exact argv
+  and child-environment restrictions.
+- Align obsolete history/site tests with schema-1 and scientific-publication
+  refusals, preserve the original browser/numerical oracles as historical text,
+  and test exact ranking-cache delivery with a private synthetic response.
+
+### Changed
+- Align VERSION, package-version and citation metadata at 0.1.12. These are test
+  and release-metadata corrections, with no scientific runtime behavior change
+  and no wire, store, residual, identity or privacy-contract changes.
+- Carry forward the data-free `build-site --unavailable-results` route prepared
+  for 0.1.11. Scientific result publication remains closed. The old tag stays
+  immutable and unpublished; historical chart/parity assertions do not establish
+  current acceptance.
+
 ## [0.1.11] — 2026-11-09
 
 Release preparation for the bounded public-site closure; publication is pending.

@@ -7,6 +7,7 @@ project imports. It never grants producer training, network, builds or installs.
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -20,7 +21,6 @@ def install_execution_guards() -> None:
     import hashlib
     import importlib.abc
     import json
-    import shutil
     import stat
     import subprocess
     import venv
@@ -31,8 +31,8 @@ def install_execution_guards() -> None:
         raise PermissionError("arena_test_authorization_required:unowned_scratch")
     guard_dir = os.environ["ARENA_TEST_GUARD_DIR"]
     python = Path(sys.executable).resolve()
-    node = Path("/usr/bin/node").resolve()
-    node22 = Path("/home/delete/.nvm/versions/node/v22.21.1/bin/node").resolve()
+    node_path = shutil.which("node")
+    node = Path(node_path).resolve() if node_path else None
     repository = Path(__file__).resolve().parents[1]
     node_metadata_argv = ("-p", "process.versions.node.split('.')[0]")
     stub_cases = {
@@ -374,7 +374,7 @@ def install_execution_guards() -> None:
             executable, argv, _cwd, env = args
             if not isinstance(argv, (list, tuple)):
                 denied("process_argv_unsupported")
-            if Path(executable).resolve() in {node, node22}:
+            if Path(executable).resolve() == node:
                 metadata = tuple(argv[1:]) == node_metadata_argv
                 module = sys.modules.get("test_view_rendering")
                 cwd = Path(_cwd or Path.cwd()).resolve()
@@ -450,7 +450,7 @@ def install_execution_guards() -> None:
 
     def guarded_which(command, *args, **kwargs):
         if command == "node" and node_context():
-            return str(node22) if node22.is_file() else None
+            return str(node) if node is not None and node.is_file() else None
         return original_which(command, *args, **kwargs)
 
     def guarded_run(*args, **kwargs):
@@ -479,8 +479,8 @@ def install_execution_guards() -> None:
             env["ARENA_TEST_GUARD_DIR"] = guard_dir
             env["PYTHONPATH"] = guard_dir + os.pathsep + env.get("PYTHONPATH", "")
             env["PYTHONDONTWRITEBYTECODE"] = "1"
-            if node_context():
-                env["PATH"] = str(node22.parent) + os.pathsep + env.get("PATH", "")
+            if node_context() and node is not None:
+                env["PATH"] = str(node.parent) + os.pathsep + env.get("PATH", "")
             argv = list(map(str, args)) if isinstance(args, (tuple, list)) else []
             kind = None
             if fixture_context():
@@ -630,13 +630,18 @@ if __name__ != "arena_guard_bootstrap":
         if not getattr(sys, "_arena_test_guards", False):
             return
         sys._arena_test_context = item.nodeid
-        if item.nodeid.startswith("tests/test_static_engine_parity.py::"):
-            # Collected by whole pytest, explicitly unexecuted, never skipped or
-            # deselected. Its v1 site build is outside the parent's grant.
+        if (item.nodeid.startswith("tests/test_static_engine_parity.py::")
+                and item.nodeid != "tests/test_static_engine_parity.py::test_frozen_history_refuses_static_engine_publication"):
+            # Only the explicit no-publication refusal test is authorized here.
+            # Historical browser parity remains outside the guarded grant.
             raise PermissionError("arena_test_unexecuted_gate:joint_frontend_static_engine_parity")
         if item.nodeid == "tests/test_web_wasm_adapter.py::test_node_child_refuses_a_refit_call":
             item._arena_original_node = os.environ.get("N4A_TEST_NODE")
-            os.environ["N4A_TEST_NODE"] = "/home/delete/.nvm/versions/node/v22.21.1/bin/node"
+            discovered_node = shutil.which("node")
+            if discovered_node is None:
+                os.environ.pop("N4A_TEST_NODE", None)
+            else:
+                os.environ["N4A_TEST_NODE"] = discovered_node
 
     @pytest.hookimpl(trylast=True)
     def pytest_runtest_teardown(item):

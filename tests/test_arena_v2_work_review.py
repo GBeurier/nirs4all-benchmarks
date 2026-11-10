@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -364,7 +365,8 @@ def test_guard_fd_relative_writes_and_cleanup_remain_inside_scratch(tmp_path, re
 def test_guard_allows_only_audited_node_metadata_argv(tmp_path, request):
     if _guard_selftest_in_child(request, tmp_path):
         return
-    node = "/usr/bin/node"
+    node = shutil.which("node")
+    assert node is not None, "Node.js is required for the audited metadata guard selftest"
     assert getattr(sys, "_arena_test_guards", False)
     metadata = subprocess.run(
         [node, "-p", "process.versions.node.split('.')[0]"],
