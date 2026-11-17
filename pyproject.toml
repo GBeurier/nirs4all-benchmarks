@@ -50,7 +50,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ranking = ["nirs4all-methods>=1.3.14"]
+ranking = ["nirs4all-methods>=1.3,<2"]
 service = [
     "fastapi>=0.111",
     "uvicorn[standard]>=0.30",
@@ -59,10 +59,10 @@ service = [
 project-service = ["nirs4all-benchmarks[service]", "nirs4all-access>=0.1,<0.2"]
 # Optional producer adapters. The Arena works without these (degraded paths);
 # install them only when ingesting live from the corresponding producer.
-nirs4all = ["nirs4all>=0.10"]
-dagml = ["dag-ml>=0.4.0"]
-datasets = ["nirs4all-datasets>=0.3.5", "pyyaml>=6.0"]
-repository = ["nirs4all-repository>=0.1.10; python_version >= '3.11'"]
+nirs4all = ["nirs4all>=0.10,<2"]
+dagml = ["dag-ml>=0.4,<0.5"]
+datasets = ["nirs4all-datasets>=0.3,<0.4", "pyyaml>=6.0"]
+repository = ["nirs4all-repository>=0.1,<0.2; python_version >= '3.11'"]
 all = [
     "nirs4all-benchmarks[service,datasets,repository]",
 ]

@@ -524,8 +524,8 @@ See [QUALITY_RANKING.md](QUALITY_RANKING.md) for the scope table.
 It is identity and mapping evidence only, not an executed scientific run. Its single-candidate result shows
 plumbing, not a qualified ranking.
 
-**Dependency floor.** The optional `dagml` extra declares `dag-ml>=0.4.0`. This is the selected floor: the
+**Dependency range.** The optional `dagml` extra declares `dag-ml>=0.4,<0.5`. This is the selected minor: the
 dag-ml 0.4 cohort chosen to execute and qualify this path, not the first release that introduced these APIs.
 The three names were also observed statically in installed `dag_ml` 0.3.23 stubs, but older versions carry no
 compatibility obligation or schema qualification. Whether an installed version accepts a given outcome remains
-decided by the owner call at runtime. No upper bound is set.
+decided by the owner call at runtime. The range follows the ecosystem's minor-level constraint contract.
