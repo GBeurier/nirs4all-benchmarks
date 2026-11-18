@@ -528,4 +528,4 @@ plumbing, not a qualified ranking.
 dag-ml 0.4 cohort chosen to execute and qualify this path, not the first release that introduced these APIs.
 The three names were also observed statically in installed `dag_ml` 0.3.23 stubs, but older versions carry no
 compatibility obligation or schema qualification. Whether an installed version accepts a given outcome remains
-decided by the owner call at runtime. The range follows the ecosystem's minor-level constraint contract.
+decided by the owner call at runtime. The range accepts the patches of that one tested series, per the ecosystem version constraints.

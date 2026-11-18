@@ -28,6 +28,8 @@ Use [CONTRIBUTING](CONTRIBUTING.md#setup) for the existing Python environment/ex
 
 Keep Python public types/Google docstrings and configured Ruff/mypy rules. Frozen contract or fixture identity changes require their intended version/provenance treatment, not golden reblessing merely to force green. Frontend gates remain references for separately authorized joint work; no historical test count is a current green claim.
 
+Versioning: versions are `X.Y.Z`. `Z` (patch) = fixes and purely additive, backward-compatible features (existing outputs, wire formats, schemas and ABI symbols unchanged); `Y` (minor) = any compatibility break (changed/removed API signature, ABI break or ABI version change, wire/byte/schema/fixture change, renamed ids, changed numerical results of existing operations); `X` = product version. The package that bumps classifies its change. Cross-repository dependencies accept one tested series, `>=X.Y[.Z],<X.(Y+1)` (patch floor only when a fix or feature from that patch is required); for 1.x packages never npm `^1.x` or Cargo `"1.x"` (they accept the next minor): use `~1.4.1`, `">=1.4.1, <1.5"`, `>=1.4.1,<1.5`. Exact pins only in lockfiles, wheel locks and product install lists; intra-repo lockstep may stay exact. See the [ecosystem version constraints](https://github.com/GBeurier/nirs4all-ecosystem/blob/main/docs/contracts/release/VERSION_CONSTRAINTS.md).
+
 Follow [LICENSING](LICENSING.md): code is `CeCILL-2.1 OR AGPL-3.0-or-later`, with its stated commercial option; scored/content material uses CC-BY-4.0 and upstream dataset/asset terms remain authoritative. Security reports use the private channel in SECURITY.
 
 ## Working rules
