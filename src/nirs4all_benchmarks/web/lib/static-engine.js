@@ -110,7 +110,7 @@ export async function createStaticApi(base = "/data") {
   const runCache = new Map();
   const loadRun = async (h) => { if (runCache.has(h)) return runCache.get(h); const r = await (await fetch(`${base}/runs/${h}.json`)).json(); runCache.set(h, r); return r; };
 
-  const historical = bundle.meta.profile === "arena.frozen-history-public-demo/1";
+  const historical = bundle.meta?.profile === "arena.frozen-history-public-demo/1";
   const sel = (metric, scope, { quar = false, partition = null, dataset = null } = {}) =>
     M.filter((r) => r.metric_name === metric && r.score_scope === scope
       && ((r.score_validity === "valid" && (quar || r.execution_validity === "valid"))
