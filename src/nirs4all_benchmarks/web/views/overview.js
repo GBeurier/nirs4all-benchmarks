@@ -27,8 +27,10 @@ export default {
     const head = dom.el("div", { class: "page-head" },
       dom.el("div", { class: "eyebrow" }, dom.el("span", { class: "pulse-dot" }), "NIRS pipeline meta-analysis"),
       dom.el("h1", {}, "The ", dom.el("span", { class: "gradient-text" }, "Arena")),
-      dom.el("p", {}, "Reproducible, scored, weights-free benchmarks over the "
-        + "model × pipeline × split × cv × augmentation × dataset space — perfectly indexed, deeply explorable."));
+      dom.el("p", {}, ov.historical_demo
+        ? "Explore the frozen public demonstration. Scores are producer-reported historical observations; scientific validity remains unreported. Each dataset task keeps its source, target and variant separate."
+        : "Reproducible, scored, weights-free benchmarks over the "
+          + "model × pipeline × split × cv × augmentation × dataset space — perfectly indexed, deeply explorable."));
 
     const findingsHost = dom.el("div", { class: "grid cols-3", id: "ov-findings" }, dom.loading("Mining findings…"));
 
@@ -36,13 +38,16 @@ export default {
       dom.el("div", { class: "k" }, k),
       dom.el("div", { class: "v" }, String(v), sub ? dom.el("small", {}, " " + sub) : null));
     const stats = dom.el("div", { class: "grid cols-4", style: { marginTop: "16px" } },
-      stat("Datasets", ov.datasets), stat("Pipelines", ov.pipelines),
-      stat("Run conditions", ov.run_conditions), stat("Executions", ov.valid_executions, `/ ${ov.executions}`),
+      stat(ov.historical_demo ? "Dataset tasks" : "Datasets", ov.datasets), stat("Pipelines", ov.pipelines),
+      stat("Run conditions", ov.run_conditions),
+      stat(ov.historical_demo ? "Historical executions" : "Executions",
+        ov.historical_demo ? ov.executions : ov.valid_executions, ov.historical_demo ? "· 0 qualified" : `/ ${ov.executions}`),
       stat("Operators", ov.operators), stat("Residual sets", ov.residual_sets),
       stat("Score sets", ov.score_sets), stat("Quarantined", ov.quarantined_executions));
 
     dom.mount(root, head,
-      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } }, `Key findings · ${FIND} (${SCOPE})`),
+      dom.el("div", { class: "eyebrow", style: { margin: "4px 0 10px" } },
+        `${ov.historical_demo ? "Historical exploratory observations" : "Key findings"} · ${FIND} (${SCOPE})`),
       findingsHost, stats,
       dom.el("div", { class: "card", style: { marginTop: "16px" } },
         dom.el("h3", {}, "Best pipeline per dataset"),

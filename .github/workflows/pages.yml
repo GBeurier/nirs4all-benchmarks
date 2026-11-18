@@ -1,7 +1,7 @@
 name: pages
 
-# Deploy only the data-free unavailable-results page to the existing Arena site.
-# Scientific result publication remains closed; Root owns manual dispatch.
+# Deploy the explicit hash-pinned public historical demonstration.
+# Qualified scientific result publication remains closed; no project store is read.
 
 on:
   workflow_dispatch:
@@ -26,8 +26,8 @@ jobs:
         run: |
           uv venv --python 3.11 .venv
           uv pip install --python .venv -e .
-      - name: Build unavailable-results page without a store or history
-        run: .venv/bin/n4a-benchmarks build-site --unavailable-results --out ./site --domain benchmarks.nirs4all.org
+      - name: Build the public historical demonstration without a store
+        run: .venv/bin/n4a-benchmarks build-demo-site --out ./site --domain benchmarks.nirs4all.org
       - uses: actions/upload-pages-artifact@v5
         with:
           path: ./site

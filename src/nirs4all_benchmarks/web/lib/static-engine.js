@@ -110,9 +110,11 @@ export async function createStaticApi(base = "/data") {
   const runCache = new Map();
   const loadRun = async (h) => { if (runCache.has(h)) return runCache.get(h); const r = await (await fetch(`${base}/runs/${h}.json`)).json(); runCache.set(h, r); return r; };
 
+  const historical = bundle.meta?.profile === "arena.frozen-history-public-demo/1";
   const sel = (metric, scope, { quar = false, partition = null, dataset = null } = {}) =>
-    M.filter((r) => r.metric_name === metric && r.score_scope === scope && r.score_validity === "valid"
-      && (quar || r.execution_validity === "valid")
+    M.filter((r) => r.metric_name === metric && r.score_scope === scope
+      && ((r.score_validity === "valid" && (quar || r.execution_validity === "valid"))
+        || (historical && r.score_validity === "historical_reported" && r.execution_validity === "unreported"))
       && (!partition || r.partition === partition)
       && (!dataset || r.dataset_fingerprint === dataset));
 
@@ -120,7 +122,8 @@ export async function createStaticApi(base = "/data") {
 
   return {
     healthz: async () => ({ status: "ok", version: bundle.meta.version, store: "static", store_exists: true }),
-    overview: async () => ({ ...bundle.overview, score_scopes: [...new Set(M.map((r) => r.score_scope))].sort() }),
+    overview: async () => ({ ...bundle.overview, historical_demo: historical,
+      score_scopes: [...new Set(M.map((r) => r.score_scope))].sort() }),
     collections: async () => bundle.collections,
     datasets: async () => bundle.datasets,
     pipelines: async () => PIPELINES,

@@ -362,6 +362,21 @@ serves the startup snapshot on loopback with project-token authentication. The e
 serving do not publish or host the service.
 
 
+### `build-demo-site`
+
+```bash
+n4a-benchmarks build-demo-site --out ./NEW-EMPTY-SITE --domain benchmarks.nirs4all.org
+```
+
+Build the interactive historical demonstration from the exact hash-pinned
+`data/catalog-history-2026-09` source (`--source` may locate those same bytes).
+Only the 4,998 producer-public records are included; all 5,826 restricted records
+are excluded. No current store is read, no computation is executed and no record
+is promoted to scientific validity. Charts and run tables explore producer-reported
+observations with a permanent historical/unqualified banner and zero qualified runs.
+Source, task, target and variant remain distinct. The qualified-ranking view is
+unavailable in this profile. Output must be absent or empty; building is not deployment.
+
 ### `build-site`
 
 Scientific result builds remain closed with `publication_gate_closed`, before

@@ -367,6 +367,20 @@ def build_site_cmd(
                   + (f" · {domain}" if domain else ""))
 
 
+@app.command("build-demo-site")
+def build_demo_site_cmd(
+    out: Path = typer.Option(Path("site"), "--out", "-o"),
+    source: Path = typer.Option(Path("data/catalog-history-2026-09"), "--source"),
+    domain: str = typer.Option("benchmarks.nirs4all.org", "--domain"),
+) -> None:
+    """Build the explicit pinned historical demo; no qualified results or store."""
+    from nirs4all_benchmarks.demo_site import build_demo_site
+
+    summary = build_demo_site(source, out, domain=domain or None)
+    console.print(f"Historical demonstration built at {summary['out']}: "
+                  f"{summary['historical_executions']} producer-reported runs; 0 qualified runs")
+
+
 @app.command("perf-compare")
 def perf_compare_cmd(
     plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False, help="Explicit performance plan JSON."),
