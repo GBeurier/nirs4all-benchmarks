@@ -31,10 +31,11 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 
 > ⚠️ **Early prototype.** Schemas, scores, views and the public page may still change.
 
-- **Current Pages build: results unavailable.** The existing public route at
-  **[benchmarks.nirs4all.org](https://benchmarks.nirs4all.org)** builds a data-free status page.
-  Scientific result publication remains closed. The local Arena store and SPA remain separate;
-  no deployment success or scientific acceptance follows from the build route.
+- **Current Pages build: historical demonstration.** The existing public route at
+  **[benchmarks.nirs4all.org](https://benchmarks.nirs4all.org)** explores 4,998 producer-public
+  records from the exact hash-pinned archive. Scores are historical and unqualified:
+  **zero qualified runs**, no current scientific ranking. Private project stores are never read.
+  Qualified result publication remains closed; the data-free status builder remains available.
 - **Next (medium term): a live meta-analysis server** that manages **runs, pipelines and meta-analyses**
   and interacts with **[`nirs4all-repository`](https://github.com/GBeurier/nirs4all-repository)** (pipeline
   recipes to score) and **[`nirs4all-datasets`](https://github.com/GBeurier/nirs4all-datasets)** (the dataset
@@ -42,7 +43,9 @@ Part of the [nirs4all ecosystem](https://github.com/GBeurier/nirs4all-ecosystem)
 
 The checked-in [real-data pack](data/README.md) contains **10,824 measured runs on 104 catalog datasets**,
 covering 153 source/target tasks, 32 method labels, three seeds, and 32,286 score observations (including derived nRMSE).
-The Pages status page does not import this pack. The frozen pack remains historical provenance in
+The explicit `build-demo-site` command selects only the 4,998 producer-public records;
+the 5,826 restricted records are excluded. Source/task/target/variant contexts remain separate.
+The frozen pack remains historical provenance in
 the Git repository; it is not part of the PyPI package (sdist or wheel). Scores retain their original held-out
 **test** scope and source provenance. Its explicit v2 conversion supplies no rankable records;
 see the [current publication boundary](docs/INGESTION.md#data-free-existing-site-route-9-november-2026).

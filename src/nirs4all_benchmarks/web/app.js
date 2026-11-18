@@ -81,6 +81,7 @@ function renderNav(activeId) {
     for (const id of g.ids) {
       const v = BY_ID[id];
       if (!v) continue;
+      if (window.ARENA_HISTORICAL_DEMO && ["quality-ranking", "upload"].includes(id)) continue;
       nav.appendChild(dom.el("a", {
         class: `item ${id === activeId ? "active" : ""}`, href: `#/${id}`,
       }, dom.el("span", { class: "ic" }, v.icon || "•"), v.title));
@@ -139,8 +140,9 @@ async function refreshHeader() {
       state.dataset = "";
     }
     state.save();
-    document.getElementById("header-pill").textContent =
-      `${ov.valid_executions}/${ov.executions} runs · ${ov.pipelines} pipelines · ${ov.datasets} datasets`;
+    document.getElementById("header-pill").textContent = ov.historical_demo
+      ? `${ov.executions} historical runs · 0 qualified · ${ov.datasets} dataset tasks`
+      : `${ov.valid_executions}/${ov.executions} runs · ${ov.pipelines} pipelines · ${ov.datasets} datasets`;
   } catch {
     document.getElementById("header-pill").textContent = "store empty";
   }
@@ -174,6 +176,13 @@ async function renderChrome() {
 
 function renderProtoBanner() {
   const host = document.getElementById("proto-banner");
+  if (host && window.ARENA_HISTORICAL_DEMO) {
+    dom.clear(host);
+    host.className = "proto-banner";
+    host.appendChild(dom.el("div", { class: "proto-banner-inner", role: "note" },
+      "Historical demonstration · producer-reported, unqualified scores; no current scientific ranking"));
+    return;
+  }
   if (!host || readStorage("arena.proto.dismissed")) return;
   dom.clear(host);
   host.className = "proto-banner";

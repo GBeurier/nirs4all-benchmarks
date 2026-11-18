@@ -341,9 +341,24 @@ separately if replay is needed: sanitized receipts are not replay inputs.
 
 ## Static deployment on GitHub Pages (no backend)
 
-The existing **benchmarks.nirs4all.org** route supports only a data-free
-unavailable-results page. Scientific result publication remains closed. Build
-this profile into an absent or empty directory:
+The existing **benchmarks.nirs4all.org** route builds an explicit historical
+demonstration, independently of project services and qualified publication:
+
+```bash
+n4a-benchmarks build-demo-site --out ./site --domain benchmarks.nirs4all.org
+```
+
+This command admits only `data/catalog-history-2026-09` bytes matching the pinned
+manifest and archive hashes. It displays 4,998 producer-public records and excludes
+all 5,826 restricted records. No store is opened and no execution is performed.
+Dataset display contexts distinguish source, task, target and variant; original
+identity fields remain in the snapshot and run details. Historical scores are
+explicitly producer-reported and unqualified; execution status, aggregation evidence
+and scientific validity remain unreported. A persistent banner and zero-qualified
+count accompany the existing charts and tables. Qualified ranking is unavailable.
+
+The data-free unavailable-results profile remains available. Scientific result
+publication remains closed. Build either profile into an absent or empty directory:
 
 ```bash
 n4a-benchmarks build-site --unavailable-results --out ./site --domain benchmarks.nirs4all.org
@@ -356,7 +371,7 @@ Analysis request options and stale output directories are refused. Omitting
 `--unavailable-results` retains the ordinary `publication_gate_closed` refusal.
 
 The existing `.github/workflows/pages.yml` is manual-only (`workflow_dispatch`);
-there is no push trigger. It builds this explicit profile and uses the existing
+there is no push trigger. It builds the explicit historical demonstration and uses the existing
 Pages artifact/deployment channel and custom domain. Root owns dispatch after
 review and affected checks, then verifies the served tree and source. This is
 not a new hosting or service authorization and claims no deployment success.

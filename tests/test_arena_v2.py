@@ -549,8 +549,8 @@ def test_publication_gate_is_closed_before_output_or_store_mutation(tmp_path):
     assert not (tmp_path / "site").exists() and not (tmp_path / "store").exists()
     workflow = Path(".github/workflows/pages.yml").read_text()
     assert "  push:" not in workflow
-    assert workflow.count("build-site") == 1
-    assert "build-site --unavailable-results" in workflow
+    assert workflow.count("build-demo-site") == 1
+    assert "build-site " not in workflow
     assert all(token not in workflow for token in (
         "convert-frozen-history", "ingest-history", "--store", "setup-node", "npm",
     ))

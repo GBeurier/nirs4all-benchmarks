@@ -118,7 +118,8 @@ export default {
     const add = (k, v) => { kv.appendChild(dom.el("dt", {}, k)); kv.appendChild(dom.el("dd", {}, v ?? "—")); };
     add("pipeline_dag_hash", dom.shortHash(pipe.pipeline_dag_hash, 20));
     add("run_condition_hash", dom.shortHash(d.run_condition?.run_condition_hash, 20));
-    add("dataset", dom.shortHash(d.run_condition?.dataset_fingerprint, 16));
+    add("dataset", d.dataset?.name || dom.shortHash(d.run_condition?.dataset_fingerprint, 16));
+    add("dataset fingerprint", dom.shortHash(d.run_condition?.dataset_fingerprint, 16));
     add("cv", d.cv ? `${(d.cv.engine_fold_set_fingerprint && "fold-set ") || ""}${dom.shortHash(d.cv.cv_instance_hash, 12)}` : "—");
     add("rng seed", d.rng?.root_seed ?? "—");
     add("refit", d.refit?.strategy ?? "—");

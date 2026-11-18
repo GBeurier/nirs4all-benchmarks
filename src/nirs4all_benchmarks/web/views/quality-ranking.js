@@ -5,6 +5,11 @@ export default {
   subtitle: "Observed pipeline and component rankings from matched evidence.",
   icon: "≋",
   async render({ root, api, dom, state, signal }) {
+    if (window.ARENA_HISTORICAL_DEMO) {
+      dom.mount(root, dom.el("h1", {}, "Quality ranking"),
+        dom.banner("Qualified ranking is unavailable for the historical demonstration. Explore producer-reported observations in the other views.", "warn"));
+      return;
+    }
     const host = dom.el("div", { class: "quality-ranking-host" });
     dom.mount(root, host);
     const local = signal || new AbortController().signal;
