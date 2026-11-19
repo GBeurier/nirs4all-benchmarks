@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.1.13] — 2026-11-19
+
+### Changed
+- Select the tested Methods 1.5 series for the optional `ranking` extra,
+  DAG-ML 0.5 for the `dagml` adapter extra, and Python SDK 1.6 for the
+  `nirs4all` adapter extra. Producer integrations remain optional and lazy.
+- Arena's ranking, relative-gain and component-analysis numerical routes are
+  unchanged by this owner cohort. No scoring, wire, store, residual, identity
+  or privacy contract changes; stored and public historical evidence is retained.
+
 ## [0.1.12] — 2026-11-10
 
 Supersedes the unpublished 0.1.11 preparation at immutable tag `v0.1.11`

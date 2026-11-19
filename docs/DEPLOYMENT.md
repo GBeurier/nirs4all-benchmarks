@@ -60,8 +60,8 @@ Extras you may also want, depending on what you ingest:
 | Extra | Pulls in | When |
 |---|---|---|
 | `service` | `fastapi`, `uvicorn[standard]` | always, to run the web service |
-| `nirs4all` | `nirs4all>=0.10,<2` | ingesting live from a nirs4all workspace |
-| `dagml` | `dag-ml>=0.4,<0.5` | ingesting a dag-ml `ExecutionBundle` |
+| `nirs4all` | `nirs4all>=1.6,<1.7` | ingesting live from a nirs4all workspace |
+| `dagml` | `dag-ml>=0.5,<0.6` | ingesting a dag-ml `ExecutionBundle` |
 | `datasets` | `nirs4all-datasets>=0.3,<0.4`, `pyyaml` | dataset-card enrichment |
 | `all` | `[service,datasets]` | both of the above |
 
