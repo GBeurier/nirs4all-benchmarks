@@ -69,12 +69,12 @@ done
 
 ## Cross-repository version constraints
 
-Dependencies on packages from other nirs4all repositories are declared at
-**minor** granularity, never more precisely: `nirs4all-methods>=1.3,<2`,
-`dag-ml>=0.4,<0.5`, `nirs4all-datasets>=0.3,<0.4`,
+Dependencies on packages from other nirs4all repositories accept one tested
+**minor** series: `nirs4all-methods>=1.5.0,<1.6`,
+`dag-ml>=0.5,<0.6`, `nirs4all-datasets>=0.3,<0.4`,
 `nirs4all-repository>=0.1,<0.2`, `nirs4all-access>=0.1,<0.2` and
-`nirs4all>=0.10,<2` (a floor kept from before the contract, capped at the next
-major). Exact versions live in lockfiles and the release order. In return an
+`nirs4all>=1.6,<1.7`. A patch floor is used when its fix or feature is required.
+Exact versions live in lockfiles and the release order. In return an
 owner patch release changes no wire format, persisted schema, `.n4a` payload
 semantics, native ABI or shared fixture; such changes need at least a minor
 release. Runtime capability is still decided by the owner call, not by the

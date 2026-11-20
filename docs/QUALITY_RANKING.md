@@ -4,7 +4,14 @@
 Python and calls `n4m.ranking.rank` in the optional full `nirs4all-methods` runtime. Install the
 `ranking` extra with a runtime that exports `n4m.ranking/1`. An absent or older
 runtime returns `state: unavailable`, never a Python or browser approximation.
-The dependency version alone does not establish runtime capability. The `ranking` extra (`nirs4all-methods>=1.3,<2`) names no published ranking-capable release: against the currently published package the import fails and artifacts report `native_ranking_runtime_unavailable`. The ranking and component-analysis features need the unpublished integrated Methods candidate, which exports `n4m.ranking/1` with the corrected incomplete-design `average_rank` semantics and C ABI 2.22. The `n4m.ranking/1` schema string does not distinguish older development builds, so test against that integrated candidate library (`N4M_LIB_PATH`). The slim `pls4all` distribution does not provide this module.
+The `ranking` extra selects the Methods 1.5 series (`nirs4all-methods>=1.5.0,<1.6`),
+including `n4m.ranking/1` with corrected incomplete-design `average_rank` semantics
+and C ABI 2.24. The dependency version alone does not establish runtime capability:
+an unavailable module or native runtime still produces
+`native_ranking_runtime_unavailable`. The `n4m.ranking/1` schema string does not
+distinguish older development builds; native qualification uses the selected
+library explicitly through `N4M_LIB_PATH`. The slim `pls4all` distribution does
+not provide this module.
 
 ## Evidence and interpretation
 
