@@ -192,6 +192,30 @@ export async function createStaticApi(base = "/data") {
     },
     planned: async () => bundle.planned,
 
+    historicalLeaderboardTargets: async () => {
+      if (!historical) return [];
+      const targets = new Map();
+      for (const row of M) {
+        if (row.score_validity !== "historical_reported" || row.execution_validity !== "unreported"
+            || row.score_scope !== "test" || row.partition !== "test" || !Number.isFinite(row.metric_value)) continue;
+        const facets = facByRc.get(row.run_condition_hash) || [];
+        const splitMethod = facets.find(f => f.facet_key === "split_method")?.facet_value;
+        const seed = facets.find(f => f.facet_key === "seed")?.facet_value;
+        if (splitMethod == null || seed == null) continue;
+
+        const splitKey = JSON.stringify([splitMethod, seed]);
+        if (!targets.has(row.dataset_fingerprint)) targets.set(row.dataset_fingerprint, new Map());
+        const splits = targets.get(row.dataset_fingerprint);
+        if (!splits.has(splitKey)) splits.set(splitKey, { id: splitKey, method: splitMethod, seed, scores: new Map() });
+        const { scores } = splits.get(splitKey);
+        if (!scores.has(row.metric_name)) scores.set(row.metric_name, { direction: dir(row.metric_name), rows: [] });
+        scores.get(row.metric_name).rows.push(row);
+      }
+      return bundle.datasets
+        .filter(d => targets.has(d.dataset_fingerprint))
+        .map(d => ({ ...d, splits: [...targets.get(d.dataset_fingerprint).values()] }));
+    },
+
     leaderboard: async ({ metric = "rmse", scope = "cv", partition, dataset, include_quarantined = false, limit = 200 } = {}) => {
       const rows = sel(metric, scope, { quar: include_quarantined, partition, dataset });
       const out = [];

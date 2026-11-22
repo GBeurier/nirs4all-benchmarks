@@ -93,7 +93,9 @@ function renderNav(activeId) {
 function renderContextBar(activeId) {
   const host = document.getElementById("context-bar");
   if (!host) return;
-  if (NO_LENS.has(activeId)) { host.style.display = "none"; host.innerHTML = ""; return; }
+  if (NO_LENS.has(activeId) || (activeId === "leaderboard" && state._overview?.historical_demo)) {
+    host.style.display = "none"; host.innerHTML = ""; return;
+  }
   host.style.display = "";
   const ov = state._overview || {};
   const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];
