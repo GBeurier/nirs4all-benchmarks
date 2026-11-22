@@ -78,6 +78,35 @@ def test_leaderboard_r2_is_descending(queries: Queries):
     assert means == sorted(means, reverse=True)
 
 
+def test_dataset_leaderboard_reports_the_best_run_condition_per_target(queries: Queries):
+    board = queries.dataset_leaderboard()
+    rows = board["families"]["regression"]
+    assert (board["scope"], board["partition"]) == ("cv", "validation")
+    assert board["families"]["classification"] == []
+    assert [r["dataset_name"] for r in rows] == ["Mock Corn", "Mock Wheat"]
+    for row in rows:
+        # The fixtures report no nRMSE, so each target falls back to RMSE.
+        assert (row["metric"], row["direction"]) == ("rmse", "min")
+        lb = queries.leaderboard(metric="rmse", scope="cv", dataset_fingerprint=row["dataset_fingerprint"],
+                                 task_hash=row["task_hash"], limit=None)
+        means = sorted(r["mean"] for r in lb["rows"] if r["metric_unit"] == row["metric_unit"])
+        assert row["values"] == means and row["n_scores"] == len(means) > 1
+        assert row["best_value"] == means[0]
+        assert row["best"]["run_condition_hash"] == min(
+            r["run_condition_hash"] for r in lb["rows"] if r["mean"] == means[0])
+
+
+def test_dataset_leaderboard_files_classification_targets_and_names_missing_metrics(queries: Queries):
+    task = queries.dataset_leaderboard()["families"]["regression"][0]["task_hash"]
+    queries.store.conn.execute("UPDATE task_specs SET task_type = 'multiclass' WHERE task_hash = ?", (task,))
+    board = queries.dataset_leaderboard()
+    [row] = board["families"]["classification"]
+    assert len(board["families"]["regression"]) == 1
+    # Neither balanced accuracy nor accuracy is reported: no score is borrowed from another metric.
+    assert row["task_hash"] == task and row["metric"] is None and row["best"] is None and row["values"] == []
+    assert "rmse" in row["available_metrics"]
+
+
 def test_matrix_shape(queries: Queries):
     m = queries.matrix(metric="rmse", scope="cv")
     assert len(m["pipelines"]) == 7

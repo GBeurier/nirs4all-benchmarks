@@ -220,6 +220,21 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 .rank { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--paper-2); font-family: var(--mono); font-size: .74rem; font-weight: 700; color: var(--text-2); }
 .rank.top { background: linear-gradient(135deg, var(--teal), var(--cyan)); color: #fff; }
 
+/* per-dataset leaderboard: best model cell and inline score strip */
+.lb-model { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.lb-pipe { flex-basis: 100%; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-3); font-size: .76rem; }
+.lb-tie { color: var(--text-3); font-size: .74rem; }
+.lb-metric { margin-left: 6px; }
+.lb-dist { display: flex; align-items: center; gap: 8px; }
+.lb-n { color: var(--text-3); font-family: var(--mono); font-size: .72rem; }
+svg.spark { display: block; flex: none; }
+.spark-axis { stroke: var(--border); stroke-width: 1; }
+.spark-iqr { fill: rgba(13,148,136,.13); }
+.spark-tick { stroke: var(--teal); stroke-width: 1; stroke-opacity: .55; }
+.spark-bin { fill: var(--teal); fill-opacity: .6; }
+.spark-median { stroke: var(--text-2); stroke-width: 1.5; }
+.spark-best { fill: var(--benchmarks); stroke: #fff; stroke-width: 1.2; }
+
 /* ── badges / chips ──────────────────────────────────────────── */
 .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
 .badge.green { background: rgba(16,185,129,.14); color: #047857; }

@@ -22,6 +22,17 @@ from nirs4all_benchmarks.store.arena_store import ArenaStore
 
 _VALID_SCOPES = {"fold", "cv", "refit", "test", "view"}
 _VALID_PARTITIONS = {"train", "validation", "test", "final"}
+_CLASSIFICATION_TASKS = frozenset({"binary", "multiclass", "multilabel"})
+# Default score per task family, then the fallbacks used when a target does not report it.
+DATASET_LEADERBOARD_METRICS: dict[str, tuple[str, ...]] = {
+    "regression": ("nrmse", "rmse"), "classification": ("balanced_accuracy", "accuracy"),
+}
+
+
+def _task_family(task_type: str | None) -> str | None:
+    if task_type in _CLASSIFICATION_TASKS:
+        return "classification"
+    return "regression" if task_type == "regression" else None
 
 
 def _dataset_filter(dataset_fingerprint: str | None) -> tuple[str, list[Any]]:
@@ -279,9 +290,9 @@ class Queries:
         task_hash: str | None = None,
         collection_id: str | None = None,
         include_quarantined: bool = False,
-        limit: int = 200,
+        limit: int | None = 200,
     ) -> dict[str, Any]:
-        """Configurable leaderboard — no canonical baseline imposed (DESIGN.md §9.2)."""
+        """Configurable leaderboard — no canonical baseline imposed (DESIGN.md §9.2); ``limit=None`` keeps every row."""
         partition = _score_partition(scope, partition)
         metrics_view = self._score_view(
             partition, scope=scope, aggregation_level=aggregation_level, source_fold_id=source_fold_id,
@@ -337,6 +348,86 @@ class Queries:
                 "metric": metric, "scope": scope,
                 "direction": direction, "rows": rows[:limit],
                 "score_context": _context_summary(context_rows, withheld)}
+
+    def dataset_leaderboard(
+        self, *, scope: str = "cv", partition: str | None = None, include_quarantined: bool = False,
+    ) -> dict[str, Any]:
+        """Best score per dataset target, split into regression and classification tables.
+
+        A row is one dataset fingerprint, task and metric unit, so it never pools score
+        contexts. Its metric is the first of :data:`DATASET_LEADERBOARD_METRICS` for the
+        task family that the target reports at this score level. As in :meth:`leaderboard`,
+        a run condition scores the mean of its observations and run conditions that mix
+        score contexts are withheld; ``values`` holds every remaining run-condition score and
+        ``best`` the best one under the metric direction (ties broken by run-condition hash).
+        """
+        partition = _score_partition(scope, partition)
+        metrics_view = self._score_view(partition, scope=scope)
+        validity = "" if include_quarantined else " AND mo.execution_validity = 'valid'"
+        reported = self.store.query(
+            f"SELECT DISTINCT mo.dataset_fingerprint, mo.task_hash, mo.metric_name FROM {metrics_view} mo "
+            f"WHERE mo.score_scope = ? AND mo.score_validity = 'valid'{validity}", [scope])
+        targets: dict[tuple[str, str], set[str]] = {}
+        for row in reported:
+            targets.setdefault((row["dataset_fingerprint"], row["task_hash"]), set()).add(row["metric_name"])
+        task_types = {row["task_hash"]: row["task_type"] for row in self.store.query(
+            "SELECT task_hash, task_type FROM task_specs")}
+        ds_meta = {d["dataset_fingerprint"]: d for d in self.datasets()}
+
+        scored: dict[str, dict[tuple[str, str], dict[str | None, list[dict[str, Any]]]]] = {}
+        withheld: dict[str, int] = {}
+        for metric in dict.fromkeys(m for names in DATASET_LEADERBOARD_METRICS.values() for m in names):
+            if not any(metric in names for names in targets.values()):
+                continue
+            board = self.leaderboard(metric=metric, scope=scope, partition=partition,
+                                     include_quarantined=include_quarantined, limit=None)
+            withheld[metric] = board["score_context"]["withheld"]["count"]
+            by_target = scored.setdefault(metric, {})
+            for row in board["rows"]:
+                if row["mean"] is not None:
+                    by_target.setdefault((row["dataset_fingerprint"], row["task_hash"]), {}).setdefault(
+                        row["metric_unit"], []).append(row)
+
+        families: dict[str, list[dict[str, Any]]] = {family: [] for family in DATASET_LEADERBOARD_METRICS}
+        unclassified = 0
+        for (dataset, task), names in targets.items():
+            meta = ds_meta.get(dataset) or {}
+            family = _task_family(task_types.get(task) or meta.get("task_type"))
+            if family is None:
+                unclassified += 1
+                continue
+            base = {"dataset_fingerprint": dataset, "dataset_name": meta.get("name") or dataset[:10],
+                    "task_hash": task, "task_type": task_types.get(task) or meta.get("task_type"),
+                    "available_metrics": sorted(names)}
+            chosen = next((m for m in DATASET_LEADERBOARD_METRICS[family] if (dataset, task) in scored.get(m, {})),
+                          None)
+            if chosen is None:
+                families[family].append({**base, "metric": None, "metric_unit": None, "direction": None,
+                                         "best_value": None, "best": None, "n_best": 0, "tied_models": [],
+                                         "values": [], "n_scores": 0})
+                continue
+            direction = self._direction(chosen)
+            for unit, rows in scored[chosen][(dataset, task)].items():
+                ordered = sorted(rows, key=lambda r: (-r["mean"] if direction == "max" else r["mean"],
+                                                      r["run_condition_hash"]))
+                best = ordered[0]
+                families[family].append({
+                    **base, "metric": chosen, "metric_unit": unit, "direction": direction,
+                    "best_value": best["mean"],
+                    "best": {key: best[key] for key in ("run_condition_hash", "pipeline_dag_hash",
+                                                        "pipeline_label", "main_model")},
+                    "n_best": sum(r["mean"] == best["mean"] for r in rows),
+                    "tied_models": sorted({r["main_model"] or "" for r in rows if r["mean"] == best["mean"]}),
+                    "values": sorted(r["mean"] for r in rows), "n_scores": len(rows),
+                })
+        for rows in families.values():
+            rows.sort(key=lambda r: (r["dataset_name"].lower(), r["dataset_fingerprint"], r["task_hash"],
+                                     r["metric_unit"] is not None, r["metric_unit"] or ""))
+        return {"mode": "valid", "include_unreported": False, "scope": scope, "partition": partition,
+                "aggregation_level": "sample", "score_unit": "run_condition_mean",
+                "metrics": {family: list(names) for family, names in DATASET_LEADERBOARD_METRICS.items()},
+                "families": families,
+                "excluded": {"unclassified_targets": unclassified, "mixed_context_run_conditions": withheld}}
 
     # ── pipeline × dataset (or model × dataset) matrix ─────────────────
     def matrix(

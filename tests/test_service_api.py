@@ -114,6 +114,15 @@ def test_leaderboard_endpoint(client: TestClient):
     assert means == sorted(means)
 
 
+def test_dataset_leaderboard_endpoint(client: TestClient):
+    r = client.get("/api/dataset-leaderboard")
+    assert r.status_code == 200
+    body = r.json()
+    assert (body["scope"], body["partition"]) == ("cv", "validation")
+    assert len(body["families"]["regression"]) == 2 and body["families"]["classification"] == []
+    assert client.get("/api/dataset-leaderboard", params={"scope": "bogus"}).status_code == 400
+
+
 def test_matrix_endpoint(client: TestClient):
     r = client.get("/api/matrix", params={"metric": "rmse"})
     assert r.status_code == 200

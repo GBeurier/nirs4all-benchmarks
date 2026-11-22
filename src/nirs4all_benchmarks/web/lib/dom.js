@@ -19,6 +19,18 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
+// SVG counterpart of el(): attributes are set verbatim, children appended in order.
+const SVG_NS = "http://www.w3.org/2000/svg";
+export function svg(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v != null && v !== false) node.setAttribute(k, v);
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c);
+  }
+  return node;
+}
+
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 export function mount(node, ...children) { clear(node); for (const c of children.flat()) if (c) node.appendChild(c); return node; }
 
