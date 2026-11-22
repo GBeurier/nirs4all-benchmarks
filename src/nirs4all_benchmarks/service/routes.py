@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 
 def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
@@ -96,9 +96,11 @@ def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
         dataset: str | None = None,
         task: str | None = None,
         include_quarantined: bool = False,
+        by: Literal["pipeline", "model"] = "pipeline",
     ) -> dict[str, Any]:
         with queries() as q:
             return scoped(q.matrix(
+                by=by,
                 metric=metric,
                 scope=scope,
                 partition=partition,

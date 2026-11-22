@@ -231,7 +231,7 @@ export async function createStaticApi(base = "/data") {
       return { metric, scope, direction: d, rows: out.slice(0, limit) };
     },
 
-    matrix: async ({ metric = "rmse", scope = "cv", dataset, include_quarantined = false } = {}) => {
+    matrix: async ({ metric = "rmse", scope = "cv", dataset, include_quarantined = false, by = "pipeline" } = {}) => {
       const rows = sel(metric, scope, { quar: include_quarantined, dataset });
       const cells = []; const pipes = new Map(); const dsset = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash + "|" + r.dataset_fingerprint)) {
@@ -239,11 +239,26 @@ export async function createStaticApi(base = "/data") {
         pipes.set(g[0].pipeline_dag_hash, g[0].pipeline_label || g[0].pipeline_dag_hash.slice(0, 10));
         dsset.set(g[0].dataset_fingerprint, true);
         cells.push({ pipeline_dag_hash: g[0].pipeline_dag_hash, dataset_fingerprint: g[0].dataset_fingerprint,
-          value: mean(vals), coverage: new Set(g.map((r) => r.execution_hash)).size });
+          main_model: g[0].main_model || "", value: mean(vals), coverage: new Set(g.map((r) => r.execution_hash)).size });
       }
-      return { metric, scope, direction: dir(metric),
-        datasets: [...dsset.keys()].map((d) => ({ dataset_fingerprint: d, label: dsLabel[d] || d.slice(0, 10) })),
-        pipelines: [...pipes].map(([p, l]) => ({ pipeline_dag_hash: p, label: l })), cells };
+      const datasets = [...dsset.keys()].map((d) => ({ dataset_fingerprint: d, label: dsLabel[d] || d.slice(0, 10) }));
+      if (by === "model") {
+        // A model cell is the unweighted mean of that model's pipeline cells on the dataset.
+        const modelLabel = (m) => (m ? m.split(".").pop() : "Unknown model");
+        const modelCells = [];
+        for (const [, g] of groupBy(cells, (c) => c.main_model + "|" + c.dataset_fingerprint)) {
+          const vals = g.map((c) => c.value).filter((v) => v != null);
+          modelCells.push({ model: g[0].main_model, dataset_fingerprint: g[0].dataset_fingerprint,
+            value: vals.length ? mean(vals) : null, n_pipelines: g.length, coverage: g.reduce((n, c) => n + c.coverage, 0) });
+        }
+        const models = [...new Set(modelCells.map((c) => c.model))]
+          .sort((a, b) => modelLabel(a).localeCompare(modelLabel(b)) || a.localeCompare(b))
+          .map((m) => ({ model: m, label: modelLabel(m) }));
+        return { metric, scope, direction: dir(metric), datasets, models, cells: modelCells };
+      }
+      return { metric, scope, direction: dir(metric), datasets,
+        pipelines: [...pipes].map(([p, l]) => ({ pipeline_dag_hash: p, label: l })),
+        cells: cells.map(({ main_model: _model, ...c }) => c) };
     },
 
     runs: async ({ metric = "rmse", scope = "cv", dataset, pipeline, operator, include_quarantined = true, limit = 500 } = {}) => {

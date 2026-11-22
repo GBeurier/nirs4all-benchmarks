@@ -49,6 +49,31 @@ def _score_partition(scope: str, partition: str | None) -> str:
     return partition
 
 
+def _model_label(model: str) -> str:
+    return model.rsplit(".", 1)[-1] if model else "Unknown model"
+
+
+def _model_matrix(rows: list[dict[str, Any]], cells: dict[tuple[str, str], dict[str, Any]]) -> dict[str, Any]:
+    """Fold pipeline × dataset cells into model × dataset cells (unweighted mean of pipeline cells)."""
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for r in rows:
+        key = (r["pipeline_dag_hash"], r["dataset_fingerprint"])
+        groups.setdefault((r["main_model"] or "", r["dataset_fingerprint"]), []).append(cells[key])
+    out = []
+    for (model, dataset), members in groups.items():
+        contexts = {(m["task_hash"], m["metric_unit"]) for m in members}
+        single = all(m["score_context_status"] == "single" for m in members) and len(contexts) == 1
+        task, unit = next(iter(contexts)) if single else (None, None)
+        out.append({
+            "model": model, "dataset_fingerprint": dataset,
+            "value": sum(m["value"] for m in members) / len(members) if single else None,
+            "n_pipelines": len(members), "coverage": sum(m["coverage"] for m in members),
+            "score_context_status": "single" if single else "mixed", "task_hash": task, "metric_unit": unit,
+        })
+    models = sorted({c["model"] for c in out}, key=lambda m: (_model_label(m).lower(), m))
+    return {"models": [{"model": m, "label": _model_label(m)} for m in models], "cells": out}
+
+
 def _context_summary(rows: list[dict[str, Any]], withheld: int = 0) -> dict[str, Any]:
     contexts = sorted({(row["task_hash"], row["metric_unit"]) for row in rows},
                       key=lambda pair: (pair[0], pair[1] is not None, pair[1] or ""))
@@ -313,13 +338,20 @@ class Queries:
                 "direction": direction, "rows": rows[:limit],
                 "score_context": _context_summary(context_rows, withheld)}
 
-    # ── pipeline × dataset matrix ──────────────────────────────────────
+    # ── pipeline × dataset (or model × dataset) matrix ─────────────────
     def matrix(
         self, *, metric: str = "rmse", scope: str = "cv", partition: str | None = None,
         aggregation_level: str = "sample", source_fold_id: str | None = None,
         dataset_fingerprint: str | None = None, task_hash: str | None = None,
-        include_quarantined: bool = False,
+        include_quarantined: bool = False, by: str = "pipeline",
     ) -> dict[str, Any]:
+        """Score matrix by pipeline (default) or by main model.
+
+        A model cell is the unweighted mean of that model's pipeline cells on the
+        dataset; it is withheld (``None``) when those pipelines mix score contexts.
+        """
+        if by not in ("pipeline", "model"):
+            raise ValueError(f"Unknown matrix grouping: {by!r}")
         partition = _score_partition(scope, partition)
         metrics_view = self._score_view(
             partition, scope=scope, aggregation_level=aggregation_level, source_fold_id=source_fold_id,
@@ -334,6 +366,7 @@ class Queries:
         rows = self.store.query(
             f"""
             SELECT mo.pipeline_dag_hash, mo.pipeline_label, mo.dataset_fingerprint,
+                   MIN(mo.main_model) AS main_model,
                    MIN(mo.task_hash) AS task_hash, MIN(mo.metric_unit) AS metric_unit,
                    COUNT(DISTINCT mo.score_context) AS n_score_contexts,
                    CASE WHEN COUNT(DISTINCT mo.score_context)=1 THEN AVG(mo.metric_value) END AS value,
@@ -358,6 +391,18 @@ class Queries:
             }
         context_rows = self.store.query(
             f"SELECT DISTINCT mo.task_hash, mo.metric_unit FROM {metrics_view} mo WHERE {' AND '.join(where)}", params)
+        if by == "model":
+            return {
+                "include_unreported": False, "partition": partition,
+                "aggregation_level": aggregation_level, "source_fold_id": source_fold_id,
+                "metric": metric, "scope": scope, "direction": self._direction(metric),
+                "datasets": [
+                    {"dataset_fingerprint": d, "label": (ds_meta.get(d) or {}).get("name") or d[:10]}
+                    for d in datasets
+                ],
+                **_model_matrix(rows, cells),
+                "score_context": _context_summary(context_rows, sum(r["n_score_contexts"] != 1 for r in rows)),
+            }
         return {
             "include_unreported": False, "partition": partition,
                 "aggregation_level": aggregation_level, "source_fold_id": source_fold_id,

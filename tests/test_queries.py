@@ -85,6 +85,30 @@ def test_matrix_shape(queries: Queries):
     assert len(m["cells"]) == 14
 
 
+def test_model_matrix_averages_pipeline_cells(queries: Queries):
+    by_pipeline = queries.matrix(metric="rmse", scope="cv")
+    by_model = queries.matrix(metric="rmse", scope="cv", by="model")
+    assert by_model["datasets"] == by_pipeline["datasets"]
+    assert by_model["models"] and "pipelines" not in by_model
+    assert sum(c["n_pipelines"] for c in by_model["cells"]) == len(by_pipeline["cells"])
+    for cell in by_model["cells"]:
+        if cell["value"] is None:
+            continue
+        members = [c["value"] for c in by_pipeline["cells"] if c["dataset_fingerprint"] == cell["dataset_fingerprint"]
+                   and _model_of(queries, c["pipeline_dag_hash"]) == cell["model"]]
+        assert len(members) == cell["n_pipelines"]
+        assert cell["value"] == pytest.approx(sum(members) / len(members))
+
+
+def _model_of(queries: Queries, pipeline_dag_hash: str) -> str:
+    return next(p["main_model"] or "" for p in queries.pipelines() if p["pipeline_dag_hash"] == pipeline_dag_hash)
+
+
+def test_matrix_rejects_unknown_grouping(queries: Queries):
+    with pytest.raises(ValueError):
+        queries.matrix(metric="rmse", scope="cv", by="operator")
+
+
 def test_parameter_effect_n_components(queries: Queries):
     pe = queries.parameter_effect("n_components", metric="rmse", scope="cv")
     assert pe["points"]

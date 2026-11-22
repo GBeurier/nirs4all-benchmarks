@@ -33,7 +33,7 @@ const record = (name, result) => async (args) => { calls.push({ name, args }); r
 const api = {
   overview: async () => s.overview,
   datasets: async () => [],
-  matrix: async () => s.matrix,
+  matrix: async (p) => (p?.by === "model" ? (s.matrixModel ?? {}) : s.matrix),
   robustness: async () => s.robustness,
   operatorEffect: async () => s.operatorEffect,
   stats: async () => s.stats,
@@ -79,6 +79,31 @@ def test_matrix_keeps_pipelines_and_datasets_with_equal_labels_apart(tmp_path: P
 
     assert len(set(trace["x"])) == len(set(trace["y"])) == 2
     assert trace["z"] == [[0.1, None], [None, 0.9]]
+
+
+def test_model_matrix_is_drawn_below_the_pipeline_matrix(tmp_path: Path) -> None:
+    datasets = [{"dataset_fingerprint": "aaaaaaaa11", "label": "Leaf"}, {"dataset_fingerprint": "bbbbbbbb22", "label": "Soil"}]
+    scenario = {
+        "metric": "rmse",
+        "matrix": {"direction": "min", "datasets": datasets,
+                   "pipelines": [{"pipeline_dag_hash": "pppppppp11", "label": "SNV > PLS"}],
+                   "cells": [{"pipeline_dag_hash": "pppppppp11", "dataset_fingerprint": "aaaaaaaa11", "value": 0.2, "coverage": 1}]},
+        "matrixModel": {"direction": "min", "datasets": datasets,
+                        "models": [{"model": "sklearn.cross_decomposition.PLSRegression", "label": "PLSRegression"},
+                                   {"model": "sklearn.linear_model.Ridge", "label": "Ridge"}],
+                        "cells": [
+                            {"model": "sklearn.cross_decomposition.PLSRegression", "dataset_fingerprint": "aaaaaaaa11", "value": 0.3, "n_pipelines": 2},
+                            {"model": "sklearn.linear_model.Ridge", "dataset_fingerprint": "bbbbbbbb22", "value": 0.4, "n_pipelines": 1},
+                        ]},
+    }
+    result = _run(tmp_path, "matrix", scenario)
+
+    pipeline_trace, model_trace = (d["traces"][0] for d in result["drawn"])
+    assert pipeline_trace["y"] == ["SNV > PLS"]
+    assert model_trace["y"] == ["PLSRegression", "Ridge"]
+    assert model_trace["z"] == [[0.3, None], [None, 0.4]]
+    assert model_trace["customdata"] == [[2, None], [None, 1]]
+    assert "Model \u00d7 Dataset" in result["texts"]
 
 
 def test_leaderboard_keeps_equal_labels_apart_and_names_extrema_by_direction(tmp_path: Path) -> None:
