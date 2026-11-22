@@ -33,8 +33,9 @@ const VIEWS = [
 ];
 const BY_ID = Object.fromEntries(VIEWS.map((v) => [v.id, v]));
 
-// Views that do NOT use the shared metric/scope/dataset lens (catalog, contribute, detail).
-const NO_LENS = new Set(["datasets", "pipelines", "planned", "upload", "run", "overview"]);
+// Views that do NOT use the shared metric/scope/dataset lens (catalog, contribute, detail, and the
+// per-dataset leaderboard, which fixes its own default metric and score level).
+const NO_LENS = new Set(["datasets", "pipelines", "planned", "upload", "run", "overview", "leaderboard"]);
 
 // Shared, persisted lens — set ONCE in the context bar, read by every analysis view.
 // v2: the default metric became the scale-free nRMSE; a v1 lens would keep raw RMSE.
@@ -93,9 +94,7 @@ function renderNav(activeId) {
 function renderContextBar(activeId) {
   const host = document.getElementById("context-bar");
   if (!host) return;
-  if (NO_LENS.has(activeId) || (activeId === "leaderboard" && state._overview?.historical_demo)) {
-    host.style.display = "none"; host.innerHTML = ""; return;
-  }
+  if (NO_LENS.has(activeId)) { host.style.display = "none"; host.innerHTML = ""; return; }
   host.style.display = "";
   const ov = state._overview || {};
   const metrics = ov.metrics?.length ? ov.metrics : ["rmse"];

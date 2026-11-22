@@ -1,190 +1,138 @@
-// Leaderboard — configurable ranking, no canonical baseline (DESIGN.md §9.2).
-// This is the reference pattern for every view: page-head + controls + reactive render.
+// Leaderboard — one table per task family, one row per dataset target: the best default score,
+// the model that reached it and an inline strip of every score on that target (DESIGN.md §9.2).
+// The engine (static-engine.js / Queries.dataset_leaderboard) picks the metric, score context and
+// best row; this view only presents them.
 
 import { uniqueLabels } from "../lib/labels.js";
 
-const CLASSIFICATION = new Set(["binary", "multiclass", "multilabel"]);
-const taskFamily = ({ task_type }) => CLASSIFICATION.has(task_type) ? "classification" : task_type;
-const PREFERRED_METRICS = { regression: ["nrmse", "rmse"], classification: ["accuracy", "balanced_accuracy"] };
+const FAMILIES = [["regression", "Regression"], ["classification", "Classification"]];
+const METRIC_LABEL = { nrmse: "nRMSE", rmse: "RMSE", balanced_accuracy: "Balanced accuracy", accuracy: "Accuracy" };
+const metricLabel = (m) => METRIC_LABEL[m] || m;
+const modelLabel = (m) => (m ? m.split(".").pop() : "Unknown model");
+const better = (direction) => (direction === "max" ? "higher is better" : "lower is better");
+// Validation-level scores come before the retained test partition.
+const SCOPE_ORDER = ["cv", "fold", "test"];
+const SCOPE_LABEL = { cv: "cross-validation", fold: "per-fold validation", test: "test" };
+const SPLIT_LABEL = { seeded_80_20_group_aware: "80/20 group-aware" };
 
-async function renderHistoricalLeaderboard({ root, api, dom, plot, state, signal }) {
-  const targets = (await api.historicalLeaderboardTargets()).sort((a, b) => a.name.localeCompare(b.name));
-  if (signal.aborted) return;
-  let target = targets.find(d => d.dataset_fingerprint === state.dataset);
-  let family = target ? taskFamily(target) : "regression";
+function quantile(sorted, p) {
+  const i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
+}
 
-  const filters = dom.el("div", { class: "controls" });
-  const result = dom.el("div", {});
-  function select(id, label, onChange) {
-    const input = dom.el("select", { id, onchange: onChange });
-    const field = dom.el("div", { class: "control" }, dom.el("label", { for: id }, label), input);
-    filters.appendChild(field);
-    return { input, field };
+// Lightweight inline SVG (one per row instead of a chart): every score as a tick (a 32-bin
+// histogram past 150 scores), the interquartile band, the median and the best score as a dot.
+const W = 168, H = 26, PAD = 5, BINS = 32;
+export function distributionStrip(dom, row) {
+  const v = row.values, lo = v[0], hi = v[v.length - 1];
+  const x = (s) => (hi > lo ? PAD + ((s - lo) / (hi - lo)) * (W - 2 * PAD) : W / 2);
+  const q1 = quantile(v, 0.25), q3 = quantile(v, 0.75), med = quantile(v, 0.5);
+  let marks;
+  if (v.length <= 150) {
+    marks = v.map((s) => dom.svg("line", { class: "spark-tick", x1: x(s), x2: x(s), y1: 8, y2: 18 }));
+  } else {
+    const counts = new Array(BINS).fill(0);
+    for (const s of v) counts[hi > lo ? Math.min(BINS - 1, Math.floor(((s - lo) / (hi - lo)) * BINS)) : 0]++;
+    const top = Math.max(...counts), step = (W - 2 * PAD) / BINS;
+    marks = counts.map((c, i) => (c ? dom.svg("rect", { class: "spark-bin", x: PAD + i * step, width: Math.max(step - 0.5, 0.5),
+      y: 20 - (12 * c) / top, height: (12 * c) / top }) : null));
   }
-  function setOptions(input, options, value) {
-    input.replaceChildren(...options.map(([id, label]) => dom.el("option", { value: id }, label)));
-    if (options.some(([id]) => id === value)) input.value = value;
+  const f = (s) => dom.fmt(s, 4);
+  const label = `${v.length} scores, ${better(row.direction)} · best ${f(row.best_value)} · min ${f(lo)} · `
+    + `median ${f(med)} · max ${f(hi)}`;
+  return dom.svg("svg", { class: "spark", width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": label },
+    dom.svg("title", {}, label),
+    dom.svg("line", { class: "spark-axis", x1: PAD, x2: W - PAD, y1: 20, y2: 20 }),
+    dom.svg("rect", { class: "spark-iqr", x: x(q1), y: 7, width: Math.max(x(q3) - x(q1), 1), height: 12, rx: 2 }),
+    ...marks,
+    dom.svg("line", { class: "spark-median", x1: x(med), x2: x(med), y1: 6, y2: 20 }),
+    dom.svg("circle", { class: "spark-best", cx: x(row.best_value), cy: 13, r: 3.5 }));
+}
+
+function caption(data) {
+  const parts = [];
+  const rows = Object.values(data.families).flat();
+  if (data.mode === "historical_reported") {
+    const holdouts = new Set(rows.map((r) => `${r.split.method}|${r.split.seed}|${r.split.n_splits}`));
+    const [method, seed, n] = holdouts.size === 1 ? [...holdouts][0].split("|") : [];
+    parts.push(holdouts.size === 1
+      ? `Each row uses its target's canonical holdout: seed ${seed} of ${n} (${SPLIT_LABEL[method] || method}).`
+      : "Each row uses its target's canonical holdout: the first split method and lowest seed.",
+    "Other holdout seeds are not pooled. The best score is the best producer-reported test score, not a validation-based selection; the strip shows every reported test score of that holdout.");
+  } else {
+    parts.push(`The best score is the best ${SCOPE_LABEL[data.scope] || data.scope} score among run conditions, each the mean of its ${data.partition} observations; the strip shows every run condition's score.`);
   }
-
-  const familyControl = select("lb-task", "Task", () => {
-    family = familyControl.input.value;
-    target = undefined;
-    refreshTargets();
-  });
-  const targetControl = select("lb-target", "Dataset and target", () => {
-    openTarget(targetControl.input.value);
-  });
-  const splitControl = select("lb-split", "Holdout", refreshMetrics);
-  const metricControl = select("lb-metric", "Metric", renderResult);
-  setOptions(familyControl.input, [["regression", "Regression"], ["classification", "Classification"]], family);
-
-  dom.mount(root, dom.el("div", { class: "page-head" },
-    dom.el("h1", {}, "Historical leaderboard"),
-    dom.el("p", {}, "Producer-reported test scores. Scientific validity is unreported.")),
-  filters, result);
-
-  let chartNode = null;
-  function openTarget(id) {
-    target = targets.find(d => d.dataset_fingerprint === id && taskFamily(d) === family);
-    targetControl.input.value = target?.dataset_fingerprint ?? "";
-    refreshSplits();
+  for (const [family, title] of FAMILIES) {
+    const [primary, ...fallbacks] = data.metrics[family];
+    const fallback = fallbacks.length ? `, else ${fallbacks.map(metricLabel).join(", else ")}` : "";
+    parts.push(`${title}: ${metricLabel(primary)} (${better(family === "classification" ? "max" : "min")})${fallback}.`);
   }
-
-  function refreshTargets() {
-    const options = targets.filter(d => taskFamily(d) === family);
-    setOptions(targetControl.input, [["", "All targets"], ...options.map(d => [d.dataset_fingerprint, d.name])],
-      target?.dataset_fingerprint);
-    refreshSplits();
+  if (data.excluded?.unclassified_targets) {
+    parts.push(`${data.excluded.unclassified_targets} target(s) with another or unreported task type are not shown.`);
   }
+  return parts.join(" ");
+}
 
-  function refreshSplits() {
-    const splits = target?.splits ?? [];
-    setOptions(splitControl.input, splits.map(s => [s.id, `Seed ${s.seed} · ${
-      s.method === "seeded_80_20_group_aware" ? "80/20 group-aware" : s.method
-    }`]), splitControl.input.value);
-    splitControl.field.style.display = target ? "" : "none";
-    metricControl.field.style.display = target ? "" : "none";
-    refreshMetrics();
-  }
-
-  function refreshMetrics() {
-    const split = target?.splits.find(s => s.id === splitControl.input.value);
-    const available = [...(split?.scores.keys() ?? [])].sort();
-    const preferred = PREFERRED_METRICS[family].find(metric => available.includes(metric));
-    const current = metricControl.input.value || state.metric;
-    setOptions(metricControl.input, available.map(metric => [metric, metric]),
-      available.includes(current) ? current : preferred);
-    renderResult();
-  }
-
-  function renderResult() {
-    if (chartNode) { plot.purge(chartNode); chartNode = null; }
-    if (!target) {
-      const summaries = targets.filter(d => taskFamily(d) === family).map(d => ({
-        ...d, metrics: [...new Set(d.splits.flatMap(s => [...s.scores.keys()]))].sort().join(", "),
-      }));
-      const table = dom.table([
-        { key: "name", label: "Dataset and target", render: d => dom.el("button", {
-          type: "button", class: "btn", onclick: () => { openTarget(d.dataset_fingerprint); targetControl.input.focus(); },
-        }, d.name) },
-        { key: "n_run_conditions", label: "Reported runs", num: true, render: d => dom.fmtInt(d.n_run_conditions) },
-        { key: "metrics", label: "Available metrics" },
-      ], summaries);
-      dom.mount(result, summaries.length ? dom.el("div", { class: "card" },
-        dom.el("h2", {}, "Scores by dataset and target"), table) : dom.empty("No targets match this task."));
-      return;
-    }
-
-    const metric = metricControl.input.value;
-    const split = target.splits.find(s => s.id === splitControl.input.value);
-    const { direction, rows } = split.scores.get(metric);
-    const multiplier = direction === "max" ? -1 : 1;
-    const sorted = [...rows].sort((a, b) => multiplier * (a.metric_value - b.metric_value));
-    let rank = 1;
-    const ranked = sorted.map((row, i) => {
-      if (i > 0 && row.metric_value !== sorted[i - 1].metric_value) rank = i + 1;
-      return { ...row, rank };
-    });
-    const bestCount = ranked.filter(row => row.rank === 1).length;
-    const best = dom.fmt(ranked[0].metric_value, 4);
-    const summary = `${ranked.length} reported scores for test seed ${split.seed}. ${bestCount} at the best score (${best}).`;
-    const table = dom.table([
-      { key: "rank", label: "Rank", num: true, render: r => dom.fmtInt(r.rank) },
-      { key: "pipeline_label", label: "Pipeline", render: r => dom.el("a", { href: `#/run/${r.execution_hash}` },
-        r.pipeline_label || dom.shortHash(r.pipeline_dag_hash, 12)) },
-      { key: "main_model", label: "Model", render: r => dom.badge((r.main_model || "—").split(".").pop(), "role") },
-      { key: "metric_value", label: metric, num: true, render: r => dom.fmt(r.metric_value, 4) },
-    ], ranked, { sort: { key: "rank", dir: 1 } });
-    chartNode = dom.el("div", { class: "plot", inert: true, "aria-hidden": "true" });
-    dom.mount(result, dom.el("div", { class: "card" }, dom.el("h2", {}, target.name),
-      dom.el("p", { class: "sub" }, summary), chartNode, table));
-    plot.draw(chartNode, [{ type: "histogram", x: ranked.map(r => r.metric_value), marker: { color: "#0d9488" } }],
-      { xaxis: { title: metric }, yaxis: { title: "Reported scores", rangemode: "tozero" } });
-  }
-
-  refreshTargets();
-  return () => { if (chartNode) plot.purge(chartNode); };
+function familyCard(dom, data, family, title) {
+  const rows = data.families[family] || [];
+  const metrics = data.metrics[family];
+  if (!rows.length) return dom.el("div", { class: "card" }, dom.el("h2", {}, title), dom.empty(`No ${title.toLowerCase()} targets.`));
+  // Distinct dataset fingerprints, tasks or units never share a label.
+  const labels = uniqueLabels(rows, (r) => r.dataset_name,
+    (r) => [dom.shortHash(r.dataset_fingerprint, 8), r.task_hash && dom.shortHash(r.task_hash, 6), r.metric_unit].filter(Boolean).join("/"));
+  const labelled = rows.map((r, i) => ({ ...r, label: labels[i] }));
+  const table = dom.table([
+    { key: "label", label: "Dataset", render: (r) => dom.el("span", { title: r.dataset_fingerprint }, r.label) },
+    { key: "best_value", label: `Best ${metricLabel(metrics[0])}`, num: true,
+      sortKey: (r) => (r.best_value == null ? null : r.direction === "max" ? -r.best_value : r.best_value),
+      render: (r) => (r.best_value == null ? "—" : dom.el("span", {}, dom.fmt(r.best_value, 4),
+        r.metric !== metrics[0] ? dom.el("span", { class: "badge gray lb-metric",
+          title: `${metricLabel(metrics[0])} is not reported for this target` }, metricLabel(r.metric)) : null)) },
+    { key: "model", label: "Best model", sortKey: (r) => (r.best ? modelLabel(r.best.main_model) : null), render: (r) => {
+      if (!r.best) return "—";
+      const pipeline = r.best.pipeline_label || dom.shortHash(r.best.pipeline_dag_hash, 12);
+      const href = r.best.execution_hash ? `#/run/${r.best.execution_hash}` : `#/runs/${r.best.pipeline_dag_hash}`;
+      return dom.el("div", { class: "lb-model" },
+        dom.badge(modelLabel(r.best.main_model), "role"),
+        r.n_best > 1 ? dom.el("span", { class: "lb-tie", title: `Tied at the best score: ${r.tied_models.map(modelLabel).join(", ")}` },
+          `+${r.n_best - 1} tied`) : null,
+        dom.el("a", { class: "lb-pipe", href, title: pipeline }, pipeline));
+    } },
+    { key: "n_scores", label: "Score distribution", render: (r) => (r.values.length
+      ? dom.el("div", { class: "lb-dist" }, distributionStrip(dom, r), dom.el("span", { class: "lb-n" }, `n=${dom.fmtInt(r.n_scores)}`))
+      : dom.el("span", { class: "sub" }, `No ${metrics.map(metricLabel).join(" or ")} score (reports ${r.available_metrics.join(", ") || "none"})`)) },
+  ], labelled);
+  return dom.el("div", { class: "card" }, dom.el("h2", {}, title),
+    dom.el("p", { class: "sub" }, `${rows.length} dataset target${rows.length === 1 ? "" : "s"}.`), table);
 }
 
 export default {
   id: "leaderboard",
   title: "Leaderboard",
-  subtitle: "Which pipelines win — ranked by the lens metric.",
+  subtitle: "Best score, best model and score distribution for every dataset target.",
   icon: "🏆",
-  async render(ctx) {
-    if (ctx.state._overview?.historical_demo) return renderHistoricalLeaderboard(ctx);
-    const { root, api, dom, plot, state } = ctx;
-
+  async render({ root, api, dom, state, signal }) {
+    const historical = Boolean(state._overview?.historical_demo);
+    const scopes = state._overview?.score_scopes ?? [];
+    const scope = SCOPE_ORDER.find((s) => scopes.includes(s)) ?? "cv";
     const head = dom.el("div", { class: "page-head" },
-      dom.el("h1", {}, this.title), dom.el("p", {}, this.subtitle));
-
-    const bar = dom.controls([
+      dom.el("h1", {}, historical ? "Historical leaderboard" : this.title),
+      dom.el("p", {}, historical ? "Producer-reported test scores. Scientific validity is unreported." : this.subtitle));
+    const bar = historical ? null : dom.controls([
       { id: "quar", type: "toggle", label: "Include quarantined", value: false },
     ], () => refresh());
-
-    const chartCard = dom.el("div", { class: "card" }, dom.el("h3", {}, "Top pipelines"),
-      dom.el("div", { class: "plot tall", id: "lb-plot" }));
-    const tableHost = dom.el("div", {});
-    dom.mount(root, head, bar.element, chartCard, tableHost);
+    const host = dom.el("div", {});
+    dom.mount(root, head, bar?.element, host);
 
     const refresh = async () => {
-      const plotNode = document.getElementById("lb-plot");
-      dom.mount(tableHost, dom.loading());
-      const lb = await api.leaderboard({
-        metric: state.metric, scope: state.scope, dataset: state.dataset || undefined,
-        include_quarantined: bar.get("quar"), limit: 200,
-      });
-      const rows = lb.rows || [];
-      if (!rows.length) { plot.purge(plotNode); dom.mount(tableHost, dom.empty("No runs match these filters.")); return; }
-
-      // Horizontal bar of the top 18, best at top, min–max as error bars.
-      const top = rows.slice(0, 18).reverse();
-      const barLabels = uniqueLabels(top, (r) => r.pipeline_label || r.pipeline_dag_hash.slice(0, 10),
-        (r) => (r.run_condition_hash || r.pipeline_dag_hash).slice(0, 8));
-      const best = lb.direction === "max" ? Math.max(...rows.map((r) => r.mean)) : Math.min(...rows.map((r) => r.mean));
-      plot.draw(plotNode, [{
-        type: "bar", orientation: "h",
-        x: top.map((r) => r.mean),
-        y: barLabels,
-        error_x: { type: "data", symmetric: false,
-          array: top.map((r) => (r.max ?? r.mean) - r.mean),
-          arrayminus: top.map((r) => r.mean - (r.min ?? r.mean)), color: "rgba(15,31,26,.25)", thickness: 1 },
-        marker: { color: top.map((r) => (Math.abs(r.mean - best) < 1e-9 ? "#00704A" : "#0d9488")) },
-        hovertemplate: "%{y}<br>" + state.metric + " = %{x:.4f}<extra></extra>",
-      }], { margin: { l: 220, r: 24, t: 10, b: 40 }, xaxis: { title: `${state.metric} (${lb.direction === "max" ? "↑ better" : "↓ better"})` } });
-
-      const tbl = dom.table([
-        { key: "rank", label: "#", num: true, render: (r) => dom.el("span", { class: `rank ${r.rank === 1 ? "top" : ""}` }, r.rank) },
-        { key: "pipeline_label", label: "Pipeline", render: (r) => dom.el("span", {}, r.pipeline_label || r.pipeline_dag_hash.slice(0, 12)) },
-        { key: "main_model", label: "Model", render: (r) => dom.badge((r.main_model || "—").split(".").pop(), "role") },
-        { key: "mean", label: `${state.metric} (mean)`, num: true, render: (r) => dom.fmt(r.mean, 4) },
-        { key: "min", label: lb.direction === "max" ? "worst obs" : "best obs", num: true, render: (r) => dom.fmt(r.min, 4) },
-        { key: "max", label: lb.direction === "max" ? "best obs" : "worst obs", num: true, render: (r) => dom.fmt(r.max, 4) },
-        { key: "n_obs", label: "obs", num: true },
-      ], rows, { sort: { key: "rank", dir: 1 }, onRow: (r) => ctx.navigate(`runs/${r.pipeline_dag_hash}`) });
-      dom.mount(tableHost, dom.el("div", { class: "card" },
-        dom.el("h3", {}, `${rows.length} pipelines ranked`),
-        dom.el("div", { class: "sub" }, "Click a row to see every run of that pipeline."), tbl));
+      dom.mount(host, dom.loading());
+      const data = await api.datasetLeaderboard(historical ? {} : { scope, include_quarantined: bar.get("quar") });
+      if (signal?.aborted) return;
+      dom.mount(host,
+        data.scope === "test" && !historical
+          ? dom.banner("No validation-level scores are stored, so rows rank on the retained test partition.", "warn") : null,
+        dom.el("p", { class: "sub" }, caption(data)),
+        ...FAMILIES.map(([family, title]) => familyCard(dom, data, family, title)));
     };
     await refresh();
   },

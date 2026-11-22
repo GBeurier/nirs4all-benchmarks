@@ -16,15 +16,20 @@ DRIVER = """
 const [view, scenario] = process.argv.slice(2);
 const { default: mod } = await import(`./views/${view}.js`);
 const s = JSON.parse(scenario);
-const drawn = [], tables = [], calls = [], texts = [];
+const drawn = [], tables = [], calls = [], texts = [], svgs = [];
 const node = (tag, kids) => ({ tag, kids, textContent: "", addEventListener() {},
   querySelector(sel) { return sel === tag ? this : kids.map((k) => k?.querySelector?.(sel)).find(Boolean) ?? null; } });
 globalThis.document = { getElementById: () => ({ replaceWith() {} }) };
 const dom = new Proxy({
   el: (tag, _attrs, ...kids) => { for (const k of kids) if (typeof k === "string") texts.push(k); return node(tag, kids); },
-  mount: () => {}, empty: (m) => ({ empty: m }), loading: () => ({}),
-  table: (columns, rows) => { tables.push({ columns: columns.map((c) => c.label), rows }); return {}; },
+  mount: () => {}, empty: (m) => { texts.push(m); return { empty: m }; }, loading: () => ({}),
+  table: (columns, rows) => {
+    tables.push({ columns: columns.map((c) => c.label), rows });
+    for (const r of rows) for (const c of columns) c.render?.(r);
+    return {};
+  },
   controls: () => ({ element: {}, get: () => false }),
+  svg: (tag, attrs, ...kids) => { svgs.push({ tag, attrs }); return node(tag, kids); },
   shortHash: (x) => String(x).slice(0, 8), fmt: (v) => String(v), fmtInt: (v) => String(v),
 }, { get: (target, key) => target[key] ?? ((...args) => node(String(key), args)) });
 const plot = { draw: (_n, traces, layout) => drawn.push({ traces, layout }), purge: () => {},
@@ -33,17 +38,18 @@ const record = (name, result) => async (args) => { calls.push({ name, args }); r
 const api = {
   overview: async () => s.overview,
   datasets: async () => [],
-  matrix: async () => s.matrix,
+  matrix: async (p) => (p?.by === "model" ? (s.matrixModel ?? {}) : s.matrix),
   robustness: async () => s.robustness,
   operatorEffect: async () => s.operatorEffect,
   stats: async () => s.stats,
   runs: record("runs", () => s.runs ?? []),
   leaderboard: record("leaderboard", () => ({ direction: s.direction, rows: s.leaderboard ?? [] })),
+  datasetLeaderboard: record("datasetLeaderboard", () => s.datasetLeaderboard),
   pivot: record("pivot", () => ({ rows: [] })),
 };
-const state = { metric: s.metric, scope: s.scope ?? "test", dataset: "", save() {} };
+const state = { metric: s.metric, scope: s.scope ?? "test", dataset: "", _overview: s.stateOverview, save() {} };
 await mod.render({ root: {}, api, dom, plot, state, navigate: () => {} });
-console.log(JSON.stringify({ drawn, tables, calls, texts }));
+console.log(JSON.stringify({ drawn, tables, calls, texts, svgs }));
 """
 
 
@@ -81,18 +87,84 @@ def test_matrix_keeps_pipelines_and_datasets_with_equal_labels_apart(tmp_path: P
     assert trace["z"] == [[0.1, None], [None, 0.9]]
 
 
-def test_leaderboard_keeps_equal_labels_apart_and_names_extrema_by_direction(tmp_path: Path) -> None:
-    rows = [
-        {"rank": i + 1, "run_condition_hash": f"rc{i:06d}", "pipeline_dag_hash": f"h{i}", "pipeline_label": "PLS", "main_model": "m",
-         "mean": 0.9 - 0.1 * i, "min": 0.1, "max": 0.95, "n_obs": 3}
-        for i in range(3)
+def test_model_matrix_is_drawn_below_the_pipeline_matrix(tmp_path: Path) -> None:
+    datasets = [{"dataset_fingerprint": "aaaaaaaa11", "label": "Leaf"}, {"dataset_fingerprint": "bbbbbbbb22", "label": "Soil"}]
+    scenario = {
+        "metric": "rmse",
+        "matrix": {"direction": "min", "datasets": datasets,
+                   "pipelines": [{"pipeline_dag_hash": "pppppppp11", "label": "SNV > PLS"}],
+                   "cells": [{"pipeline_dag_hash": "pppppppp11", "dataset_fingerprint": "aaaaaaaa11", "value": 0.2, "coverage": 1}]},
+        "matrixModel": {"direction": "min", "datasets": datasets,
+                        "models": [{"model": "sklearn.cross_decomposition.PLSRegression", "label": "PLSRegression"},
+                                   {"model": "sklearn.linear_model.Ridge", "label": "Ridge"}],
+                        "cells": [
+                            {"model": "sklearn.cross_decomposition.PLSRegression", "dataset_fingerprint": "aaaaaaaa11", "value": 0.3, "n_pipelines": 2},
+                            {"model": "sklearn.linear_model.Ridge", "dataset_fingerprint": "bbbbbbbb22", "value": 0.4, "n_pipelines": 1},
+                        ]},
+    }
+    result = _run(tmp_path, "matrix", scenario)
+
+    pipeline_trace, model_trace = (d["traces"][0] for d in result["drawn"])
+    assert pipeline_trace["y"] == ["SNV > PLS"]
+    assert model_trace["y"] == ["PLSRegression", "Ridge"]
+    assert model_trace["z"] == [[0.3, None], [None, 0.4]]
+    assert model_trace["customdata"] == [[2, None], [None, 1]]
+    assert "Model \u00d7 Dataset" in result["texts"]
+
+
+def _dataset_row(fingerprint: str, name: str, metric: str, direction: str, values: list[float], **extra: Any) -> dict[str, Any]:
+    best = min(values) if direction == "min" else max(values)
+    return {"dataset_fingerprint": fingerprint, "dataset_name": name, "task_hash": None, "task_type": extra.pop("task_type", "regression"),
+            "metric": metric, "metric_unit": None, "direction": direction, "best_value": best,
+            "best": {"run_condition_hash": "rc" + fingerprint, "pipeline_dag_hash": "p" + fingerprint, "pipeline_label": "SNV > PLS",
+                     "main_model": "sklearn.cross_decomposition.PLSRegression", **extra.pop("best", {})},
+            "n_best": 1, "tied_models": ["sklearn.cross_decomposition.PLSRegression"], "values": sorted(values),
+            "n_scores": len(values), "available_metrics": [metric], **extra}
+
+
+def _dataset_leaderboard(regression: list[dict[str, Any]], classification: list[dict[str, Any]], **extra: Any) -> dict[str, Any]:
+    return {"mode": "valid", "scope": "cv", "partition": "validation",
+            "metrics": {"regression": ["nrmse", "rmse"], "classification": ["balanced_accuracy", "accuracy"]},
+            "families": {"regression": regression, "classification": classification}, "excluded": {"unclassified_targets": 0}, **extra}
+
+
+def test_leaderboard_shows_one_table_per_task_family_with_a_strip_per_dataset(tmp_path: Path) -> None:
+    regression = [
+        _dataset_row("aaaaaaaa11", "Leaf", "nrmse", "min", [0.3, 0.1, 0.2]),
+        _dataset_row("bbbbbbbb22", "Leaf", "rmse", "min", [2.0, 1.5]),
     ]
-    scenario = {"metric": "accuracy", "direction": "max", "leaderboard": rows}
+    classification = [_dataset_row("cccccccc33", "Seeds", "balanced_accuracy", "max", [0.7, 0.9, 0.8], task_type="multiclass")]
+    scenario = {"stateOverview": {"score_scopes": ["cv", "test"]},
+                "datasetLeaderboard": _dataset_leaderboard(regression, classification)}
     result = _run(tmp_path, "leaderboard", scenario)
 
-    assert len(set(result["drawn"][0]["traces"][0]["y"])) == 3
-    columns = result["tables"][0]["columns"]
-    assert columns[columns.index("worst obs")] == "worst obs" and columns.index("worst obs") < columns.index("best obs")
+    # The score level is chosen on validation, never on the retained test partition, and no dataset is preselected.
+    assert [c["args"] for c in result["calls"] if c["name"] == "datasetLeaderboard"] == [{"scope": "cv", "include_quarantined": False}]
+    assert [t["columns"] for t in result["tables"]] == [
+        ["Dataset", "Best nRMSE", "Best model", "Score distribution"],
+        ["Dataset", "Best Balanced accuracy", "Best model", "Score distribution"],
+    ]
+    # Distinct fingerprints with one name stay apart.
+    assert len({r["label"] for r in result["tables"][0]["rows"]}) == 2
+    assert {"Regression", "Classification", "RMSE"} <= set(result["texts"])
+    # The best dot sits on the best score: the minimum for nRMSE, the maximum for balanced accuracy.
+    best = [s["attrs"]["cx"] for s in result["svgs"] if s["tag"] == "circle"]
+    ticks = [s["attrs"]["x1"] for s in result["svgs"] if s["attrs"].get("class") == "spark-tick"]
+    assert best[0] == min(ticks[:3]) and best[2] == max(ticks[5:8])
+
+
+def test_historical_leaderboard_keeps_the_disclaimer_and_names_the_holdout(tmp_path: Path) -> None:
+    split = {"method": "seeded_80_20_group_aware", "seed": "0", "n_splits": 3}
+    rows = [_dataset_row("aaaaaaaa11", "Leaf", "nrmse", "min", [0.3, 0.1], split=split, best={"execution_hash": "e" * 64})]
+    scenario = {"stateOverview": {"historical_demo": True, "score_scopes": ["test"]},
+                "datasetLeaderboard": _dataset_leaderboard(rows, [], mode="historical_reported", scope="test", partition="test")}
+    result = _run(tmp_path, "leaderboard", scenario)
+    caption = next(t for t in result["texts"] if t.startswith("Each row uses"))
+
+    assert "Producer-reported test scores. Scientific validity is unreported." in result["texts"]
+    assert "seed 0 of 3 (80/20 group-aware)" in caption and "not a validation-based selection" in caption
+    assert [c["args"] for c in result["calls"] if c["name"] == "datasetLeaderboard"] == [{}]
+    assert "No classification targets." in result["texts"]
 
 
 def test_statistics_violins_for_same_named_datasets_do_not_share_a_name(tmp_path: Path) -> None:

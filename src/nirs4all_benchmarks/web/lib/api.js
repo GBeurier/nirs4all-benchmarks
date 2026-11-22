@@ -31,6 +31,7 @@ export const api = {
   componentAnalysis: (params) => request("POST", "/api/component-analysis", { body: params }),
   componentAnalysisRequests: () => request("GET", "/api/component-analysis/requests"),
   leaderboard: (params) => request("GET", "/api/leaderboard", { params }),
+  datasetLeaderboard: (params) => request("GET", "/api/dataset-leaderboard", { params }),
   matrix: (params) => request("GET", "/api/matrix", { params }),
   runs: (params) => request("GET", "/api/runs", { params }),
   operatorEffect: (params) => request("GET", "/api/operator-effect", { params }),

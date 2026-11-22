@@ -101,9 +101,21 @@ const assert = require('assert');
   assert((await api.runs({metric: 'rmse', scope: 'test', limit: 10000})).length > 0);
   assert((await api.facets()).length > 0);
   assert.strictEqual((await api.overview()).valid_executions, 0);
+  const board = await api.datasetLeaderboard();
+  assert.strictEqual(board.mode, 'historical_reported');
+  assert(board.families.regression.length > 0 && board.families.classification.length > 0);
+  for (const [family, metrics] of [['regression', ['nrmse', 'rmse']], ['classification', ['balanced_accuracy', 'accuracy']]]) {
+    for (const row of board.families[family]) {
+      assert(metrics.includes(row.metric), row.dataset_name);
+      assert.strictEqual(row.best_value, (row.direction === 'max' ? Math.max : Math.min)(...row.values));
+      assert.strictEqual(row.split.seed, '0');  // canonical holdout: lowest seed, never pooled
+    }
+  }
   snapshot = {...original, meta: {...original.meta, profile: 'ordinary-static-snapshot'}};
   const current = await createStaticApi();
   assert.strictEqual((await current.leaderboard({metric: 'rmse', scope: 'test'})).rows.length, 0);
+  const currentBoard = await current.datasetLeaderboard({scope: 'test'});
+  assert.strictEqual(currentBoard.families.regression.length + currentBoard.families.classification.length, 0);
 })().catch(error => { console.error(error); process.exit(1); });
 """
     subprocess.run([node, "-e", script, str(output)], check=True, capture_output=True, text=True)

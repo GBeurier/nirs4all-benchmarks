@@ -7,6 +7,10 @@ const DIRECTION = {
   f1_macro: "max", f1_micro: "max", f1_weighted: "max", precision_macro: "max", recall_macro: "max", roc_auc: "max", mcc: "max",
 };
 const dir = (m) => DIRECTION[String(m).toLowerCase()] || "min";
+const CLASSIFICATION = new Set(["binary", "multiclass", "multilabel"]);
+const taskFamily = (t) => (CLASSIFICATION.has(t) ? "classification" : t === "regression" ? "regression" : null);
+// Default score per task family, then its fallbacks (mirror of DATASET_LEADERBOARD_METRICS).
+const DATASET_METRICS = { regression: ["nrmse", "rmse"], classification: ["balanced_accuracy", "accuracy"] };
 
 // ── classify_role (mirror of indexing.py) ──
 const KIND_TO_ROLE = { input: "input", model: "model", merge: "merge", mean: "merge", average: "merge",
@@ -120,6 +124,97 @@ export async function createStaticApi(base = "/data") {
 
   function groupBy(rows, keyFn) { const g = new Map(); for (const r of rows) { const k = keyFn(r); if (!g.has(k)) g.set(k, []); g.get(k).push(r); } return g; }
 
+  // Producer-reported test scores of the historical demonstration, per target and holdout split.
+  function historicalTargets() {
+    const targets = new Map();
+    for (const row of M) {
+      if (row.score_validity !== "historical_reported" || row.execution_validity !== "unreported"
+          || row.score_scope !== "test" || row.partition !== "test" || !Number.isFinite(row.metric_value)) continue;
+      const facets = facByRc.get(row.run_condition_hash) || [];
+      const splitMethod = facets.find(f => f.facet_key === "split_method")?.facet_value;
+      const seed = facets.find(f => f.facet_key === "seed")?.facet_value;
+      if (splitMethod == null || seed == null) continue;
+
+      const splitKey = JSON.stringify([splitMethod, seed]);
+      if (!targets.has(row.dataset_fingerprint)) targets.set(row.dataset_fingerprint, new Map());
+      const splits = targets.get(row.dataset_fingerprint);
+      if (!splits.has(splitKey)) splits.set(splitKey, { id: splitKey, method: splitMethod, seed, scores: new Map() });
+      const { scores } = splits.get(splitKey);
+      if (!scores.has(row.metric_name)) scores.set(row.metric_name, { direction: dir(row.metric_name), rows: [] });
+      scores.get(row.metric_name).rows.push(row);
+    }
+    return bundle.datasets
+      .filter(d => targets.has(d.dataset_fingerprint))
+      .map(d => ({ ...d, splits: [...targets.get(d.dataset_fingerprint).values()] }));
+  }
+
+  // One row per dataset target and score context (mirror of Queries.dataset_leaderboard). The
+  // historical profile has only producer-reported test scores over several seeded holdouts: each
+  // row uses the target's canonical holdout (first split method, lowest seed) and never pools them.
+  function datasetRow(base, metric, scored) {
+    const direction = dir(metric);
+    const ordered = scored.slice().sort((a, b) =>
+      (direction === "max" ? b.value - a.value : a.value - b.value) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    const best = ordered[0];
+    const tied = scored.filter((s) => s.value === best.value);
+    return { ...base, metric, direction, best_value: best.value, best: best.best, n_best: tied.length,
+      tied_models: [...new Set(tied.map((s) => s.best.main_model || ""))].sort(),
+      values: scored.map((s) => s.value).sort((a, b) => a - b), n_scores: scored.length };
+  }
+  function datasetLeaderboard({ scope = "cv", partition, include_quarantined = false } = {}) {
+    const families = { regression: [], classification: [] };
+    let unclassified = 0;
+    const missing = (base) => ({ ...base, metric: null, direction: null, best_value: null, best: null,
+      n_best: 0, tied_models: [], values: [], n_scores: 0 });
+    if (historical) {
+      for (const target of historicalTargets()) {
+        const family = taskFamily(target.task_type);
+        if (!family) { unclassified++; continue; }
+        const splits = target.splits.slice().sort((a, b) => String(a.method).localeCompare(String(b.method))
+          || (Number(a.seed) - Number(b.seed)) || String(a.seed).localeCompare(String(b.seed)));
+        const split = splits[0];
+        const base = { dataset_fingerprint: target.dataset_fingerprint, dataset_name: target.name || target.dataset_fingerprint.slice(0, 10),
+          task_hash: target.task_hash ?? null, task_type: target.task_type, target_name: target.target_name ?? null,
+          available_metrics: [...split.scores.keys()].sort(),
+          split: { method: split.method, seed: split.seed, n_splits: splits.length } };
+        const metric = DATASET_METRICS[family].find((m) => split.scores.has(m));
+        if (!metric) { families[family].push(missing(base)); continue; }
+        const scored = split.scores.get(metric).rows.map((r) => ({ value: r.metric_value, key: r.execution_hash,
+          best: { execution_hash: r.execution_hash, run_condition_hash: r.run_condition_hash, pipeline_dag_hash: r.pipeline_dag_hash,
+            pipeline_label: r.pipeline_label, main_model: r.main_model } }));
+        families[family].push(datasetRow(base, metric, scored));
+      }
+    } else {
+      const part = partition || (scope === "test" ? "test" : "validation");
+      const ok = (r) => r.score_scope === scope && r.partition === part && Number.isFinite(r.metric_value)
+        && r.score_validity === "valid" && (include_quarantined || r.execution_validity === "valid");
+      const targets = groupBy(M.filter(ok), (r) => r.dataset_fingerprint + "|" + (r.task_hash ?? ""));
+      const taskType = Object.fromEntries(bundle.datasets.map((d) => [d.dataset_fingerprint, d.task_type]));
+      for (const rows of targets.values()) {
+        const { dataset_fingerprint: ds, task_hash } = rows[0];
+        const family = taskFamily(taskType[ds]);
+        if (!family) { unclassified++; continue; }
+        const byMetric = groupBy(rows, (r) => r.metric_name);
+        const base = { dataset_fingerprint: ds, dataset_name: dsLabel[ds] || ds.slice(0, 10), task_hash: task_hash ?? null,
+          task_type: taskType[ds], available_metrics: [...byMetric.keys()].sort() };
+        const metric = DATASET_METRICS[family].find((m) => byMetric.has(m));
+        if (!metric) { families[family].push(missing(base)); continue; }
+        // A run condition scores the mean of its observations, as in the leaderboard.
+        const scored = [...groupBy(byMetric.get(metric), (r) => r.run_condition_hash)].map(([rc, g]) => ({
+          value: mean(g.map((r) => r.metric_value)), key: rc,
+          best: { run_condition_hash: rc, pipeline_dag_hash: g[0].pipeline_dag_hash, pipeline_label: g[0].pipeline_label,
+            main_model: g[0].main_model } }));
+        families[family].push(datasetRow(base, metric, scored));
+      }
+    }
+    for (const rows of Object.values(families)) rows.sort((a, b) => a.dataset_name.toLowerCase().localeCompare(b.dataset_name.toLowerCase())
+      || (a.dataset_fingerprint < b.dataset_fingerprint ? -1 : a.dataset_fingerprint > b.dataset_fingerprint ? 1 : 0));
+    return { mode: historical ? "historical_reported" : "valid", scope: historical ? "test" : scope,
+      partition: historical ? "test" : (partition || (scope === "test" ? "test" : "validation")),
+      score_unit: historical ? "reported_score" : "run_condition_mean", metrics: DATASET_METRICS, families,
+      excluded: { unclassified_targets: unclassified } };
+  }
+
   return {
     healthz: async () => ({ status: "ok", version: bundle.meta.version, store: "static", store_exists: true }),
     overview: async () => ({ ...bundle.overview, historical_demo: historical,
@@ -192,29 +287,7 @@ export async function createStaticApi(base = "/data") {
     },
     planned: async () => bundle.planned,
 
-    historicalLeaderboardTargets: async () => {
-      if (!historical) return [];
-      const targets = new Map();
-      for (const row of M) {
-        if (row.score_validity !== "historical_reported" || row.execution_validity !== "unreported"
-            || row.score_scope !== "test" || row.partition !== "test" || !Number.isFinite(row.metric_value)) continue;
-        const facets = facByRc.get(row.run_condition_hash) || [];
-        const splitMethod = facets.find(f => f.facet_key === "split_method")?.facet_value;
-        const seed = facets.find(f => f.facet_key === "seed")?.facet_value;
-        if (splitMethod == null || seed == null) continue;
-
-        const splitKey = JSON.stringify([splitMethod, seed]);
-        if (!targets.has(row.dataset_fingerprint)) targets.set(row.dataset_fingerprint, new Map());
-        const splits = targets.get(row.dataset_fingerprint);
-        if (!splits.has(splitKey)) splits.set(splitKey, { id: splitKey, method: splitMethod, seed, scores: new Map() });
-        const { scores } = splits.get(splitKey);
-        if (!scores.has(row.metric_name)) scores.set(row.metric_name, { direction: dir(row.metric_name), rows: [] });
-        scores.get(row.metric_name).rows.push(row);
-      }
-      return bundle.datasets
-        .filter(d => targets.has(d.dataset_fingerprint))
-        .map(d => ({ ...d, splits: [...targets.get(d.dataset_fingerprint).values()] }));
-    },
+    datasetLeaderboard: async (params = {}) => datasetLeaderboard(params),
 
     leaderboard: async ({ metric = "rmse", scope = "cv", partition, dataset, include_quarantined = false, limit = 200 } = {}) => {
       const rows = sel(metric, scope, { quar: include_quarantined, partition, dataset });
@@ -231,7 +304,7 @@ export async function createStaticApi(base = "/data") {
       return { metric, scope, direction: d, rows: out.slice(0, limit) };
     },
 
-    matrix: async ({ metric = "rmse", scope = "cv", dataset, include_quarantined = false } = {}) => {
+    matrix: async ({ metric = "rmse", scope = "cv", dataset, include_quarantined = false, by = "pipeline" } = {}) => {
       const rows = sel(metric, scope, { quar: include_quarantined, dataset });
       const cells = []; const pipes = new Map(); const dsset = new Map();
       for (const [, g] of groupBy(rows, (r) => r.pipeline_dag_hash + "|" + r.dataset_fingerprint)) {
@@ -239,11 +312,26 @@ export async function createStaticApi(base = "/data") {
         pipes.set(g[0].pipeline_dag_hash, g[0].pipeline_label || g[0].pipeline_dag_hash.slice(0, 10));
         dsset.set(g[0].dataset_fingerprint, true);
         cells.push({ pipeline_dag_hash: g[0].pipeline_dag_hash, dataset_fingerprint: g[0].dataset_fingerprint,
-          value: mean(vals), coverage: new Set(g.map((r) => r.execution_hash)).size });
+          main_model: g[0].main_model || "", value: mean(vals), coverage: new Set(g.map((r) => r.execution_hash)).size });
       }
-      return { metric, scope, direction: dir(metric),
-        datasets: [...dsset.keys()].map((d) => ({ dataset_fingerprint: d, label: dsLabel[d] || d.slice(0, 10) })),
-        pipelines: [...pipes].map(([p, l]) => ({ pipeline_dag_hash: p, label: l })), cells };
+      const datasets = [...dsset.keys()].map((d) => ({ dataset_fingerprint: d, label: dsLabel[d] || d.slice(0, 10) }));
+      if (by === "model") {
+        // A model cell is the unweighted mean of that model's pipeline cells on the dataset.
+        const modelLabel = (m) => (m ? m.split(".").pop() : "Unknown model");
+        const modelCells = [];
+        for (const [, g] of groupBy(cells, (c) => c.main_model + "|" + c.dataset_fingerprint)) {
+          const vals = g.map((c) => c.value).filter((v) => v != null);
+          modelCells.push({ model: g[0].main_model, dataset_fingerprint: g[0].dataset_fingerprint,
+            value: vals.length ? mean(vals) : null, n_pipelines: g.length, coverage: g.reduce((n, c) => n + c.coverage, 0) });
+        }
+        const models = [...new Set(modelCells.map((c) => c.model))]
+          .sort((a, b) => modelLabel(a).localeCompare(modelLabel(b)) || a.localeCompare(b))
+          .map((m) => ({ model: m, label: modelLabel(m) }));
+        return { metric, scope, direction: dir(metric), datasets, models, cells: modelCells };
+      }
+      return { metric, scope, direction: dir(metric), datasets,
+        pipelines: [...pipes].map(([p, l]) => ({ pipeline_dag_hash: p, label: l })),
+        cells: cells.map(({ main_model: _model, ...c }) => c) };
     },
 
     runs: async ({ metric = "rmse", scope = "cv", dataset, pipeline, operator, include_quarantined = true, limit = 500 } = {}) => {

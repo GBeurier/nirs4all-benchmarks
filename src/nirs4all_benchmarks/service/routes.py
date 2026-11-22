@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 
 def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
@@ -86,6 +86,16 @@ def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
                 limit=limit,
             ))
 
+    if not project:
+        # Offline SPA only; the project-token route table stays unchanged.
+        @app.get("/api/dataset-leaderboard")
+        def dataset_leaderboard(
+            scope: str = "cv", partition: str | None = None, include_quarantined: bool = False,
+        ) -> dict[str, Any]:
+            with queries() as q:
+                return scoped(q.dataset_leaderboard(
+                    scope=scope, partition=partition, include_quarantined=include_quarantined))
+
     @app.get("/api/matrix")
     def matrix(
         metric: str = "rmse",
@@ -96,9 +106,11 @@ def register_routes(app: Any, queries: Any, *, project: bool = False) -> None:
         dataset: str | None = None,
         task: str | None = None,
         include_quarantined: bool = False,
+        by: Literal["pipeline", "model"] = "pipeline",
     ) -> dict[str, Any]:
         with queries() as q:
             return scoped(q.matrix(
+                by=by,
                 metric=metric,
                 scope=scope,
                 partition=partition,
