@@ -71,9 +71,9 @@ done
 
 Dependencies on packages from other nirs4all repositories accept one tested
 **minor** series: `nirs4all-methods>=1.5.0,<1.6`,
-`dag-ml>=0.5,<0.6`, `nirs4all-datasets>=0.3,<0.4`,
+`dag-ml>=0.5,<0.6`, `nirs4all-datasets>=0.4,<0.5`,
 `nirs4all-repository>=0.1,<0.2`, `nirs4all-access>=0.1,<0.2` and
-`nirs4all>=1.6,<1.7`. A patch floor is used when its fix or feature is required.
+`nirs4all>=1.7,<1.8`. A patch floor is used when its fix or feature is required.
 Exact versions live in lockfiles and the release order. In return an
 owner patch release changes no wire format, persisted schema, `.n4a` payload
 semantics, native ABI or shared fixture; such changes need at least a minor
