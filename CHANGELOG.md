@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); thi
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-11-26
+
+The optional producer adapters now accept Datasets 0.4 and SDK 1.7.
+
 ## [0.1.13] — 2026-11-19
 
 ### Changed
